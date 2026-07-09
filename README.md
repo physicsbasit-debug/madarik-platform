@@ -78,8 +78,15 @@ pytest -q
 - لا توجد وظائف AI/OCR/Export حقيقية داخل المرحلة.
 
 
-## Phase 1-A Fix 1
+## Phase 1-A Fix 2
 
 - تثبيت إصدارات React/Vite/TypeScript/Lucide بدل استخدام latest.
 - تحديث package-lock.json لضمان تثبيت اعتمادات الواجهة في GitHub Actions.
 - لا تغييرات منطقية على واجهة Phase 1-A.
+
+
+## Phase 1-A Fix 2
+
+- تم تعديل GitHub Actions لاستخدام npm install من registry العامة وتجاهل package-lock داخل CI.
+- تم تصحيح frontend/src/vite-env.d.ts.
+- تمت إضافة frontend/src/global.d.ts لحماية استيراد ملفات CSS في TypeScript.
