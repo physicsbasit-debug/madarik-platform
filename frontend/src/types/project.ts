@@ -2,8 +2,13 @@ export type StepKey = 'setup' | 'upload' | 'extract' | 'glossary' | 'review' | '
 
 export type QuestionStatus = 'approved' | 'needs_review' | 'deleted';
 
+export type OutputMode = 'arabic' | 'bilingual';
+
+export type ExportFormat = 'docx' | 'pdf';
+
 export interface ProjectMetadata {
   schoolName: string;
+  directorate: string;
   subject: string;
   grade: string;
   semester: string;
@@ -12,23 +17,35 @@ export interface ProjectMetadata {
   totalMarks: string;
   teacherName: string;
   date: string;
-  outputMode: 'arabic' | 'bilingual';
+  outputMode: OutputMode;
+  exportFormats: ExportFormat[];
+}
+
+export interface UploadedFileInfo {
+  name: string;
+  size: number;
+  type: string;
 }
 
 export interface QuestionItem {
   id: string;
   originalNumber: string;
-  currentNumber: number;
   originalText: string;
   translatedText: string;
   marks: number | null;
+  detectedMarks: number | null;
   status: QuestionStatus;
   orderIndex: number;
+  attachmentNote?: string;
+  reviewNotes?: string;
 }
 
 export interface GlossaryTerm {
   id: string;
   englishTerm: string;
   arabicTerm: string;
+  subject: string;
   status: 'approved' | 'needs_review';
+  source: 'mock' | 'manual' | 'detected';
+  notes?: string;
 }

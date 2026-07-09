@@ -1,21 +1,33 @@
 import { ArrowLeft, ArrowRight, FileText, RefreshCcw } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { StepKey } from '../types/project';
+import { StepNavigation } from '../components/StepNavigation';
+import { steps } from '../constants/steps';
+import { defaultMetadata, sampleGlossary, sampleQuestions } from '../data/mockProject';
+import { ExtractionStep } from '../features/extraction/ExtractionStep';
+import { ExportStep } from '../features/export/ExportStep';
+import { FileUploadStep } from '../features/file-upload/FileUploadStep';
+import { GlossaryStep } from '../features/glossary/GlossaryStep';
+import { ProjectSetupStep } from '../features/project-setup/ProjectSetupStep';
+import { ReviewStep } from '../features/review/ReviewStep';
+import type { GlossaryTerm, ProjectMetadata, QuestionItem, StepKey, UploadedFileInfo } from '../types/project';
 
-const steps: Array<{ key: StepKey; label: string; description: string }> = [
-  { key: 'setup', label: 'بيانات الورقة', description: 'إعداد رأس الورقة ونوع النسخة' },
-  { key: 'upload', label: 'رفع الملف', description: 'استقبال ملف الاختبار' },
-  { key: 'extract', label: 'استخراج الأسئلة', description: 'تحويل المحتوى إلى أسئلة مستقلة' },
-  { key: 'glossary', label: 'قاموس الورقة', description: 'توحيد المصطلحات للمعلم' },
-  { key: 'review', label: 'مراجعة الأسئلة', description: 'تعديل وحذف وترتيب ودرجات' },
-  { key: 'export', label: 'التصدير', description: 'إخراج Word وPDF' },
-];
+function sortQuestions(questions: QuestionItem[]) {
+  return [...questions].sort((a, b) => a.orderIndex - b.orderIndex);
+}
 
 export function App() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const activeStep = steps[activeIndex];
+  const [metadata, setMetadata] = useState<ProjectMetadata>(defaultMetadata);
+  const [uploadedFile, setUploadedFile] = useState<UploadedFileInfo | null>(null);
+  const [questions, setQuestions] = useState<QuestionItem[]>(sampleQuestions);
+  const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
 
+  const activeStep = steps[activeIndex];
   const progressLabel = useMemo(() => `${activeIndex + 1} من ${steps.length}`, [activeIndex]);
+
+  const approvedCount = questions.filter((question) => question.status === 'approved').length;
+  const needsReviewCount = questions.filter((question) => question.status === 'needs_review').length;
+  const deletedCount = questions.filter((question) => question.status === 'deleted').length;
 
   function goNext() {
     setActiveIndex((current) => Math.min(current + 1, steps.length - 1));
@@ -27,17 +39,54 @@ export function App() {
 
   function resetProject() {
     const confirmed = window.confirm('سيتم مسح مشروع العمل الحالي فقط. هل تريد المتابعة؟');
-    if (confirmed) setActiveIndex(0);
+    if (!confirmed) return;
+
+    setActiveIndex(0);
+    setMetadata(defaultMetadata);
+    setUploadedFile(null);
+    setQuestions(sampleQuestions);
+    setGlossary(sampleGlossary);
+  }
+
+  function updateQuestion(questionId: string, updates: Partial<QuestionItem>) {
+    setQuestions((currentQuestions) =>
+      currentQuestions.map((question) => (question.id === questionId ? { ...question, ...updates } : question)),
+    );
+  }
+
+  function moveQuestion(questionId: string, direction: 'up' | 'down') {
+    setQuestions((currentQuestions) => {
+      const movableQuestions = sortQuestions(currentQuestions).filter((question) => question.status !== 'deleted');
+      const currentPosition = movableQuestions.findIndex((question) => question.id === questionId);
+      const targetPosition = direction === 'up' ? currentPosition - 1 : currentPosition + 1;
+
+      if (currentPosition < 0 || targetPosition < 0 || targetPosition >= movableQuestions.length) {
+        return currentQuestions;
+      }
+
+      const currentQuestion = movableQuestions[currentPosition];
+      const targetQuestion = movableQuestions[targetPosition];
+
+      return currentQuestions.map((question) => {
+        if (question.id === currentQuestion.id) return { ...question, orderIndex: targetQuestion.orderIndex };
+        if (question.id === targetQuestion.id) return { ...question, orderIndex: currentQuestion.orderIndex };
+        return question;
+      });
+    });
+  }
+
+  function updateGlossaryTerm(termId: string, updates: Partial<GlossaryTerm>) {
+    setGlossary((currentGlossary) => currentGlossary.map((term) => (term.id === termId ? { ...term, ...updates } : term)));
   }
 
   return (
     <main className="app-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 0 Skeleton</p>
+          <p className="eyebrow">Phase 1-A Static UI</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
-            هيكل تأسيسي لمنصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى موارد عربية وثنائية اللغة قابلة للمراجعة والطباعة.
+            واجهة ثابتة متعددة الخطوات لاختبار تجربة إعداد الورقة، مراجعة المصطلحات، تعديل بطاقات الأسئلة، الحذف، الترتيب، والتهيئة للتصدير.
           </p>
         </div>
         <button className="ghost-button" type="button" onClick={resetProject}>
@@ -46,23 +95,27 @@ export function App() {
         </button>
       </section>
 
+      <section className="status-strip" aria-label="ملخص حالة المشروع">
+        <div>
+          <span>معتمد</span>
+          <strong>{approvedCount}</strong>
+        </div>
+        <div>
+          <span>يحتاج مراجعة</span>
+          <strong>{needsReviewCount}</strong>
+        </div>
+        <div>
+          <span>محذوف</span>
+          <strong>{deletedCount}</strong>
+        </div>
+        <div>
+          <span>نوع النسخة</span>
+          <strong>{metadata.outputMode === 'bilingual' ? 'ثنائية' : 'عربية'}</strong>
+        </div>
+      </section>
+
       <section className="workspace-card">
-        <aside className="steps-panel" aria-label="خطوات العمل">
-          {steps.map((step, index) => (
-            <button
-              key={step.key}
-              type="button"
-              className={`step-item ${index === activeIndex ? 'active' : ''} ${index < activeIndex ? 'done' : ''}`}
-              onClick={() => setActiveIndex(index)}
-            >
-              <span className="step-number">{index + 1}</span>
-              <span>
-                <strong>{step.label}</strong>
-                <small>{step.description}</small>
-              </span>
-            </button>
-          ))}
-        </aside>
+        <StepNavigation steps={steps} activeIndex={activeIndex} onSelectStep={setActiveIndex} />
 
         <section className="step-content">
           <div className="step-header">
@@ -74,7 +127,18 @@ export function App() {
             <FileText size={34} aria-hidden="true" />
           </div>
 
-          <StepPlaceholder stepKey={activeStep.key} />
+          <StepContent
+            stepKey={activeStep.key}
+            metadata={metadata}
+            uploadedFile={uploadedFile}
+            questions={questions}
+            glossary={glossary}
+            onMetadataChange={setMetadata}
+            onFileSelected={setUploadedFile}
+            onUpdateQuestion={updateQuestion}
+            onMoveQuestion={moveQuestion}
+            onUpdateGlossaryTerm={updateGlossaryTerm}
+          />
 
           <div className="actions-row">
             <button className="secondary-button" type="button" onClick={goPrevious} disabled={activeIndex === 0}>
@@ -92,44 +156,43 @@ export function App() {
   );
 }
 
-function StepPlaceholder({ stepKey }: { stepKey: StepKey }) {
-  const content: Record<StepKey, { title: string; points: string[] }> = {
-    setup: {
-      title: 'سيتم هنا إدخال بيانات الورقة',
-      points: ['اسم المدرسة', 'المادة والصف', 'عنوان الورقة', 'الزمن والدرجة', 'نوع النسخة'],
-    },
-    upload: {
-      title: 'سيتم هنا رفع الملف',
-      points: ['PDF نصي', 'PDF مصور لاحقًا', 'صور JPG / PNG / WEBP', 'فحص نوع الملف وحجمه'],
-    },
-    extract: {
-      title: 'سيتم هنا استخراج الأسئلة',
-      points: ['استخراج النص', 'تقسيم الأسئلة', 'التقاط الدرجات', 'ربط الصور قدر الإمكان'],
-    },
-    glossary: {
-      title: 'سيتم هنا عرض قاموس الورقة',
-      points: ['مصطلح إنجليزي', 'ترجمة عربية معتمدة', 'حالة المصطلح', 'تعديل الترجمة'],
-    },
-    review: {
-      title: 'سيتم هنا مراجعة بطاقات الأسئلة',
-      points: ['النص الأصلي', 'الترجمة', 'الدرجة', 'حذف وترتيب', 'حالة السؤال'],
-    },
-    export: {
-      title: 'سيتم هنا التصدير',
-      points: ['نسخة عربية', 'نسخة ثنائية اللغة', 'DOCX', 'PDF', 'RTL كامل'],
-    },
-  };
+interface StepContentProps {
+  stepKey: StepKey;
+  metadata: ProjectMetadata;
+  uploadedFile: UploadedFileInfo | null;
+  questions: QuestionItem[];
+  glossary: GlossaryTerm[];
+  onMetadataChange: (metadata: ProjectMetadata) => void;
+  onFileSelected: (fileInfo: UploadedFileInfo | null) => void;
+  onUpdateQuestion: (questionId: string, updates: Partial<QuestionItem>) => void;
+  onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
+  onUpdateGlossaryTerm: (termId: string, updates: Partial<GlossaryTerm>) => void;
+}
 
-  const selected = content[stepKey];
-
-  return (
-    <div className="placeholder-card">
-      <h3>{selected.title}</h3>
-      <ul>
-        {selected.points.map((point) => (
-          <li key={point}>{point}</li>
-        ))}
-      </ul>
-    </div>
-  );
+function StepContent({
+  stepKey,
+  metadata,
+  uploadedFile,
+  questions,
+  glossary,
+  onMetadataChange,
+  onFileSelected,
+  onUpdateQuestion,
+  onMoveQuestion,
+  onUpdateGlossaryTerm,
+}: StepContentProps) {
+  switch (stepKey) {
+    case 'setup':
+      return <ProjectSetupStep metadata={metadata} onChange={onMetadataChange} />;
+    case 'upload':
+      return <FileUploadStep uploadedFile={uploadedFile} onFileSelected={onFileSelected} />;
+    case 'extract':
+      return <ExtractionStep questions={questions} />;
+    case 'glossary':
+      return <GlossaryStep glossary={glossary} onUpdateTerm={onUpdateGlossaryTerm} />;
+    case 'review':
+      return <ReviewStep questions={questions} onUpdateQuestion={onUpdateQuestion} onMoveQuestion={onMoveQuestion} />;
+    case 'export':
+      return <ExportStep metadata={metadata} questions={questions} glossary={glossary} />;
+  }
 }
