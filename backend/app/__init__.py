@@ -1,0 +1,1 @@
+"""Madarik backend package."""
