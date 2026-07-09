@@ -1,4 +1,4 @@
-# منصة مدارك - Phase 1-A Static UI
+# منصة مدارك - Phase 1-A Static UI Fix 1
 
 واجهة ثابتة متعددة الخطوات لمنصة مدارك، مبنية فوق Phase 0 Skeleton.
 
@@ -76,3 +76,10 @@ pytest -q
 - اختبارات الخلفية تنجح.
 - GitHub Actions يعطي علامة خضراء.
 - لا توجد وظائف AI/OCR/Export حقيقية داخل المرحلة.
+
+
+## Phase 1-A Fix 1
+
+- تثبيت إصدارات React/Vite/TypeScript/Lucide بدل استخدام latest.
+- تحديث package-lock.json لضمان تثبيت اعتمادات الواجهة في GitHub Actions.
+- لا تغييرات منطقية على واجهة Phase 1-A.

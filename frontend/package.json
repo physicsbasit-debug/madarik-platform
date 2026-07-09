@@ -1,6 +1,6 @@
 {
   "name": "madarik-frontend",
-  "version": "0.0.0-phase1a",
+  "version": "0.0.0-phase1a-fix1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,21 +10,21 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "lucide-react": "latest"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "lucide-react": "^0.468.0"
   },
   "devDependencies": {
-    "eslint": "latest",
-    "@eslint/js": "latest",
-    "typescript-eslint": "latest",
-    "eslint-plugin-react-hooks": "latest",
-    "eslint-plugin-react-refresh": "latest",
-    "eslint-config-prettier": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11",
+    "typescript": "^5.6.3",
+    "eslint": "^9.17.0",
+    "@eslint/js": "^9.17.0",
+    "typescript-eslint": "^8.19.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "eslint-config-prettier": "^9.1.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1"
   }
 }
