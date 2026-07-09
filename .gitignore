@@ -1,0 +1,38 @@
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Python / Backend
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/**/*.pyc
+backend/**/*.pyo
+
+# Environment / Secrets
+.env
+.env.*
+frontend/.env
+frontend/.env.*
+backend/.env
+backend/.env.*
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Generated exports / uploads
+backend/uploads/
+backend/temp/
+backend/exports/
+backend/generated/
