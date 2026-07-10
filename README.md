@@ -1,4 +1,4 @@
-# منصة مدارك - Phase 2-A1 Persistence Foundation
+# منصة مدارك - Phase 2-A2 Project Library
 
 منصة مدارك هي منصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى موارد عربية وثنائية اللغة قابلة للمراجعة والطباعة.
 
@@ -201,3 +201,16 @@ Endpoints:
 الوثيقة التفصيلية:
 
 `docs/PHASE2_A1_PERSISTENCE_FOUNDATION.md`
+
+
+## Phase 2-A2: Project Library
+
+أضيفت واجهة مكتبة المشاريع المحفوظة فوق SQLite:
+- عرض المشاريع المحفوظة.
+- فتح مشروع محفوظ.
+- حذف مشروع محفوظ.
+- الحفاظ على Snapshot JSON كمسار نسخ واستيراد.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_A2_PROJECT_LIBRARY.md`

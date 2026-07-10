@@ -77,6 +77,8 @@ export interface GlossaryTerm {
 
 export interface ProjectSession {
   id: string;
+  createdAt: string;
+  updatedAt: string;
   metadata: ProjectMetadata;
   uploadedFile: UploadedFileInfo | null;
   schoolLogo: SchoolLogoInfo | null;

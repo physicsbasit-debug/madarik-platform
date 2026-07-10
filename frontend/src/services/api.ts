@@ -102,6 +102,8 @@ interface ApiProjectReadinessReport {
 
 interface ApiProjectSession {
   id: string;
+  created_at: string;
+  updated_at: string;
   metadata: ApiProjectMetadata;
   uploaded_file: ApiUploadedFileInfo | null;
   school_logo: ApiSchoolLogoInfo | null;
@@ -221,6 +223,8 @@ function fromApiReadinessReport(report: ApiProjectReadinessReport): ProjectReadi
 function fromApiProject(project: ApiProjectSession): ProjectSession {
   return {
     id: project.id,
+    createdAt: project.created_at,
+    updatedAt: project.updated_at,
     metadata: fromApiMetadata(project.metadata),
     uploadedFile: project.uploaded_file,
     schoolLogo: fromApiSchoolLogo(project.school_logo),
@@ -246,6 +250,17 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+
+export async function getProject(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}`);
+  return fromApiProject(project);
+}
+
+export async function listProjects(limit = 50): Promise<ProjectSession[]> {
+  const projects = await requestJson<ApiProjectSession[]>(`/projects?limit=${encodeURIComponent(String(limit))}`);
+  return projects.map(fromApiProject);
 }
 
 export async function createProject(metadata: ProjectMetadata): Promise<ProjectSession> {

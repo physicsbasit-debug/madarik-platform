@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, DatabaseZap, Download, FileText, RefreshCcw, Upload, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, ArrowRight, DatabaseZap, Download, FileText, FolderOpen, RefreshCcw, Upload, Wifi, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StepNavigation } from '../components/StepNavigation';
 import { steps } from '../constants/steps';
@@ -8,6 +8,7 @@ import { ExportStep } from '../features/export/ExportStep';
 import { FileUploadStep } from '../features/file-upload/FileUploadStep';
 import { GlossaryStep } from '../features/glossary/GlossaryStep';
 import { ProjectSetupStep } from '../features/project-setup/ProjectSetupStep';
+import { ProjectLibraryPanel } from '../features/project-library/ProjectLibraryPanel';
 import { ReviewStep } from '../features/review/ReviewStep';
 import {
   bulkUpdateQuestionStatus,
@@ -34,8 +35,10 @@ import {
   updateProjectStep,
   updateQuestion as updateQuestionOnServer,
   getTranslationProviderStatus,
+  getProject,
   getProjectReadiness,
   importProjectSnapshot,
+  listProjects,
 } from '../services/api';
 import type {
   ApiConnectionStatus,
@@ -103,6 +106,9 @@ export function App() {
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
   const [translationProviderStatus, setTranslationProviderStatus] = useState<TranslationProviderStatus | null>(null);
   const [projectReadiness, setProjectReadiness] = useState<ProjectReadinessReport | null>(null);
+  const [projectLibrary, setProjectLibrary] = useState<ProjectSession[]>([]);
+  const [isProjectLibraryVisible, setProjectLibraryVisible] = useState(false);
+  const [isProjectLibraryLoading, setProjectLibraryLoading] = useState(false);
 
   const activeStep = steps[activeIndex];
   const progressLabel = useMemo(() => `${activeIndex + 1} من ${steps.length}`, [activeIndex]);
@@ -123,6 +129,74 @@ export function App() {
     });
   }, []);
 
+
+  async function refreshProjectLibrary() {
+    if (apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن تحديث مكتبة المشاريع دون اتصال Backend.');
+      return;
+    }
+
+    setProjectLibraryLoading(true);
+    try {
+      const projects = await listProjects(50);
+      setProjectLibrary(projects);
+      setLastSyncNote(`تم تحديث مكتبة المشاريع: ${projects.length} مشروع محفوظ.`);
+    } catch (error) {
+      console.error(error);
+      setLastSyncNote('فشل تحديث مكتبة المشاريع المحفوظة.');
+    } finally {
+      setProjectLibraryLoading(false);
+    }
+  }
+
+  async function openPersistedProject(projectIdToOpen: string) {
+    if (apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن فتح مشروع محفوظ دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await getProject(projectIdToOpen);
+      applyProject(project);
+      setProjectReadiness(null);
+      setActiveIndex(0);
+      setApiStatus('connected');
+      setProjectLibraryVisible(false);
+      setLastSyncNote(`تم فتح المشروع المحفوظ: ${project.id.slice(0, 8)}.`);
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل فتح المشروع المحفوظ.');
+    }
+  }
+
+  async function deletePersistedProject(projectIdToDelete: string) {
+    const confirmed = window.confirm('سيتم حذف المشروع المحفوظ من SQLite. هل تريد المتابعة؟');
+    if (!confirmed) return;
+
+    if (apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن حذف مشروع محفوظ دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      await deleteProject(projectIdToDelete);
+      const projects = await listProjects(50);
+      setProjectLibrary(projects);
+      setApiStatus('connected');
+      setLastSyncNote('تم حذف المشروع من مكتبة المشاريع المحفوظة.');
+      if (projectIdToDelete === projectId) {
+        await bootstrapProject();
+      }
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل حذف المشروع المحفوظ.');
+    }
+  }
+
   const bootstrapProject = useCallback(async () => {
     setApiStatus('connecting');
     setLastSyncNote('جاري إنشاء جلسة مؤقتة من Backend...');
@@ -135,6 +209,7 @@ export function App() {
       applyProject(hydratedProject);
       setApiStatus('connected');
       setLastSyncNote(`تم إنشاء مشروع مؤقت: ${hydratedProject.id.slice(0, 8)}`);
+      listProjects(50).then(setProjectLibrary).catch((libraryError: unknown) => console.error(libraryError));
     } catch (error) {
       console.error(error);
       setProjectId(null);
@@ -707,17 +782,44 @@ export function App() {
     <main className="app-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 1-H1 Question Assets</p>
+          <p className="eyebrow">Phase 2-A2 Project Library</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
-            واجهة متعددة الخطوات تستطيع رفع PDF نصي، استخراج النص، تحويله إلى بطاقات أسئلة، توليد قاموس، ترجمة أولية، ربط صور/جداول يدوية بالأسئلة، ثم تصدير DOCX وPDF بتنسيق RTL. لا يوجد OCR أو استخراج صور تلقائي من PDF بعد، فالوحوش التقنية تنتظر دورها.
+            واجهة متعددة الخطوات لمعالجة أوراق الاختبارات، مع تخزين دائم عبر SQLite ومكتبة مشاريع محفوظة للفتح والحذف. أخيرًا لم تعد المشاريع تعيش في الذاكرة المؤقتة وكأنها نية حسنة.
           </p>
         </div>
-        <button className="ghost-button" type="button" onClick={() => void resetProject()}>
-          <RefreshCcw size={18} />
-          مشروع جديد / إعادة البدء
-        </button>
+        <div className="hero-actions">
+          <button className="ghost-button" type="button" onClick={() => setProjectLibraryVisible((visible) => !visible)} disabled={apiStatus === 'offline'}>
+            <FolderOpen size={18} />
+            مكتبة المشاريع
+          </button>
+          <button className="secondary-button" type="button" onClick={() => void downloadProjectSnapshot()} disabled={!projectId || apiStatus === 'offline'}>
+            <Download size={18} />
+            حفظ JSON
+          </button>
+          <label className="secondary-button snapshot-import-button">
+            <Upload size={18} />
+            استيراد JSON
+            <input type="file" accept="application/json,.json" onChange={(event) => void importProjectSnapshotFile(event.target.files?.[0] ?? null)} />
+          </label>
+          <button className="ghost-button" type="button" onClick={() => void resetProject()}>
+            <RefreshCcw size={18} />
+            مشروع جديد
+          </button>
+        </div>
       </section>
+
+
+      {isProjectLibraryVisible ? (
+        <ProjectLibraryPanel
+          projects={projectLibrary}
+          currentProjectId={projectId}
+          isLoading={isProjectLibraryLoading}
+          onRefresh={() => void refreshProjectLibrary()}
+          onOpenProject={(id) => void openPersistedProject(id)}
+          onDeleteProject={(id) => void deletePersistedProject(id)}
+        />
+      ) : null}
 
       <section className={`api-banner api-banner-${apiStatus}`} aria-label="حالة الاتصال بالخلفية">
         <div>
@@ -747,7 +849,7 @@ export function App() {
         </div>
         <div>
           <span>مرحلة التطوير</span>
-          <strong>Phase 1-RC1</strong>
+          <strong>Phase 2-A2</strong>
         </div>
       </section>
 
