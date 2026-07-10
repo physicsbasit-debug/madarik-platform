@@ -12,6 +12,7 @@ import { ReviewStep } from '../features/review/ReviewStep';
 import {
   createProject,
   exportProjectDocx,
+  exportProjectPdf,
   generateGlossaryFromQuestions,
   deleteProject,
   loadDemoContent,
@@ -413,6 +414,40 @@ export function App() {
     }
   }
 
+
+  async function exportPdf() {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن إنشاء PDF دون اتصال Backend. ملف PDF يحتاج محرك التصدير في الخلفية.');
+      return;
+    }
+
+    if (questions.filter((question) => question.status !== 'deleted').length === 0) {
+      setLastSyncNote('لا توجد أسئلة نشطة قابلة للتصدير. لا نصدر PDF فارغًا، حتى لو كان الفراغ أحيانًا منظمًا.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const blob = await exportProjectPdf(projectId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeTitle = (metadata.paperTitle || 'madarik-export').replace(/[^A-Za-z0-9_\-]+/g, '_');
+      link.download = `${safeTitle || 'madarik-export'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setApiStatus('connected');
+      setLastSyncNote('تم إنشاء ملف PDF عبر Backend بنجاح.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل إنشاء ملف PDF. تحقق من وجود أسئلة نشطة ثم أعد المحاولة.');
+      throw error;
+    }
+  }
+
   async function reloadDemoFromBackend() {
     if (!projectId || apiStatus === 'offline') {
       setQuestions(sampleQuestions);
@@ -438,10 +473,10 @@ export function App() {
     <main className="app-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 1-E2 Translation Engine</p>
+          <p className="eyebrow">Phase 1-F2 PDF Export RTL</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
-            واجهة متعددة الخطوات تستطيع رفع PDF نصي، استخراج النص، تحويله إلى بطاقات أسئلة، توليد قاموس مصطلحات، ثم ترجمة الأسئلة ترجمة أولية قابلة للمراجعة. لا يوجد OCR أو تصدير فعلي بعد، فالوحوش التقنية تنتظر دورها.
+            واجهة متعددة الخطوات تستطيع رفع PDF نصي، استخراج النص، تحويله إلى بطاقات أسئلة، توليد قاموس مصطلحات، ترجمة الأسئلة، ثم تصدير DOCX وPDF بتنسيق RTL أولي. لا يوجد OCR أو صور داخل التصدير بعد، فالوحوش التقنية تنتظر دورها.
           </p>
         </div>
         <button className="ghost-button" type="button" onClick={() => void resetProject()}>
@@ -508,7 +543,9 @@ export function App() {
             onReloadDemo={reloadDemoFromBackend}
             onParseQuestions={parseQuestionsFromExtractedText}
             onExportDocx={exportDocx}
+            onExportPdf={exportPdf}
             canExportDocx={Boolean(projectId && apiStatus !== 'offline')}
+            canExportPdf={Boolean(projectId && apiStatus !== 'offline')}
           />
 
           <div className="actions-row">
@@ -544,7 +581,9 @@ interface StepContentProps {
   onReloadDemo: () => void;
   onParseQuestions: () => void;
   onExportDocx: () => Promise<void>;
+  onExportPdf: () => Promise<void>;
   canExportDocx: boolean;
+  canExportPdf: boolean;
 }
 
 function StepContent({
@@ -564,7 +603,9 @@ function StepContent({
   onReloadDemo,
   onParseQuestions,
   onExportDocx,
+  onExportPdf,
   canExportDocx,
+  canExportPdf,
 }: StepContentProps) {
   switch (stepKey) {
     case 'setup':
@@ -592,6 +633,8 @@ function StepContent({
           glossary={glossary}
           canExportDocx={canExportDocx}
           onExportDocx={onExportDocx}
+          onExportPdf={onExportPdf}
+          canExportPdf={canExportPdf}
         />
       );
   }

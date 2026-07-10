@@ -1,36 +1,40 @@
 # مراحل منصة مدارك
 
-## نقاط الاستقرار المنجزة
+## مكتمل
 
-- Phase 0: Project Skeleton ✅
-- Phase 1-A: Static Multi-Step UI ✅
-- Phase 1-B: Backend API Integration ✅
-- Phase 1-C: PDF Text Extraction ✅
-- Phase 1-D: Question Parser ✅
-- Phase 1-E1: Glossary Engine ✅
-- Phase 1-E2: Translation Engine ✅
-- Phase 1-F1: DOCX Export RTL ✅
+- Phase 0: Project Skeleton
+- Phase 1-A: Static Multi-Step UI
+- Phase 1-B: Backend API Integration
+- Phase 1-C: PDF Text Extraction
+- Phase 1-D: Question Parser
+- Phase 1-E1: Glossary Engine
+- Phase 1-E2: Translation Engine
+- Phase 1-F1: DOCX Export RTL
 
-## Phase 1-F1: DOCX Export RTL
+## المرحلة الحالية
 
-### الهدف
+### Phase 1-F2: PDF Export RTL
 
-إضافة تصدير Word حقيقي بصيغة DOCX للنسخة العربية أو الثنائية، مع دعم RTL ورأس ورقة رسمي.
+الهدف: إضافة تصدير PDF فعلي أولي بتنسيق RTL للنسختين العربية والثنائية.
 
-### يدخل في المرحلة
+يدخل في المرحلة:
 
-- خدمة `export.py`.
-- Endpoint `POST /api/projects/{project_id}/export/docx`.
-- زر تحميل Word من شاشة التصدير.
-- تصدير الأسئلة غير المحذوفة فقط.
-- إعادة ترقيم الأسئلة في الملف النهائي.
-- رأس RTL ببيانات الورقة.
-- اختبارات Backend للتصدير.
+- خدمة `build_project_pdf_bytes` في Backend.
+- Endpoint `POST /api/projects/{project_id}/export/pdf`.
+- زر تحميل PDF في واجهة التصدير.
+- اختبار Backend لتوليد PDF.
+- استمرار تصدير DOCX دون كسر.
 
-### مؤجل
+لا يدخل في المرحلة:
 
-- PDF.
-- إدراج الصور والجداول.
-- شعار المدرسة.
-- AI خارجي.
 - OCR.
+- شعار المدرسة.
+- الصور والجداول داخل التصدير.
+- AI خارجي.
+- نموذج إجابة.
+
+## قادم لاحقًا
+
+- Phase 1-F3: تحسين التصدير بإضافة الشعار والصور/الجداول إن أمكن.
+- Phase 1-G: AI Provider Layer.
+- Phase 2: نسخة تدريبية مشروحة.

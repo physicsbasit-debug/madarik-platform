@@ -8,12 +8,23 @@ interface ExportStepProps {
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   canExportDocx: boolean;
+  canExportPdf: boolean;
   onExportDocx: () => Promise<void>;
+  onExportPdf: () => Promise<void>;
 }
 
-export function ExportStep({ metadata, questions, glossary, canExportDocx, onExportDocx }: ExportStepProps) {
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportMessage, setExportMessage] = useState('تصدير DOCX فعلي متاح الآن في Phase 1-F1. PDF ما زال مؤجلًا، حتى لا نوقظ وحش RTL قبل موعده.');
+export function ExportStep({
+  metadata,
+  questions,
+  glossary,
+  canExportDocx,
+  canExportPdf,
+  onExportDocx,
+  onExportPdf,
+}: ExportStepProps) {
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF فعلي متاح الآن في Phase 1-F2. راجع الملفين قبل الاستخدام، فالآلة مفيدة لكنها ليست لجنة مراجعة.');
 
   const approvedQuestions = questions
     .filter((question) => question.status !== 'deleted')
@@ -22,7 +33,7 @@ export function ExportStep({ metadata, questions, glossary, canExportDocx, onExp
   const glossaryNeedsReview = glossary.filter((term) => term.status === 'needs_review').length;
 
   async function handleExportDocx() {
-    setIsExporting(true);
+    setIsExportingDocx(true);
     setExportMessage('جاري إنشاء ملف Word...');
     try {
       await onExportDocx();
@@ -31,7 +42,21 @@ export function ExportStep({ metadata, questions, glossary, canExportDocx, onExp
       console.error(error);
       setExportMessage('تعذر إنشاء ملف Word. تأكد من وجود أسئلة نشطة واتصال Backend.');
     } finally {
-      setIsExporting(false);
+      setIsExportingDocx(false);
+    }
+  }
+
+  async function handleExportPdf() {
+    setIsExportingPdf(true);
+    setExportMessage('جاري إنشاء ملف PDF...');
+    try {
+      await onExportPdf();
+      setExportMessage('تم إنشاء ملف PDF وتحميله. راجع المحاذاة العربية قبل الطباعة، فالـPDF معروف بعناده الجميل.');
+    } catch (error) {
+      console.error(error);
+      setExportMessage('تعذر إنشاء ملف PDF. تأكد من وجود أسئلة نشطة واتصال Backend.');
+    } finally {
+      setIsExportingPdf(false);
     }
   }
 
@@ -41,7 +66,7 @@ export function ExportStep({ metadata, questions, glossary, canExportDocx, onExp
         <div className="section-heading">
           <p className="eyebrow">تصدير فعلي</p>
           <h3>جاهزية الورقة النهائية</h3>
-          <p>تستطيع الآن إنشاء ملف Word حقيقي بتنسيق RTL. تصدير PDF سيأتي في مرحلة مستقلة حتى لا نخلط المعارك.</p>
+          <p>تستطيع الآن إنشاء ملف Word وملف PDF بتنسيق RTL أولي. الصور والشعار ما زالت مؤجلة حتى لا نربك التصدير قبل أن يثبت قدميه.</p>
         </div>
 
         <div className="metrics-row">
@@ -62,24 +87,35 @@ export function ExportStep({ metadata, questions, glossary, canExportDocx, onExp
           <div><dt>الصف</dt><dd>{metadata.grade}</dd></div>
           <div><dt>الزمن</dt><dd>{metadata.duration}</dd></div>
           <div><dt>نوع النسخة</dt><dd>{metadata.outputMode === 'bilingual' ? 'ثنائية اللغة' : 'عربية نظيفة'}</dd></div>
-          <div><dt>الصيغ</dt><dd>DOCX فعلي الآن، PDF لاحقًا</dd></div>
+          <div><dt>الصيغ</dt><dd>DOCX + PDF</dd></div>
         </dl>
       </section>
 
       <section className="form-card">
         <div className="section-heading">
-          <p className="eyebrow">ملف Word</p>
-          <h3>إنشاء DOCX بتنسيق RTL</h3>
+          <p className="eyebrow">ملفات التصدير</p>
+          <h3>إنشاء Word وPDF بتنسيق RTL</h3>
         </div>
-        <button
-          type="button"
-          className="primary-button full-width"
-          onClick={() => void handleExportDocx()}
-          disabled={!canExportDocx || isExporting || approvedQuestions.length === 0}
-        >
-          {isExporting ? <Loader2 size={18} className="spin-icon" /> : <Download size={18} />}
-          {isExporting ? 'جاري إنشاء Word...' : 'تحميل ملف Word'}
-        </button>
+        <div className="export-buttons-stack">
+          <button
+            type="button"
+            className="primary-button full-width"
+            onClick={() => void handleExportDocx()}
+            disabled={!canExportDocx || isExportingDocx || isExportingPdf || approvedQuestions.length === 0}
+          >
+            {isExportingDocx ? <Loader2 size={18} className="spin-icon" /> : <Download size={18} />}
+            {isExportingDocx ? 'جاري إنشاء Word...' : 'تحميل ملف Word'}
+          </button>
+          <button
+            type="button"
+            className="secondary-button full-width"
+            onClick={() => void handleExportPdf()}
+            disabled={!canExportPdf || isExportingDocx || isExportingPdf || approvedQuestions.length === 0}
+          >
+            {isExportingPdf ? <Loader2 size={18} className="spin-icon" /> : <Download size={18} />}
+            {isExportingPdf ? 'جاري إنشاء PDF...' : 'تحميل ملف PDF'}
+          </button>
+        </div>
         <div className="notice-card">
           <FileText size={22} />
           <span>{exportMessage}</span>

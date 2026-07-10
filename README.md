@@ -1,36 +1,36 @@
-# منصة مدارك - Phase 1-F1 DOCX Export RTL
+# منصة مدارك - Phase 1-F2 PDF Export RTL
 
-هذه الحزمة تمثل نقطة تطوير **Phase 1-F1** بعد نجاح Phase 1-E2.
+منصة مدارك هي منصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى موارد عربية وثنائية اللغة قابلة للمراجعة والطباعة.
 
-هدف المرحلة: إضافة تصدير Word حقيقي بصيغة DOCX وبتنسيق عربي RTL، مع بقاء PDF مؤجلًا لمرحلة مستقلة. نعم، لم نفتح معركة PDF العربي الآن، لأننا بشر عقلاء أحيانًا.
+## حالة هذه الحزمة
 
-## ماذا أضافت Phase 1-F1؟
+هذه الحزمة تمثل مرحلة:
 
-- خدمة Backend للتصدير:
-  - `backend/app/services/export.py`
-- Endpoint جديد:
-  - `POST /api/projects/{project_id}/export/docx`
-- إنشاء ملف DOCX حقيقي من الأسئلة النشطة غير المحذوفة.
-- دعم النسخة العربية النظيفة والنسخة الثنائية اللغة حسب إعدادات المشروع.
-- رأس ورقة RTL يحتوي بيانات المدرسة والمادة والصف والزمن والدرجة والمعلم والتاريخ.
-- إعادة ترقيم الأسئلة تلقائيًا حسب ترتيب المعلم.
-- حذف الأسئلة ذات الحالة `deleted` من الملف النهائي.
-- زر تحميل Word في خطوة التصدير.
-- اختبارات Backend للتحقق من إنشاء DOCX وتحميله من API.
+```text
+Phase 1-F2: PDF Export RTL
+```
 
-## ما لا يزال مؤجلًا
+تتضمن هذه المرحلة:
 
-- تصدير PDF الحقيقي.
-- إدراج الصور والجداول داخل DOCX.
-- شعار المدرسة في الرأس.
-- OCR للصور وPDF الممسوح ضوئيًا.
-- الترجمة عبر AI خارجي.
-- نموذج الإجابة والتحليل المتقدم.
-- حفظ المشاريع دائمًا.
+- رفع PDF نصي واستخراج النص.
+- تحويل النص المستخرج إلى بطاقات أسئلة.
+- توليد قاموس مصطلحات أولي.
+- ترجمة أولية محافظة قابلة للمراجعة.
+- مراجعة الأسئلة وتعديلها وحذفها وترتيبها.
+- تصدير DOCX فعلي بتنسيق RTL.
+- تصدير PDF فعلي بتنسيق RTL أولي.
 
-## التشغيل المحلي
+## ما لا يدخل في هذه المرحلة
 
-### Backend
+- لا OCR.
+- لا AI خارجي فعلي.
+- لا نموذج إجابة.
+- لا تصدير صور وجداول داخل PDF/Word بعد.
+- لا شعار مدرسة داخل التصدير بعد.
+- لا حفظ دائم للمشاريع.
+- لا حسابات مستخدمين.
+
+## تشغيل Backend
 
 ```bash
 cd backend
@@ -50,7 +50,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-### Frontend
+## تشغيل Frontend
 
 ```bash
 cd frontend
@@ -58,32 +58,47 @@ npm install
 npm run dev
 ```
 
-> في التطوير المحلي، يمكن ضبط `VITE_API_BASE_URL=http://127.0.0.1:8000/api` إذا لم تكن الواجهة مخدومة من نفس النطاق.
-
 ## الفحص
-
-### Backend
 
 ```bash
 cd backend
 pytest -q
 ```
 
-### Frontend
-
 ```bash
 cd frontend
 npm run build
 ```
 
-## نقطة القبول
+## Endpoints مهمة
 
-تُقبل Phase 1-F1 إذا:
+```text
+GET  /api/health
+POST /api/projects
+POST /api/projects/{project_id}/upload-pdf
+POST /api/projects/{project_id}/parse-questions
+POST /api/projects/{project_id}/glossary/generate
+POST /api/projects/{project_id}/translate-questions
+POST /api/projects/{project_id}/export/docx
+POST /api/projects/{project_id}/export/pdf
+```
 
-- GitHub Actions أخضر.
-- Backend checks ناجحة.
-- Frontend build ناجح.
-- يمكن إنشاء DOCX من مشروع يحتوي أسئلة نشطة.
-- لا تظهر الأسئلة المحذوفة في ملف Word.
-- يدعم التصدير النسخة العربية والثنائية.
-- لا يدخل PDF أو OCR أو AI خارجي في هذه المرحلة.
+## ملاحظة PDF
+
+تصدير PDF في هذه المرحلة أولي ومحافظ:
+
+- يدعم RTL باستخدام ReportLab مع تشكيل عربي عبر `arabic-reshaper` و`python-bidi`.
+- يعتمد على خط Unicode متاح في النظام مثل DejaVu Sans.
+- لا يترجم النص داخل الصور ولا يدرج الرسوم والجداول بعد.
+
+## نقطة الاستقرار السابقة
+
+- Phase 0 Skeleton ✅
+- Phase 1-A Static UI ✅
+- Phase 1-B Backend API Integration ✅
+- Phase 1-C PDF Text Extraction ✅
+- Phase 1-D Question Parser ✅
+- Phase 1-E1 Glossary Engine ✅
+- Phase 1-E2 Translation Engine ✅
+- Phase 1-F1 DOCX Export RTL ✅
+- Phase 1-F2 PDF Export RTL ⏳

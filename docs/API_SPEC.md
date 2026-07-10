@@ -1,66 +1,64 @@
-# API_SPEC - منصة مدارك
+# API Spec - منصة مدارك
 
 ## Health
 
-`GET /api/health`
+```text
+GET /api/health
+```
 
 ## Projects
 
-### إنشاء مشروع
+```text
+POST /api/projects
+GET /api/projects/{project_id}
+PATCH /api/projects/{project_id}/metadata
+PATCH /api/projects/{project_id}/step
+DELETE /api/projects/{project_id}
+```
 
-`POST /api/projects`
+## Upload / extraction
 
-### قراءة مشروع
+```text
+POST /api/projects/{project_id}/upload-pdf
+POST /api/projects/{project_id}/parse-questions
+```
 
-`GET /api/projects/{project_id}`
+## Glossary / translation
 
-### تحديث بيانات الورقة
+```text
+POST  /api/projects/{project_id}/glossary/generate
+PATCH /api/projects/{project_id}/glossary/{term_id}
+POST  /api/projects/{project_id}/translate-questions
+```
 
-`PATCH /api/projects/{project_id}/metadata`
+## Questions
 
-### تحديث الخطوة الحالية
+```text
+PATCH /api/projects/{project_id}/questions/{question_id}
+POST  /api/projects/{project_id}/questions/reorder
+```
 
-`PATCH /api/projects/{project_id}/step`
+## Export
 
-### رفع PDF واستخراج النص
+```text
+POST /api/projects/{project_id}/export/docx
+POST /api/projects/{project_id}/export/pdf
+```
 
-`POST /api/projects/{project_id}/upload-pdf`
+### DOCX
 
-### تقسيم النص إلى أسئلة
+يرجع ملف Word بصيغة:
 
-`POST /api/projects/{project_id}/parse-questions`
+```text
+application/vnd.openxmlformats-officedocument.wordprocessingml.document
+```
 
-### توليد قاموس الورقة
+### PDF
 
-`POST /api/projects/{project_id}/glossary/generate`
+يرجع ملف PDF بصيغة:
 
-### ترجمة الأسئلة
+```text
+application/pdf
+```
 
-`POST /api/projects/{project_id}/translate-questions`
-
-### تحديث سؤال
-
-`PATCH /api/projects/{project_id}/questions/{question_id}`
-
-### إعادة ترتيب الأسئلة
-
-`POST /api/projects/{project_id}/questions/reorder`
-
-### تحديث مصطلح
-
-`PATCH /api/projects/{project_id}/glossary/{term_id}`
-
-### تصدير DOCX
-
-`POST /api/projects/{project_id}/export/docx`
-
-يرجع ملف Word حقيقي بصيغة DOCX.
-
-- Content-Type: `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
-- لا يصدّر الأسئلة المحذوفة.
-- يعيد ترقيم الأسئلة وفق ترتيب المعلم.
-- يدعم النسخة العربية والثنائية حسب `metadata.output_mode`.
-
-### حذف المشروع المؤقت
-
-`DELETE /api/projects/{project_id}`
+يرفض التصدير إذا لم توجد أسئلة نشطة غير محذوفة.

@@ -306,3 +306,17 @@ export async function exportProjectDocx(projectId: string): Promise<Blob> {
 
   return await response.blob();
 }
+
+
+export async function exportProjectPdf(projectId: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/export/pdf`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`PDF export failed ${response.status}: ${body}`);
+  }
+
+  return await response.blob();
+}
