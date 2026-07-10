@@ -29,7 +29,7 @@ export function FileUploadStep({ uploadedFile, onFileSelected }: FileUploadStepP
       <section className="form-card upload-zone">
         <FileUp size={42} />
         <h3>رفع ملف تجريبي</h3>
-        <p>في Phase 1-A لا تتم قراءة الملف فعليًا. هذه شاشة ثابتة لاختبار تجربة الرفع فقط، حتى لا نتظاهر بأننا اخترعنا OCR ونحن بعدنا في غرفة الانتظار.</p>
+        <p>في Phase 1-B تُحفظ معلومات الملف فقط في Backend دون رفع الملف الحقيقي أو قراءته. قراءة PDF وOCR مؤجلان عمدًا.</p>
         <input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={handleFileChange} />
       </section>
 
@@ -54,7 +54,7 @@ export function FileUploadStep({ uploadedFile, onFileSelected }: FileUploadStepP
 
         <div className="notice-card">
           <ShieldCheck size={22} />
-          <span>لا يتم رفع الملف إلى Backend في هذه المرحلة. الاختبار هنا للواجهة وحالة الجلسة فقط.</span>
+          <span>تُرسل معلومات الملف فقط إلى Backend. الملف الحقيقي لا يُرفع ولا يُقرأ في هذه المرحلة.</span>
         </div>
       </section>
     </div>

@@ -556,3 +556,61 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.api-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(15, 52, 96, 0.1);
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgba(15, 52, 96, 0.06);
+  color: #334155;
+}
+
+.api-banner div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.api-banner span {
+  flex: 1;
+  color: #64748b;
+}
+
+.api-banner code {
+  direction: ltr;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 0.85rem;
+}
+
+.api-banner-connected {
+  border-color: rgba(15, 118, 110, 0.25);
+  background: #f0fdfa;
+}
+
+.api-banner-syncing,
+.api-banner-connecting {
+  border-color: rgba(180, 83, 9, 0.25);
+  background: #fffbeb;
+}
+
+.api-banner-offline {
+  border-color: rgba(185, 28, 28, 0.2);
+  background: #fff1f2;
+}
+
+@media (max-width: 780px) {
+  .api-banner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

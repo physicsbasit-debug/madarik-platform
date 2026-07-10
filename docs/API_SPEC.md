@@ -1,39 +1,115 @@
-# API Spec - منصة مدارك
+# API Spec - منصة مدارك Phase 1-B
+
+Base path:
+
+```text
+/api
+```
 
 ## Health
 
+```http
 GET /api/health
+```
+
+يرجع حالة الخدمة.
 
 ## Projects
 
+### إنشاء مشروع
+
+```http
 POST /api/projects
+```
 
-DELETE /api/projects/{project_id}
+Body اختياري من نوع `ProjectMetadata` بصيغة snake_case.
 
-## Upload
+### قراءة مشروع
 
-POST /api/projects/{project_id}/upload
+```http
+GET /api/projects/{project_id}
+```
 
-## Extract
+### تحديث بيانات الورقة
 
-POST /api/projects/{project_id}/extract
+```http
+PATCH /api/projects/{project_id}/metadata
+```
 
-## Glossary
+### تحديث الخطوة الحالية
 
-POST /api/projects/{project_id}/glossary
+```http
+PATCH /api/projects/{project_id}/step
+```
 
-PATCH /api/projects/{project_id}/glossary/{term_id}
+Body:
 
-## Translation
+```json
+{"current_step":"setup"}
+```
 
-POST /api/projects/{project_id}/translate
+### حفظ معلومات ملف شكلية
 
-## Questions
+```http
+PUT /api/projects/{project_id}/upload-info
+```
 
+Body:
+
+```json
+{"name":"sample.pdf","size":2048,"type":"application/pdf"}
+```
+
+> لا يرفع هذا المسار الملف الحقيقي في Phase 1-B.
+
+### تحميل بيانات تجريبية
+
+```http
+POST /api/projects/{project_id}/demo-content
+```
+
+يرجع أسئلة وقاموسًا تجريبيين من Backend.
+
+### تحديث سؤال
+
+```http
 PATCH /api/projects/{project_id}/questions/{question_id}
+```
 
+Body جزئي:
+
+```json
+{"translated_text":"ترجمة معدلة","marks":2,"status":"needs_review"}
+```
+
+### إعادة ترتيب الأسئلة
+
+```http
 POST /api/projects/{project_id}/questions/reorder
+```
 
-## Export
+Body:
 
-POST /api/projects/{project_id}/export
+```json
+{"ordered_question_ids":["q-1","q-2","q-3","q-4"]}
+```
+
+### تحديث مصطلح في القاموس
+
+```http
+PATCH /api/projects/{project_id}/glossary/{term_id}
+```
+
+Body جزئي:
+
+```json
+{"arabic_term":"مصطلح معدل","status":"approved"}
+```
+
+### حذف مشروع الجلسة
+
+```http
+DELETE /api/projects/{project_id}
+```
+
+يحذف المشروع المؤقت من الذاكرة.

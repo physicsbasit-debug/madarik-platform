@@ -36,8 +36,8 @@ export interface QuestionItem {
   detectedMarks: number | null;
   status: QuestionStatus;
   orderIndex: number;
-  attachmentNote?: string;
-  reviewNotes?: string;
+  attachmentNote?: string | null;
+  reviewNotes?: string | null;
 }
 
 export interface GlossaryTerm {
@@ -47,5 +47,16 @@ export interface GlossaryTerm {
   subject: string;
   status: 'approved' | 'needs_review';
   source: 'mock' | 'manual' | 'detected';
-  notes?: string;
+  notes?: string | null;
 }
+
+export interface ProjectSession {
+  id: string;
+  metadata: ProjectMetadata;
+  uploadedFile: UploadedFileInfo | null;
+  questions: QuestionItem[];
+  glossary: GlossaryTerm[];
+  currentStep: StepKey;
+}
+
+export type ApiConnectionStatus = 'connecting' | 'connected' | 'syncing' | 'offline';
