@@ -14,6 +14,7 @@ from app.services.session_store import project_store
 from app.services.glossary import extract_glossary_terms_from_questions
 from app.services.question_parser import parse_questions_from_text
 from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
+from app.services.translation import translate_questions_with_glossary
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -151,6 +152,21 @@ def generate_project_glossary(project_id: str) -> ProjectSession:
         raise HTTPException(status_code=400, detail="لم يتم العثور على مصطلحات علمية ضمن قاموس Phase 1-E1 الأولي.")
 
     updated_project = project_store.set_glossary(project_id, detected_terms)
+    if updated_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return updated_project
+
+
+@router.post("/{project_id}/translate-questions")
+def translate_project_questions(project_id: str) -> ProjectSession:
+    """Translate parsed question cards using the reviewed glossary for Phase 1-E2."""
+
+    project = _get_or_404(project_id)
+    if not project.questions:
+        raise HTTPException(status_code=400, detail="لا توجد أسئلة قابلة للترجمة.")
+
+    translated_questions = translate_questions_with_glossary(project.questions, project.glossary)
+    updated_project = project_store.set_translated_questions(project_id, translated_questions)
     if updated_project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return updated_project

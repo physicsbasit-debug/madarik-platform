@@ -100,6 +100,14 @@ class InMemoryProjectStore:
         project.current_step = StepKey.glossary
         return self.touch(project_id)
 
+    def set_translated_questions(self, project_id: str, questions: list[QuestionItem]) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.questions = questions
+        project.current_step = StepKey.review
+        return self.touch(project_id)
+
     def update_question(self, project_id: str, question_id: str, patch: QuestionPatch) -> ProjectSession | None:
         project = self.get(project_id)
         if project is None:

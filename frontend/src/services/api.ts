@@ -243,6 +243,11 @@ export async function generateGlossaryFromQuestions(projectId: string): Promise<
   return fromApiProject(project);
 }
 
+export async function translateProjectQuestions(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/translate-questions`, { method: 'POST' });
+  return fromApiProject(project);
+}
+
 export async function loadDemoContent(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/demo-content`, { method: 'POST' });
   return fromApiProject(project);

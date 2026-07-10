@@ -1,10 +1,11 @@
-import { ArrowDown, ArrowUp, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Languages, RotateCcw, Trash2 } from 'lucide-react';
 import type { QuestionItem, QuestionStatus } from '../../types/project';
 
 interface ReviewStepProps {
   questions: QuestionItem[];
   onUpdateQuestion: (questionId: string, updates: Partial<QuestionItem>) => void;
   onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
+  onTranslateQuestions: () => void;
 }
 
 const statusLabels: Record<QuestionStatus, string> = {
@@ -13,7 +14,7 @@ const statusLabels: Record<QuestionStatus, string> = {
   deleted: 'محذوف',
 };
 
-export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion }: ReviewStepProps) {
+export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion, onTranslateQuestions }: ReviewStepProps) {
   const sortedQuestions = [...questions].sort((a, b) => a.orderIndex - b.orderIndex);
   const activeQuestions = sortedQuestions.filter((question) => question.status !== 'deleted');
 
@@ -31,10 +32,21 @@ export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion }: Revi
 
   return (
     <section className="review-layout">
-      <div className="section-heading">
-        <p className="eyebrow">مراجعة الأسئلة</p>
-        <h3>بطاقات مستقلة قابلة للتعديل والحذف والترتيب</h3>
-        <p>أي سؤال محذوف لا يدخل في التصدير النهائي، ويُعاد ترقيم الأسئلة المعتمدة تلقائيًا.</p>
+      <div className="section-heading split-heading">
+        <div>
+          <p className="eyebrow">مراجعة الأسئلة</p>
+          <h3>بطاقات مستقلة قابلة للتعديل والحذف والترتيب</h3>
+          <p>أي سؤال محذوف لا يدخل في التصدير النهائي، ويُعاد ترقيم الأسئلة المعتمدة تلقائيًا.</p>
+        </div>
+        <button className="primary-button" type="button" onClick={onTranslateQuestions} disabled={activeQuestions.length === 0}>
+          <Languages size={18} />
+          ترجمة الأسئلة
+        </button>
+      </div>
+
+      <div className="notice-card translation-notice">
+        <strong>Phase 1-E2:</strong>
+        <span>الترجمة هنا أولية ومحافظة، تعتمد على قاموس الورقة وأوامر الأسئلة. راجعها قبل أي تصدير، فالمترجم ما زال في سنة أولى مدارك.</span>
       </div>
 
       <div className="question-card-list">

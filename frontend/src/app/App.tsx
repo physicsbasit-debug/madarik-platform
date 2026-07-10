@@ -17,6 +17,7 @@ import {
   parseExtractedQuestions,
   reorderQuestions,
   setUploadedFileInfo,
+  translateProjectQuestions,
   uploadPdfAndExtractText,
   updateGlossaryTerm as updateGlossaryTermOnServer,
   updateProjectMetadata,
@@ -327,6 +328,32 @@ export function App() {
   }
 
 
+
+  async function translateQuestions() {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن تشغيل ترجمة الأسئلة دون اتصال Backend. المترجم موجود في الخلفية، لا في عالم الخيال.');
+      return;
+    }
+
+    if (questions.filter((question) => question.status !== 'deleted').length === 0) {
+      setLastSyncNote('لا توجد أسئلة نشطة قابلة للترجمة. حذف كل شيء ثم طلب الترجمة رياضة ذهنية غريبة.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await translateProjectQuestions(projectId);
+      applyProject(project);
+      setApiStatus('connected');
+      setActiveIndex(4);
+      setLastSyncNote('تمت ترجمة الأسئلة ترجمة أولية قابلة للمراجعة عبر Phase 1-E2.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('تعذر تشغيل ترجمة الأسئلة. تحقق من وجود أسئلة محللة ثم أعد المحاولة.');
+    }
+  }
+
   async function generateGlossaryFromQuestionCards() {
     if (!projectId || apiStatus === 'offline') {
       setLastSyncNote('لا يمكن توليد قاموس حقيقي دون اتصال Backend. القاموس الحالي محلي فقط.');
@@ -376,10 +403,10 @@ export function App() {
     <main className="app-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 1-E1 Glossary Engine</p>
+          <p className="eyebrow">Phase 1-E2 Translation Engine</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
-            واجهة متعددة الخطوات تستطيع رفع PDF نصي، استخراج النص، تحويله إلى بطاقات أسئلة، ثم توليد قاموس مصطلحات أولي للمعلم. لا توجد ترجمة AI أو OCR أو تصدير فعلي بعد، فالوحوش التقنية تنتظر دورها.
+            واجهة متعددة الخطوات تستطيع رفع PDF نصي، استخراج النص، تحويله إلى بطاقات أسئلة، توليد قاموس مصطلحات، ثم ترجمة الأسئلة ترجمة أولية قابلة للمراجعة. لا يوجد OCR أو تصدير فعلي بعد، فالوحوش التقنية تنتظر دورها.
           </p>
         </div>
         <button className="ghost-button" type="button" onClick={() => void resetProject()}>
@@ -442,6 +469,7 @@ export function App() {
             onMoveQuestion={moveQuestion}
             onUpdateGlossaryTerm={updateGlossaryTerm}
             onGenerateGlossary={generateGlossaryFromQuestionCards}
+            onTranslateQuestions={translateQuestions}
             onReloadDemo={reloadDemoFromBackend}
             onParseQuestions={parseQuestionsFromExtractedText}
           />
@@ -475,6 +503,7 @@ interface StepContentProps {
   onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
   onUpdateGlossaryTerm: (termId: string, updates: Partial<GlossaryTerm>) => void;
   onGenerateGlossary: () => void;
+  onTranslateQuestions: () => void;
   onReloadDemo: () => void;
   onParseQuestions: () => void;
 }
@@ -492,6 +521,7 @@ function StepContent({
   onMoveQuestion,
   onUpdateGlossaryTerm,
   onGenerateGlossary,
+  onTranslateQuestions,
   onReloadDemo,
   onParseQuestions,
 }: StepContentProps) {
@@ -505,7 +535,14 @@ function StepContent({
     case 'glossary':
       return <GlossaryStep glossary={glossary} onUpdateTerm={onUpdateGlossaryTerm} onGenerateGlossary={onGenerateGlossary} />;
     case 'review':
-      return <ReviewStep questions={questions} onUpdateQuestion={onUpdateQuestion} onMoveQuestion={onMoveQuestion} />;
+      return (
+        <ReviewStep
+          questions={questions}
+          onUpdateQuestion={onUpdateQuestion}
+          onMoveQuestion={onMoveQuestion}
+          onTranslateQuestions={onTranslateQuestions}
+        />
+      );
     case 'export':
       return <ExportStep metadata={metadata} questions={questions} glossary={glossary} />;
   }

@@ -1,4 +1,4 @@
-# API Spec - منصة مدارك Phase 1-E1
+# API Spec - منصة مدارك Phase 1-E2
 
 Base path:
 
@@ -86,7 +86,7 @@ POST /api/projects/{project_id}/parse-questions
 POST /api/projects/{project_id}/glossary/generate
 ```
 
-يتطلب وجود بطاقات أسئلة. يستخدم محرك Phase 1-E1 القائم على قائمة مصطلحات علمية أولية لاستخراج مصطلحات للمعلم فقط. المصطلحات الناتجة تكون `source=detected` و`status=needs_review`.
+يتطلب وجود بطاقات أسئلة. يستخدم محرك Phase 1-E2 القائم على قائمة مصطلحات علمية أولية لاستخراج مصطلحات للمعلم فقط. المصطلحات الناتجة تكون `source=detected` و`status=needs_review`.
 
 ### تحميل بيانات تجريبية
 
@@ -139,3 +139,14 @@ DELETE /api/projects/{project_id}
 ```
 
 يحذف المشروع المؤقت من الذاكرة.
+
+
+## Phase 1-E2 Translation Engine
+
+### Translate question cards
+
+```text
+POST /api/projects/{project_id}/translate-questions
+```
+
+يترجم بطاقات الأسئلة غير المحذوفة ترجمة أولية قابلة للمراجعة، مع استخدام قاموس الورقة وقاموس أوامر الأسئلة. هذه المرحلة لا تستخدم مزود AI خارجي بعد، حتى تبقى GitHub Actions مستقرة دون مفاتيح API.
