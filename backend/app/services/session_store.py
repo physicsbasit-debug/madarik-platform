@@ -8,6 +8,7 @@ from app.models.project import (
     QuestionPatch,
     ExtractedTextInfo,
     UploadedFileInfo,
+    ProjectLogoInfo,
     QuestionItem,
     GlossaryTerm,
 )
@@ -57,6 +58,14 @@ class InMemoryProjectStore:
         if uploaded_file is None:
             project.extracted_text = None
         project.current_step = StepKey.upload
+        return self.touch(project_id)
+
+    def set_school_logo(self, project_id: str, school_logo: ProjectLogoInfo | None) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.school_logo = school_logo
+        project.current_step = StepKey.setup
         return self.touch(project_id)
 
     def set_extracted_text(

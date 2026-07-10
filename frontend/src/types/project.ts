@@ -27,6 +27,13 @@ export interface UploadedFileInfo {
   type: string;
 }
 
+export interface SchoolLogoInfo {
+  name: string;
+  size: number;
+  type: string;
+  dataBase64: string;
+}
+
 export interface ExtractedTextInfo {
   text: string;
   preview: string;
@@ -63,6 +70,7 @@ export interface ProjectSession {
   id: string;
   metadata: ProjectMetadata;
   uploadedFile: UploadedFileInfo | null;
+  schoolLogo: SchoolLogoInfo | null;
   extractedText: ExtractedTextInfo | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];

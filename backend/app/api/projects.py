@@ -1,3 +1,5 @@
+import base64
+
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.responses import Response
 
@@ -5,6 +7,7 @@ from app.models.project import (
     ExtractedTextInfo,
     GlossaryTermPatch,
     ProjectMetadata,
+    ProjectLogoInfo,
     ProjectSession,
     QuestionPatch,
     QuestionReorderRequest,
@@ -78,6 +81,45 @@ def set_upload_info(project_id: str, uploaded_file: UploadedFileInfo | None = No
     return project
 
 
+
+
+@router.post("/{project_id}/school-logo")
+async def upload_school_logo(project_id: str, file: UploadFile = File(...)) -> ProjectSession:
+    """Store an optional school logo in the temporary project session for Phase 1-F3."""
+
+    _get_or_404(project_id)
+
+    filename = file.filename or "school-logo"
+    content_type = file.content_type or "application/octet-stream"
+    allowed_types = {"image/png", "image/jpeg", "image/jpg"}
+    if content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="يدعم شعار المدرسة ملفات PNG وJPG فقط في هذه المرحلة.")
+
+    file_bytes = await file.read()
+    max_size = 1_500_000
+    if len(file_bytes) > max_size:
+        raise HTTPException(status_code=400, detail="حجم الشعار كبير. الحد الأقصى المؤقت هو 1.5MB.")
+
+    logo = ProjectLogoInfo(
+        name=filename,
+        size=len(file_bytes),
+        type=content_type,
+        data_base64=base64.b64encode(file_bytes).decode("ascii"),
+    )
+    project = project_store.set_school_logo(project_id, logo)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+@router.delete("/{project_id}/school-logo")
+def delete_school_logo(project_id: str) -> ProjectSession:
+    """Remove the optional school logo from the temporary project session."""
+
+    project = project_store.set_school_logo(project_id, None)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
 
 
 @router.post("/{project_id}/upload-pdf")

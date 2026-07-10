@@ -3,6 +3,7 @@ import type {
   GlossaryTerm,
   ProjectMetadata,
   ProjectSession,
+  SchoolLogoInfo,
   QuestionItem,
   QuestionStatus,
   StepKey,
@@ -30,6 +31,13 @@ interface ApiUploadedFileInfo {
   name: string;
   size: number;
   type: string;
+}
+
+interface ApiSchoolLogoInfo {
+  name: string;
+  size: number;
+  type: string;
+  data_base64: string;
 }
 
 interface ApiExtractedTextInfo {
@@ -68,6 +76,7 @@ interface ApiProjectSession {
   id: string;
   metadata: ApiProjectMetadata;
   uploaded_file: ApiUploadedFileInfo | null;
+  school_logo: ApiSchoolLogoInfo | null;
   extracted_text: ApiExtractedTextInfo | null;
   questions: ApiQuestionItem[];
   glossary: ApiGlossaryTerm[];
@@ -120,6 +129,16 @@ function fromApiExtractedText(info: ApiExtractedTextInfo | null): ExtractedTextI
   };
 }
 
+function fromApiSchoolLogo(info: ApiSchoolLogoInfo | null): SchoolLogoInfo | null {
+  if (!info) return null;
+  return {
+    name: info.name,
+    size: info.size,
+    type: info.type,
+    dataBase64: info.data_base64,
+  };
+}
+
 function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
   return {
     id: question.id,
@@ -152,6 +171,7 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     id: project.id,
     metadata: fromApiMetadata(project.metadata),
     uploadedFile: project.uploaded_file,
+    schoolLogo: fromApiSchoolLogo(project.school_logo),
     extractedText: fromApiExtractedText(project.extracted_text),
     questions: project.questions.map(fromApiQuestion),
     glossary: project.glossary.map(fromApiGlossaryTerm),
@@ -209,6 +229,29 @@ export async function setUploadedFileInfo(projectId: string, uploadedFile: Uploa
     method: 'PUT',
     body: JSON.stringify(uploadedFile),
   });
+  return fromApiProject(project);
+}
+
+export async function uploadSchoolLogo(projectId: string, file: File): Promise<ProjectSession> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/school-logo`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`School logo upload failed ${response.status}: ${body}`);
+  }
+
+  const project = (await response.json()) as ApiProjectSession;
+  return fromApiProject(project);
+}
+
+export async function deleteSchoolLogo(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/school-logo`, { method: 'DELETE' });
   return fromApiProject(project);
 }
 

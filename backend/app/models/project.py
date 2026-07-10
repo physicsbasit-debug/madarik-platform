@@ -62,6 +62,13 @@ class UploadedFileInfo(BaseModel):
     type: str = "غير معروف"
 
 
+class ProjectLogoInfo(BaseModel):
+    name: str
+    size: int = Field(ge=0)
+    type: str
+    data_base64: str
+
+
 class ExtractedTextInfo(BaseModel):
     text: str = ""
     preview: str = ""
@@ -98,6 +105,7 @@ class ProjectSession(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     metadata: ProjectMetadata = Field(default_factory=ProjectMetadata)
     uploaded_file: UploadedFileInfo | None = None
+    school_logo: ProjectLogoInfo | None = None
     extracted_text: ExtractedTextInfo | None = None
     questions: list[QuestionItem] = Field(default_factory=list)
     glossary: list[GlossaryTerm] = Field(default_factory=list)

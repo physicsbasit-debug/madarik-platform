@@ -62,3 +62,13 @@ application/pdf
 ```
 
 يرفض التصدير إذا لم توجد أسئلة نشطة غير محذوفة.
+
+
+## School logo endpoints - Phase 1-F3
+
+```text
+POST /api/projects/{project_id}/school-logo
+DELETE /api/projects/{project_id}/school-logo
+```
+
+يدعم رفع شعار PNG/JPG مؤقتًا داخل جلسة المشروع، ثم حذفه عند الحاجة. يظهر الشعار في DOCX وPDF عند التصدير.

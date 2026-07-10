@@ -15,12 +15,14 @@ import {
   exportProjectPdf,
   generateGlossaryFromQuestions,
   deleteProject,
+  deleteSchoolLogo,
   loadDemoContent,
   parseExtractedQuestions,
   reorderQuestions,
   setUploadedFileInfo,
   translateProjectQuestions,
   uploadPdfAndExtractText,
+  uploadSchoolLogo,
   updateGlossaryTerm as updateGlossaryTermOnServer,
   updateProjectMetadata,
   updateProjectStep,
@@ -33,6 +35,7 @@ import type {
   ProjectMetadata,
   ProjectSession,
   QuestionItem,
+  SchoolLogoInfo,
   StepKey,
   UploadedFileInfo,
 } from '../types/project';
@@ -60,6 +63,7 @@ function applyProjectSession(
     setProjectId: (projectId: string) => void;
     setMetadata: (metadata: ProjectMetadata) => void;
     setUploadedFile: (fileInfo: UploadedFileInfo | null) => void;
+    setSchoolLogo: (schoolLogo: SchoolLogoInfo | null) => void;
     setExtractedText: (extractedText: ExtractedTextInfo | null) => void;
     setQuestions: (questions: QuestionItem[]) => void;
     setGlossary: (glossary: GlossaryTerm[]) => void;
@@ -68,6 +72,7 @@ function applyProjectSession(
   setters.setProjectId(project.id);
   setters.setMetadata(project.metadata);
   setters.setUploadedFile(project.uploadedFile);
+  setters.setSchoolLogo(project.schoolLogo);
   setters.setExtractedText(project.extractedText);
   setters.setQuestions(project.questions);
   setters.setGlossary(project.glossary);
@@ -80,6 +85,7 @@ export function App() {
   const [lastSyncNote, setLastSyncNote] = useState('يتم إنشاء جلسة مشروع مؤقتة...');
   const [metadata, setMetadata] = useState<ProjectMetadata>(defaultMetadata);
   const [uploadedFile, setUploadedFile] = useState<UploadedFileInfo | null>(null);
+  const [schoolLogo, setSchoolLogo] = useState<SchoolLogoInfo | null>(null);
   const [extractedText, setExtractedText] = useState<ExtractedTextInfo | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>(sampleQuestions);
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
@@ -96,6 +102,7 @@ export function App() {
       setProjectId,
       setMetadata,
       setUploadedFile,
+      setSchoolLogo,
       setExtractedText,
       setQuestions,
       setGlossary,
@@ -117,6 +124,7 @@ export function App() {
       setProjectId(null);
       setMetadata(defaultMetadata);
       setUploadedFile(null);
+      setSchoolLogo(null);
       setExtractedText(null);
       setQuestions(sampleQuestions);
       setGlossary(sampleGlossary);
@@ -174,6 +182,45 @@ export function App() {
         setApiStatus('offline');
         setLastSyncNote('فشلت مزامنة بيانات الورقة. بقيت التعديلات محليًا.');
       });
+  }
+
+  async function handleLogoSelected(file: File | null) {
+    if (!file) return;
+
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن رفع الشعار دون اتصال Backend. الشعار يحتاج جلسة مؤقتة في الخلفية.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await uploadSchoolLogo(projectId, file);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote('تم رفع شعار المدرسة وربطه بتصدير DOCX وPDF.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل رفع الشعار. يدعم Phase 1-F3 ملفات PNG وJPG بحجم صغير.');
+    }
+  }
+
+  async function handleLogoRemove() {
+    setSchoolLogo(null);
+
+    if (!projectId || apiStatus === 'offline') return;
+
+    setApiStatus('syncing');
+    try {
+      const project = await deleteSchoolLogo(projectId);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote('تم حذف شعار المدرسة من جلسة المشروع.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل حذف الشعار من Backend. بقي الحذف محليًا فقط.');
+    }
   }
 
   function handleFileSelected(file: File | null) {
@@ -473,10 +520,10 @@ export function App() {
     <main className="app-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 1-F2 PDF Export RTL</p>
+          <p className="eyebrow">Phase 1-F3 Export Branding</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
-            واجهة متعددة الخطوات تستطيع رفع PDF نصي، استخراج النص، تحويله إلى بطاقات أسئلة، توليد قاموس مصطلحات، ترجمة الأسئلة، ثم تصدير DOCX وPDF بتنسيق RTL أولي. لا يوجد OCR أو صور داخل التصدير بعد، فالوحوش التقنية تنتظر دورها.
+            واجهة متعددة الخطوات تستطيع رفع PDF نصي، استخراج النص، تحويله إلى بطاقات أسئلة، توليد قاموس مصطلحات، ترجمة الأسئلة، ثم تصدير DOCX وPDF بتنسيق RTL مع شعار مدرسة اختياري. لا يوجد OCR أو صور أسئلة داخل التصدير بعد، فالوحوش التقنية تنتظر دورها.
           </p>
         </div>
         <button className="ghost-button" type="button" onClick={() => void resetProject()}>
@@ -529,11 +576,14 @@ export function App() {
           <StepContent
             stepKey={activeStep.key}
             metadata={metadata}
+            schoolLogo={schoolLogo}
             uploadedFile={uploadedFile}
             extractedText={extractedText}
             questions={questions}
             glossary={glossary}
             onMetadataChange={handleMetadataChange}
+            onLogoSelected={handleLogoSelected}
+            onLogoRemove={handleLogoRemove}
             onFileSelected={handleFileSelected}
             onUpdateQuestion={updateQuestion}
             onMoveQuestion={moveQuestion}
@@ -567,11 +617,14 @@ export function App() {
 interface StepContentProps {
   stepKey: StepKey;
   metadata: ProjectMetadata;
+  schoolLogo: SchoolLogoInfo | null;
   uploadedFile: UploadedFileInfo | null;
   extractedText: ExtractedTextInfo | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   onMetadataChange: (metadata: ProjectMetadata) => void;
+  onLogoSelected: (file: File | null) => void;
+  onLogoRemove: () => void;
   onFileSelected: (file: File | null) => void;
   onUpdateQuestion: (questionId: string, updates: Partial<QuestionItem>) => void;
   onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
@@ -589,11 +642,14 @@ interface StepContentProps {
 function StepContent({
   stepKey,
   metadata,
+  schoolLogo,
   uploadedFile,
   extractedText,
   questions,
   glossary,
   onMetadataChange,
+  onLogoSelected,
+  onLogoRemove,
   onFileSelected,
   onUpdateQuestion,
   onMoveQuestion,
@@ -609,7 +665,7 @@ function StepContent({
 }: StepContentProps) {
   switch (stepKey) {
     case 'setup':
-      return <ProjectSetupStep metadata={metadata} onChange={onMetadataChange} />;
+      return <ProjectSetupStep metadata={metadata} schoolLogo={schoolLogo} onChange={onMetadataChange} onLogoSelected={onLogoSelected} onLogoRemove={onLogoRemove} />;
     case 'upload':
       return <FileUploadStep uploadedFile={uploadedFile} extractedText={extractedText} onFileSelected={onFileSelected} />;
     case 'extract':

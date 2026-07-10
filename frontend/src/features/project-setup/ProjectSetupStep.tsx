@@ -1,15 +1,25 @@
-import type { ExportFormat, OutputMode, ProjectMetadata } from '../../types/project';
+import type { ChangeEvent } from 'react';
+import type { ExportFormat, OutputMode, ProjectMetadata, SchoolLogoInfo } from '../../types/project';
 
 interface ProjectSetupStepProps {
   metadata: ProjectMetadata;
+  schoolLogo: SchoolLogoInfo | null;
   onChange: (metadata: ProjectMetadata) => void;
+  onLogoSelected: (file: File | null) => void;
+  onLogoRemove: () => void;
 }
 
 const subjects = ['العلوم العامة', 'الفيزياء', 'الكيمياء', 'الأحياء'];
 const grades = ['السابع', 'الثامن', 'التاسع', 'العاشر', 'الحادي عشر', 'الثاني عشر'];
 const semesters = ['الفصل الدراسي الأول', 'الفصل الدراسي الثاني'];
 
-export function ProjectSetupStep({ metadata, onChange }: ProjectSetupStepProps) {
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} بايت`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} كيلوبايت`;
+  return `${(size / (1024 * 1024)).toFixed(1)} ميجابايت`;
+}
+
+export function ProjectSetupStep({ metadata, schoolLogo, onChange, onLogoSelected, onLogoRemove }: ProjectSetupStepProps) {
   function updateField(field: keyof ProjectMetadata, value: string) {
     onChange({ ...metadata, [field]: value });
   }
@@ -27,13 +37,21 @@ export function ProjectSetupStep({ metadata, onChange }: ProjectSetupStepProps) 
     onChange({ ...metadata, exportFormats });
   }
 
+  function handleLogoInput(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    onLogoSelected(file);
+    event.target.value = '';
+  }
+
+  const logoPreview = schoolLogo ? `data:${schoolLogo.type};base64,${schoolLogo.dataBase64}` : null;
+
   return (
     <div className="step-grid">
       <section className="form-card wide-card">
         <div className="section-heading">
           <p className="eyebrow">بيانات المشروع</p>
           <h3>رأس الورقة والإعدادات العامة</h3>
-          <p>هذه البيانات محفوظة أثناء الجلسة فقط في Phase 1-A. لا يوجد حفظ دائم الآن، حتى لا نفتح أرشيفًا وندّعي أنه ميزة.</p>
+          <p>هذه البيانات محفوظة أثناء الجلسة فقط. أضف شعار المدرسة اختياريًا ليظهر في ملفات Word وPDF.</p>
         </div>
 
         <div className="form-grid">
@@ -104,6 +122,38 @@ export function ProjectSetupStep({ metadata, onChange }: ProjectSetupStepProps) 
             التاريخ
             <input type="date" value={metadata.date} onChange={(event) => updateField('date', event.target.value)} />
           </label>
+        </div>
+      </section>
+
+      <section className="form-card wide-card">
+        <div className="section-heading">
+          <p className="eyebrow">هوية المدرسة</p>
+          <h3>شعار اختياري للتصدير</h3>
+          <p>يدعم Phase 1-F3 رفع شعار PNG أو JPG مؤقتًا داخل جلسة المشروع. لا يوجد حفظ دائم للشعار بعد.</p>
+        </div>
+
+        <div className="logo-manager">
+          <div className="logo-preview-box">
+            {logoPreview ? <img src={logoPreview} alt="شعار المدرسة" /> : <span>لا يوجد شعار</span>}
+          </div>
+          <div className="logo-actions">
+            <label className="file-picker-button">
+              رفع شعار المدرسة
+              <input type="file" accept="image/png,image/jpeg" onChange={handleLogoInput} />
+            </label>
+            {schoolLogo ? (
+              <button type="button" className="secondary-button" onClick={onLogoRemove}>
+                حذف الشعار
+              </button>
+            ) : null}
+            {schoolLogo ? (
+              <p className="logo-meta">
+                {schoolLogo.name} · {formatFileSize(schoolLogo.size)}
+              </p>
+            ) : (
+              <p className="logo-meta">سيظهر الشعار في أعلى ملفات DOCX وPDF عند التصدير.</p>
+            )}
+          </div>
         </div>
       </section>
 

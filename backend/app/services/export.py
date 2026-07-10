@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+import base64
 import os
 import re
 from typing import Iterable
@@ -20,7 +21,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image as RLImage, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -88,6 +89,30 @@ def _configure_document(document: Document) -> None:
     normal.font.name = "Arial"
     normal._element.rPr.rFonts.set(qn("w:cs"), "Arial")
     normal.font.size = Pt(12)
+
+
+def _logo_bytes(project: ProjectSession) -> bytes | None:
+    if not project.school_logo or not project.school_logo.data_base64:
+        return None
+    try:
+        return base64.b64decode(project.school_logo.data_base64)
+    except Exception:
+        return None
+
+
+def _add_docx_logo(document: Document, project: ProjectSession) -> None:
+    logo_bytes = _logo_bytes(project)
+    if not logo_bytes:
+        return
+
+    paragraph = document.add_paragraph()
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    try:
+        run = paragraph.add_run()
+        run.add_picture(BytesIO(logo_bytes), width=Inches(0.9))
+    except Exception:
+        # A broken or unsupported logo must not block exporting the teacher's paper.
+        paragraph.clear()
 
 
 def _add_title(document: Document, project: ProjectSession) -> None:
@@ -210,6 +235,7 @@ def build_project_docx_bytes(project: ProjectSession) -> bytes:
     _configure_document(document)
 
     marks_total = sum(question.marks or 0 for question in questions)
+    _add_docx_logo(document, project)
     _add_title(document, project)
     _add_metadata_table(document, project, question_count=len(questions), marks_total=marks_total)
     _add_questions(document, project, questions)
@@ -343,6 +369,26 @@ def _pdf_styles() -> dict[str, ParagraphStyle]:
     }
 
 
+def _add_pdf_logo(story: list, project: ProjectSession) -> None:
+    logo_bytes = _logo_bytes(project)
+    if not logo_bytes:
+        return
+
+    try:
+        image = RLImage(BytesIO(logo_bytes))
+        max_width = 2.2 * cm
+        max_height = 2.2 * cm
+        scale = min(max_width / image.drawWidth, max_height / image.drawHeight, 1)
+        image.drawWidth *= scale
+        image.drawHeight *= scale
+        image.hAlign = "CENTER"
+        story.append(image)
+        story.append(Spacer(1, 0.15 * cm))
+    except Exception:
+        # Keep export resilient if the image payload is invalid.
+        return
+
+
 def _add_pdf_header(story: list, project: ProjectSession, questions: list[QuestionItem], styles: dict[str, ParagraphStyle]) -> None:
     metadata = project.metadata
     marks_total = sum(question.marks or 0 for question in questions)
@@ -430,6 +476,7 @@ def build_project_pdf_bytes(project: ProjectSession) -> bytes:
     styles = _pdf_styles()
     story: list = []
 
+    _add_pdf_logo(story, project)
     _add_pdf_header(story, project, questions, styles)
     _add_pdf_questions(story, project, questions, styles)
 
