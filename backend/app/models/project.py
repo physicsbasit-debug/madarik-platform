@@ -142,3 +142,23 @@ class GlossaryTermPatch(BaseModel):
     arabic_term: str | None = None
     status: GlossaryTermStatus | None = None
     notes: str | None = None
+
+
+class ReadinessSeverity(str, Enum):
+    error = "error"
+    warning = "warning"
+
+
+class ProjectReadinessIssue(BaseModel):
+    code: str
+    severity: ReadinessSeverity
+    message: str
+
+
+class ProjectReadinessReport(BaseModel):
+    ready: bool
+    exportable_question_count: int = Field(default=0, ge=0)
+    translated_question_count: int = Field(default=0, ge=0)
+    deleted_question_count: int = Field(default=0, ge=0)
+    total_marks: int = Field(default=0, ge=0)
+    issues: list[ProjectReadinessIssue] = Field(default_factory=list)

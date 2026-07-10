@@ -8,6 +8,7 @@ from app.models.project import (
     GlossaryTermPatch,
     ProjectMetadata,
     ProjectLogoInfo,
+    ProjectReadinessReport,
     ProjectSession,
     QuestionPatch,
     QuestionAssetInfo,
@@ -22,6 +23,7 @@ from app.services.text_extraction import TextExtractionError, extract_text_from_
 from app.services.ocr import OcrExtractionError, extract_text_from_image_bytes
 from app.services.pdf_ocr import PdfOcrExtractionError, extract_text_from_scanned_pdf_bytes
 from app.services.translation import translate_questions_with_glossary
+from app.services.readiness import build_project_readiness_report
 from app.services.ai_provider import get_ai_provider_status
 from app.services.export import (
     DOCX_MIME_TYPE,
@@ -329,6 +331,15 @@ def translate_project_questions(project_id: str) -> ProjectSession:
         raise HTTPException(status_code=404, detail="Project not found")
     return updated_project
 
+
+
+
+@router.get("/{project_id}/readiness")
+def get_project_readiness(project_id: str) -> ProjectReadinessReport:
+    """Return a conservative readiness report before export for Phase 1-J1."""
+
+    project = _get_or_404(project_id)
+    return build_project_readiness_report(project)
 
 
 @router.post("/{project_id}/export/docx")

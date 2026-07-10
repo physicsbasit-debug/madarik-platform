@@ -32,12 +32,14 @@ import {
   updateProjectStep,
   updateQuestion as updateQuestionOnServer,
   getTranslationProviderStatus,
+  getProjectReadiness,
 } from '../services/api';
 import type {
   ApiConnectionStatus,
   ExtractedTextInfo,
   GlossaryTerm,
   ProjectMetadata,
+  ProjectReadinessReport,
   ProjectSession,
   QuestionItem,
   SchoolLogoInfo,
@@ -96,6 +98,7 @@ export function App() {
   const [questions, setQuestions] = useState<QuestionItem[]>(sampleQuestions);
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
   const [translationProviderStatus, setTranslationProviderStatus] = useState<TranslationProviderStatus | null>(null);
+  const [projectReadiness, setProjectReadiness] = useState<ProjectReadinessReport | null>(null);
 
   const activeStep = steps[activeIndex];
   const progressLabel = useMemo(() => `${activeIndex + 1} من ${steps.length}`, [activeIndex]);
@@ -502,14 +505,37 @@ export function App() {
   }
 
 
+  async function refreshProjectReadiness() {
+    if (!projectId || apiStatus === 'offline') {
+      setProjectReadiness(null);
+      setLastSyncNote('لا يمكن فحص الجاهزية دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const report = await getProjectReadiness(projectId);
+      setProjectReadiness(report);
+      setApiStatus('connected');
+      setLastSyncNote(report.ready ? 'فحص الجاهزية: الورقة قابلة للتصدير.' : 'فحص الجاهزية: توجد ملاحظات قبل التصدير.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('تعذر فحص جاهزية التصدير.');
+    }
+  }
+
+
   async function exportDocx() {
     if (!projectId || apiStatus === 'offline') {
       setLastSyncNote('لا يمكن إنشاء DOCX دون اتصال Backend. ملف Word يحتاج محرك التصدير في الخلفية.');
       return;
     }
 
-    if (questions.filter((question) => question.status !== 'deleted').length === 0) {
-      setLastSyncNote('لا توجد أسئلة نشطة قابلة للتصدير. لا نصدر ورقة فارغة، رغم أن بعض النماذج الرسمية تفعل ذلك.');
+    const report = await getProjectReadiness(projectId);
+    setProjectReadiness(report);
+    if (!report.ready) {
+      setLastSyncNote('فحص الجاهزية منع تصدير Word حتى معالجة الملاحظات المانعة.');
       return;
     }
 
@@ -542,8 +568,10 @@ export function App() {
       return;
     }
 
-    if (questions.filter((question) => question.status !== 'deleted').length === 0) {
-      setLastSyncNote('لا توجد أسئلة نشطة قابلة للتصدير. لا نصدر PDF فارغًا، حتى لو كان الفراغ أحيانًا منظمًا.');
+    const report = await getProjectReadiness(projectId);
+    setProjectReadiness(report);
+    if (!report.ready) {
+      setLastSyncNote('فحص الجاهزية منع تصدير PDF حتى معالجة الملاحظات المانعة.');
       return;
     }
 
@@ -671,6 +699,8 @@ export function App() {
             onParseQuestions={parseQuestionsFromExtractedText}
             onExportDocx={exportDocx}
             onExportPdf={exportPdf}
+            onRefreshReadiness={refreshProjectReadiness}
+            projectReadiness={projectReadiness}
             canExportDocx={Boolean(projectId && apiStatus !== 'offline')}
             canExportPdf={Boolean(projectId && apiStatus !== 'offline')}
           />
@@ -700,6 +730,7 @@ interface StepContentProps {
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   translationProviderStatus: TranslationProviderStatus | null;
+  projectReadiness: ProjectReadinessReport | null;
   onMetadataChange: (metadata: ProjectMetadata) => void;
   onLogoSelected: (file: File | null) => void;
   onLogoRemove: () => void;
@@ -715,6 +746,7 @@ interface StepContentProps {
   onParseQuestions: () => void;
   onExportDocx: () => Promise<void>;
   onExportPdf: () => Promise<void>;
+  onRefreshReadiness: () => Promise<void>;
   canExportDocx: boolean;
   canExportPdf: boolean;
 }
@@ -728,6 +760,7 @@ function StepContent({
   questions,
   glossary,
   translationProviderStatus,
+  projectReadiness,
   onMetadataChange,
   onLogoSelected,
   onLogoRemove,
@@ -743,6 +776,7 @@ function StepContent({
   onParseQuestions,
   onExportDocx,
   onExportPdf,
+  onRefreshReadiness,
   canExportDocx,
   canExportPdf,
 }: StepContentProps) {
@@ -773,10 +807,12 @@ function StepContent({
           metadata={metadata}
           questions={questions}
           glossary={glossary}
+          readiness={projectReadiness}
           canExportDocx={canExportDocx}
           onExportDocx={onExportDocx}
           onExportPdf={onExportPdf}
           canExportPdf={canExportPdf}
+          onRefreshReadiness={onRefreshReadiness}
         />
       );
   }

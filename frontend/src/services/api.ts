@@ -2,6 +2,7 @@ import type {
   ExtractedTextInfo,
   GlossaryTerm,
   ProjectMetadata,
+  ProjectReadinessReport,
   ProjectSession,
   SchoolLogoInfo,
   QuestionItem,
@@ -81,6 +82,22 @@ interface ApiGlossaryTerm {
   status: GlossaryTerm['status'];
   source: GlossaryTerm['source'];
   notes?: string | null;
+}
+
+
+interface ApiProjectReadinessIssue {
+  code: string;
+  severity: 'error' | 'warning';
+  message: string;
+}
+
+interface ApiProjectReadinessReport {
+  ready: boolean;
+  exportable_question_count: number;
+  translated_question_count: number;
+  deleted_question_count: number;
+  total_marks: number;
+  issues: ApiProjectReadinessIssue[];
 }
 
 interface ApiProjectSession {
@@ -186,6 +203,18 @@ function fromApiGlossaryTerm(term: ApiGlossaryTerm): GlossaryTerm {
     status: term.status,
     source: term.source,
     notes: term.notes,
+  };
+}
+
+
+function fromApiReadinessReport(report: ApiProjectReadinessReport): ProjectReadinessReport {
+  return {
+    ready: report.ready,
+    exportableQuestionCount: report.exportable_question_count,
+    translatedQuestionCount: report.translated_question_count,
+    deletedQuestionCount: report.deleted_question_count,
+    totalMarks: report.total_marks,
+    issues: report.issues,
   };
 }
 
@@ -453,4 +482,9 @@ export async function exportProjectPdf(projectId: string): Promise<Blob> {
 
 export async function getTranslationProviderStatus(): Promise<TranslationProviderStatus> {
   return await requestJson<TranslationProviderStatus>('/projects/translation-provider/status');
+}
+
+export async function getProjectReadiness(projectId: string): Promise<ProjectReadinessReport> {
+  const report = await requestJson<ApiProjectReadinessReport>(`/projects/${projectId}/readiness`);
+  return fromApiReadinessReport(report);
 }

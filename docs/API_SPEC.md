@@ -116,3 +116,12 @@ DELETE /api/projects/{project_id}/questions/{question_id}/assets/{asset_id}
 `POST /api/projects/{project_id}/upload-pdf-ocr`
 
 يشغّل OCR إنجليزيًا مبدئيًا على صفحات PDF المصوّر المحدودة.
+
+
+## Phase 1-J1: Export Readiness Guard
+
+أضيف فحص جاهزية قبل التصدير عبر endpoint:
+
+`GET /api/projects/{project_id}/readiness`
+
+يفحص وجود أسئلة قابلة للتصدير، وجود ترجمة، حالات تحتاج مراجعة، الدرجات، والأسئلة المحذوفة. يمنع التصدير عند وجود موانع واضحة مثل عدم وجود أسئلة أو حذف كل الأسئلة.

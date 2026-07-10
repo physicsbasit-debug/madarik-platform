@@ -94,3 +94,21 @@ export interface TranslationProviderStatus {
   model: string;
   fallback: string;
 }
+
+
+export type ReadinessSeverity = 'error' | 'warning';
+
+export interface ProjectReadinessIssue {
+  code: string;
+  severity: ReadinessSeverity;
+  message: string;
+}
+
+export interface ProjectReadinessReport {
+  ready: boolean;
+  exportableQuestionCount: number;
+  translatedQuestionCount: number;
+  deletedQuestionCount: number;
+  totalMarks: number;
+  issues: ProjectReadinessIssue[];
+}
