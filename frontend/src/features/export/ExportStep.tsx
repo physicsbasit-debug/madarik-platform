@@ -29,7 +29,7 @@ export function ExportStep({
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isCheckingReadiness, setIsCheckingReadiness] = useState(false);
-  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF فعلي متاح الآن، مع فحص جاهزية قبل التصدير. لا نصدّر ورقة فارغة بثقة زائفة، هذه خدمة عامة.');
+  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF متاح مع فحص جاهزية قبل التصدير، ودعم الشعار والمرفقات ونسخ العمل JSON.');
 
   const approvedQuestions = questions
     .filter((question) => question.status !== 'deleted')
@@ -84,10 +84,10 @@ export function ExportStep({
     <div className="step-grid">
       <section className="form-card wide-card">
         <div className="section-heading">
-          <p className="eyebrow">Phase 1-J1: فحص الجاهزية</p>
+          <p className="eyebrow">فحص الجاهزية قبل التصدير</p>
           <h3>جاهزية الورقة النهائية</h3>
           <p>
-            قبل إنشاء Word أو PDF، تفحص منصة مدارك وجود أسئلة قابلة للتصدير وترجمة ودرجات وحالات مراجعة. لا نسمح للزر أن يتصرف كأنه يعرف أكثر منا.
+            قبل إنشاء Word أو PDF، تفحص منصة مدارك وجود أسئلة قابلة للتصدير وترجمة ودرجات وحالات مراجعة.
           </p>
         </div>
 

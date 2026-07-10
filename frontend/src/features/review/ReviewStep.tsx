@@ -72,9 +72,9 @@ export function ReviewStep({
       </div>
 
       <div className="notice-card translation-notice">
-        <strong>Phase 1-H1:</strong>
+        <strong>مرفقات الأسئلة:</strong>
         <span>
-          تستطيع ربط صور/جداول يدوية بالسؤال لتظهر في المراجعة والتصدير. استخراج الصور تلقائيًا من PDF مؤجل، لأن PDF يحب التمثيل علينا.
+          تستطيع ربط صور/جداول يدوية بالسؤال لتظهر في المراجعة والتصدير. استخراج الصور تلقائيًا من PDF مؤجل لمرحلة لاحقة.
         </span>
       </div>
 

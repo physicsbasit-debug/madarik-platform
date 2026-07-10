@@ -18,10 +18,10 @@ export function ExtractionStep({ questions, extractedText, onReloadDemo, onParse
     <div className="step-grid">
       <section className="form-card wide-card">
         <div className="section-heading">
-          <p className="eyebrow">Phase 1-I2: PDF نصي + OCR صور/PDF مصوّر مبدئي</p>
+          <p className="eyebrow">استخراج النص: PDF نصي + OCR مبدئي</p>
           <h3>النص الخام المستخرج</h3>
           <p>
-            في هذه المرحلة نقرأ PDF النصي مباشرة، ونجرّب OCR إنجليزيًا مبدئيًا للصور وPDF المصوّر محدود الصفحات، ثم نحول النص إلى بطاقات أسئلة بقواعد أولية.
+            نقرأ PDF النصي مباشرة، ونجرّب OCR إنجليزيًا مبدئيًا للصور وPDF المصوّر محدود الصفحات، ثم نحول النص إلى بطاقات أسئلة قابلة للمراجعة.
           </p>
         </div>
 

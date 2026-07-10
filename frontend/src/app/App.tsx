@@ -192,7 +192,7 @@ export function App() {
       link.remove();
       URL.revokeObjectURL(url);
       setApiStatus('connected');
-      setLastSyncNote('تم تنزيل نسخة JSON من مشروع العمل الحالي.');
+      setLastSyncNote('تم تنزيل نسخة JSON من مشروع العمل الحالي. احتفظ بها لاستكمال العمل لاحقًا.');
     } catch (error) {
       console.error(error);
       setApiStatus('connected');
@@ -204,7 +204,7 @@ export function App() {
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.json')) {
-      setLastSyncNote('ملف الاستعادة يجب أن يكون JSON صادرًا من منصة مدارك.');
+      setLastSyncNote('ملف الاستعادة يجب أن يكون JSON صادرًا من منصة مدارك، لا ملفًا مجهولًا جاء من ظلام الإنترنت.');
       return;
     }
 
@@ -744,6 +744,10 @@ export function App() {
         <div>
           <span>نوع النسخة</span>
           <strong>{metadata.outputMode === 'bilingual' ? 'ثنائية' : 'عربية'}</strong>
+        </div>
+        <div>
+          <span>مرحلة التطوير</span>
+          <strong>Phase 1-N1</strong>
         </div>
       </section>
 
