@@ -230,6 +230,12 @@ export async function uploadPdfAndExtractText(projectId: string, file: File): Pr
   return fromApiProject(project);
 }
 
+
+export async function parseExtractedQuestions(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/parse-questions`, { method: 'POST' });
+  return fromApiProject(project);
+}
+
 export async function loadDemoContent(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/demo-content`, { method: 'POST' });
   return fromApiProject(project);

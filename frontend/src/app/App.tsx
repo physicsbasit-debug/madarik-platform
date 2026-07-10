@@ -13,6 +13,7 @@ import {
   createProject,
   deleteProject,
   loadDemoContent,
+  parseExtractedQuestions,
   reorderQuestions,
   setUploadedFileInfo,
   uploadPdfAndExtractText,
@@ -300,6 +301,30 @@ export function App() {
       });
   }
 
+  async function parseQuestionsFromExtractedText() {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن تقسيم النص دون اتصال Backend. النص موجود، لكن المحلل في الخلفية وليس في الواجهة.');
+      return;
+    }
+
+    if (!extractedText?.isTextBased) {
+      setLastSyncNote('ارفع PDF نصيًا أولًا قبل تحويل النص إلى أسئلة. لا نحلل الهواء، رغم أن بعض الاجتماعات تفعل ذلك.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await parseExtractedQuestions(projectId);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote(`تم تحويل النص إلى ${project.questions.length} بطاقة سؤال تحتاج مراجعة.`);
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل تقسيم النص إلى أسئلة. قد يحتاج الملف إلى تنسيق أوضح أو OCR لاحقًا.');
+    }
+  }
+
   async function reloadDemoFromBackend() {
     if (!projectId || apiStatus === 'offline') {
       setQuestions(sampleQuestions);
@@ -328,7 +353,7 @@ export function App() {
           <p className="eyebrow">Phase 1-C PDF Text Extraction</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
-            واجهة متعددة الخطوات تستطيع الآن رفع PDF نصي واستخراج النص الخام عبر FastAPI. لا يوجد OCR أو ترجمة أو تصدير فعلي بعد، فالتهور مؤجل كالعادة.
+            واجهة متعددة الخطوات تستطيع الآن رفع PDF نصي واستخراج النص الخام ثم تحويله إلى بطاقات أسئلة قابلة للمراجعة. لا يوجد OCR أو ترجمة أو تصدير فعلي بعد، فالتهور مؤجل كالعادة.
           </p>
         </div>
         <button className="ghost-button" type="button" onClick={() => void resetProject()}>
@@ -391,6 +416,7 @@ export function App() {
             onMoveQuestion={moveQuestion}
             onUpdateGlossaryTerm={updateGlossaryTerm}
             onReloadDemo={reloadDemoFromBackend}
+            onParseQuestions={parseQuestionsFromExtractedText}
           />
 
           <div className="actions-row">
@@ -422,6 +448,7 @@ interface StepContentProps {
   onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
   onUpdateGlossaryTerm: (termId: string, updates: Partial<GlossaryTerm>) => void;
   onReloadDemo: () => void;
+  onParseQuestions: () => void;
 }
 
 function StepContent({
@@ -437,6 +464,7 @@ function StepContent({
   onMoveQuestion,
   onUpdateGlossaryTerm,
   onReloadDemo,
+  onParseQuestions,
 }: StepContentProps) {
   switch (stepKey) {
     case 'setup':
@@ -444,7 +472,7 @@ function StepContent({
     case 'upload':
       return <FileUploadStep uploadedFile={uploadedFile} extractedText={extractedText} onFileSelected={onFileSelected} />;
     case 'extract':
-      return <ExtractionStep questions={questions} extractedText={extractedText} onReloadDemo={onReloadDemo} />;
+      return <ExtractionStep questions={questions} extractedText={extractedText} onReloadDemo={onReloadDemo} onParseQuestions={onParseQuestions} />;
     case 'glossary':
       return <GlossaryStep glossary={glossary} onUpdateTerm={onUpdateGlossaryTerm} />;
     case 'review':

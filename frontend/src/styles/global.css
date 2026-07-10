@@ -662,3 +662,15 @@ button:disabled {
   text-align: left;
   line-height: 1.7;
 }
+
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.inline-actions .primary-button,
+.inline-actions .secondary-button {
+  width: auto;
+}

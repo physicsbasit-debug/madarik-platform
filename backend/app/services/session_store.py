@@ -8,6 +8,7 @@ from app.models.project import (
     QuestionPatch,
     ExtractedTextInfo,
     UploadedFileInfo,
+    QuestionItem,
 )
 from app.services.demo_content import get_demo_glossary, get_demo_questions
 
@@ -78,6 +79,15 @@ class InMemoryProjectStore:
         project.questions = get_demo_questions()
         project.glossary = get_demo_glossary()
         project.current_step = StepKey.extract
+        return self.touch(project_id)
+
+
+    def set_parsed_questions(self, project_id: str, questions: list[QuestionItem]) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.questions = questions
+        project.current_step = StepKey.review
         return self.touch(project_id)
 
     def update_question(self, project_id: str, question_id: str, patch: QuestionPatch) -> ProjectSession | None:

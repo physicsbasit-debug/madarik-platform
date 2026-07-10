@@ -1,4 +1,4 @@
-# API Spec - منصة مدارك Phase 1-C
+# API Spec - منصة مدارك Phase 1-D
 
 Base path:
 
@@ -60,7 +60,7 @@ Body:
 {"name":"sample.pdf","size":2048,"type":"application/pdf"}
 ```
 
-يُستخدم هذا المسار عند إزالة الملف أو حفظ معلومات شكلية. المسار الحقيقي لرفع PDF في Phase 1-C هو المسار التالي.
+يُستخدم هذا المسار عند إزالة الملف أو حفظ معلومات شكلية. المسار الحقيقي لرفع PDF هو المسار التالي.
 
 ### رفع PDF واستخراج النص
 
@@ -80,27 +80,17 @@ multipart/form-data
 file
 ```
 
-يرجع جلسة المشروع مع:
-
-```json
-{
-  "uploaded_file": {
-    "name": "sample.pdf",
-    "size": 12345,
-    "type": "application/pdf"
-  },
-  "extracted_text": {
-    "text": "...",
-    "preview": "...",
-    "page_count": 1,
-    "character_count": 120,
-    "is_text_based": true,
-    "message": "تم استخراج النص من PDF نصي بنجاح."
-  }
-}
-```
+يرجع جلسة المشروع مع معلومات الملف ونتيجة استخراج النص.
 
 إذا كان PDF بلا نص قابل للاستخراج، يرجع `is_text_based=false` ورسالة توضّح أن الملف يحتاج OCR في مرحلة لاحقة.
+
+### تقسيم النص المستخرج إلى أسئلة
+
+```http
+POST /api/projects/{project_id}/parse-questions
+```
+
+يتطلب وجود `extracted_text` ناتج من PDF نصي. يحول النص إلى بطاقات `QuestionItem` باستخدام قواعد أولية، ويضع الأسئلة الناتجة بحالة `needs_review`.
 
 ### تحميل بيانات تجريبية
 

@@ -11,6 +11,7 @@ from app.models.project import (
     UploadedFileInfo,
 )
 from app.services.session_store import project_store
+from app.services.question_parser import parse_questions_from_text
 from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -109,6 +110,27 @@ async def upload_pdf_and_extract_text(project_id: str, file: UploadFile = File(.
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+
+
+@router.post("/{project_id}/parse-questions")
+def parse_extracted_questions(project_id: str) -> ProjectSession:
+    """Convert extracted text into reviewable question cards for Phase 1-D."""
+
+    project = _get_or_404(project_id)
+    if project.extracted_text is None or not project.extracted_text.text.strip():
+        raise HTTPException(status_code=400, detail="لا يوجد نص مستخرج يمكن تقسيمه إلى أسئلة.")
+    if not project.extracted_text.is_text_based:
+        raise HTTPException(status_code=400, detail="لا يمكن تقسيم PDF غير نصي في Phase 1-D. سيحتاج OCR لاحقًا.")
+
+    questions = parse_questions_from_text(project.extracted_text.text)
+    if not questions:
+        raise HTTPException(status_code=400, detail="لم يتم العثور على أسئلة قابلة للتقسيم في النص المستخرج.")
+
+    updated_project = project_store.set_parsed_questions(project_id, questions)
+    if updated_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return updated_project
 
 @router.post("/{project_id}/demo-content")
 def load_demo_content(project_id: str) -> ProjectSession:

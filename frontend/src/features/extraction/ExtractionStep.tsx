@@ -1,4 +1,4 @@
-import { ClipboardList, DatabaseZap, FileText, Image as ImageIcon } from 'lucide-react';
+import { ClipboardList, DatabaseZap, FileText, Image as ImageIcon, Wand2 } from 'lucide-react';
 import type { ExtractedTextInfo, QuestionItem } from '../../types/project';
 import { MetricCard } from '../../components/MetricCard';
 
@@ -6,27 +6,29 @@ interface ExtractionStepProps {
   questions: QuestionItem[];
   extractedText: ExtractedTextInfo | null;
   onReloadDemo: () => void;
+  onParseQuestions: () => void;
 }
 
-export function ExtractionStep({ questions, extractedText, onReloadDemo }: ExtractionStepProps) {
+export function ExtractionStep({ questions, extractedText, onReloadDemo, onParseQuestions }: ExtractionStepProps) {
   const totalMarks = questions.reduce((sum, question) => sum + (question.marks ?? 0), 0);
   const needsReview = questions.filter((question) => question.status === 'needs_review').length;
+  const hasTextToParse = Boolean(extractedText?.isTextBased && extractedText.text.trim().length > 0);
 
   return (
     <div className="step-grid">
       <section className="form-card wide-card">
         <div className="section-heading">
-          <p className="eyebrow">Phase 1-C: استخراج PDF نصي</p>
+          <p className="eyebrow">Phase 1-D: تقسيم النص إلى أسئلة</p>
           <h3>النص الخام المستخرج</h3>
           <p>
-            في هذه المرحلة نقرأ النص القابل للتحديد من PDF فقط. تقسيم الأسئلة الحقيقي سيأتي في المرحلة التالية، فلا نخلط القارئ بالمحلل ونصنع حساء تقنيًا.
+            في هذه المرحلة نقرأ النص القابل للتحديد من PDF ثم نحوله بقواعد أولية إلى بطاقات أسئلة. لا يوجد OCR ولا ترجمة بعد، لأننا نربي التطبيق خطوة خطوة لا نرميه في البحر.
           </p>
         </div>
 
         <div className="metrics-row">
-          <MetricCard label="عدد الأسئلة التجريبية" value={questions.length} hint="محفوظة مؤقتًا من Backend" />
+          <MetricCard label="بطاقات الأسئلة" value={questions.length} hint="من Backend أو بيانات تجريبية" />
           <MetricCard label="مجموع الدرجات" value={totalMarks} hint="محسوب من البطاقات" />
-          <MetricCard label="تحتاج مراجعة" value={needsReview} hint="قبل التصدير" />
+          <MetricCard label="تحتاج مراجعة" value={needsReview} hint="تقسيم آلي أولي" />
           <MetricCard label="أحرف PDF" value={extractedText?.characterCount ?? 0} hint="من PDF نصي" />
         </div>
 
@@ -46,17 +48,23 @@ export function ExtractionStep({ questions, extractedText, onReloadDemo }: Extra
           <div className="empty-state">ارفع ملف PDF نصي من خطوة رفع الملف ليظهر هنا مقتطف النص المستخرج.</div>
         )}
 
-        <button type="button" className="secondary-button" onClick={onReloadDemo}>
-          <DatabaseZap size={18} />
-          إعادة تحميل بيانات Backend التجريبية
-        </button>
+        <div className="inline-actions">
+          <button type="button" className="primary-button" onClick={onParseQuestions} disabled={!hasTextToParse}>
+            <Wand2 size={18} />
+            تحويل النص إلى بطاقات أسئلة
+          </button>
+          <button type="button" className="secondary-button" onClick={onReloadDemo}>
+            <DatabaseZap size={18} />
+            إعادة تحميل بيانات Backend التجريبية
+          </button>
+        </div>
       </section>
 
       <section className="question-preview-list wide-card">
-        {questions.map((question) => (
+        {questions.map((question, index) => (
           <article key={question.id} className="mini-question-card">
             <div>
-              <span className="status-pill">السؤال الأصلي {question.originalNumber}</span>
+              <span className="status-pill">السؤال {index + 1} | الأصلي {question.originalNumber}</span>
               <h4>{question.originalText}</h4>
               <p>{question.translatedText}</p>
             </div>
