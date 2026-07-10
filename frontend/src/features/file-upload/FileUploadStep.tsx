@@ -1,10 +1,11 @@
 import type { ChangeEvent } from 'react';
-import { FileUp, ShieldCheck } from 'lucide-react';
-import type { UploadedFileInfo } from '../../types/project';
+import { FileSearch, FileUp, ShieldCheck } from 'lucide-react';
+import type { ExtractedTextInfo, UploadedFileInfo } from '../../types/project';
 
 interface FileUploadStepProps {
   uploadedFile: UploadedFileInfo | null;
-  onFileSelected: (fileInfo: UploadedFileInfo | null) => void;
+  extractedText: ExtractedTextInfo | null;
+  onFileSelected: (file: File | null) => void;
 }
 
 function formatFileSize(size: number) {
@@ -13,7 +14,7 @@ function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function FileUploadStep({ uploadedFile, onFileSelected }: FileUploadStepProps) {
+export function FileUploadStep({ uploadedFile, extractedText, onFileSelected }: FileUploadStepProps) {
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -21,21 +22,23 @@ export function FileUploadStep({ uploadedFile, onFileSelected }: FileUploadStepP
       return;
     }
 
-    onFileSelected({ name: file.name, size: file.size, type: file.type || 'غير معروف' });
+    onFileSelected(file);
   }
 
   return (
     <div className="step-grid two-columns">
       <section className="form-card upload-zone">
         <FileUp size={42} />
-        <h3>رفع ملف تجريبي</h3>
-        <p>في Phase 1-B تُحفظ معلومات الملف فقط في Backend دون رفع الملف الحقيقي أو قراءته. قراءة PDF وOCR مؤجلان عمدًا.</p>
-        <input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={handleFileChange} />
+        <h3>رفع PDF نصي</h3>
+        <p>
+          في Phase 1-C يتم رفع ملف PDF حقيقي إلى Backend لاستخراج النص القابل للتحديد فقط. ملفات PDF المصوّرة ستحتاج OCR لاحقًا، فلا نكذب على الورق.
+        </p>
+        <input type="file" accept=".pdf,application/pdf" onChange={handleFileChange} />
       </section>
 
       <section className="form-card">
         <div className="section-heading">
-          <p className="eyebrow">فحص شكلي</p>
+          <p className="eyebrow">استخراج أولي</p>
           <h3>حالة الملف</h3>
         </div>
 
@@ -45,17 +48,26 @@ export function FileUploadStep({ uploadedFile, onFileSelected }: FileUploadStepP
             <span>النوع: {uploadedFile.type}</span>
             <span>الحجم: {formatFileSize(uploadedFile.size)}</span>
             <button type="button" className="secondary-button compact" onClick={() => onFileSelected(null)}>
-              إزالة الملف التجريبي
+              إزالة الملف
             </button>
           </div>
         ) : (
           <div className="empty-state">لم يتم اختيار ملف بعد.</div>
         )}
 
-        <div className="notice-card">
-          <ShieldCheck size={22} />
-          <span>تُرسل معلومات الملف فقط إلى Backend. الملف الحقيقي لا يُرفع ولا يُقرأ في هذه المرحلة.</span>
-        </div>
+        {extractedText ? (
+          <div className={`notice-card ${extractedText.isTextBased ? 'success-card' : 'warning-card'}`}>
+            <FileSearch size={22} />
+            <span>
+              {extractedText.message} الصفحات: {extractedText.pageCount}، الأحرف: {extractedText.characterCount}.
+            </span>
+          </div>
+        ) : (
+          <div className="notice-card">
+            <ShieldCheck size={22} />
+            <span>لا يتم تشغيل OCR في هذه المرحلة. المطلوب الآن إثبات قراءة PDF النصي فقط، خطوة خطوة بلا بهلوانيات.</span>
+          </div>
+        )}
       </section>
     </div>
   );

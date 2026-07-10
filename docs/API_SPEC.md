@@ -1,4 +1,4 @@
-# API Spec - منصة مدارك Phase 1-B
+# API Spec - منصة مدارك Phase 1-C
 
 Base path:
 
@@ -60,7 +60,47 @@ Body:
 {"name":"sample.pdf","size":2048,"type":"application/pdf"}
 ```
 
-> لا يرفع هذا المسار الملف الحقيقي في Phase 1-B.
+يُستخدم هذا المسار عند إزالة الملف أو حفظ معلومات شكلية. المسار الحقيقي لرفع PDF في Phase 1-C هو المسار التالي.
+
+### رفع PDF واستخراج النص
+
+```http
+POST /api/projects/{project_id}/upload-pdf
+```
+
+نوع الطلب:
+
+```text
+multipart/form-data
+```
+
+الحقل:
+
+```text
+file
+```
+
+يرجع جلسة المشروع مع:
+
+```json
+{
+  "uploaded_file": {
+    "name": "sample.pdf",
+    "size": 12345,
+    "type": "application/pdf"
+  },
+  "extracted_text": {
+    "text": "...",
+    "preview": "...",
+    "page_count": 1,
+    "character_count": 120,
+    "is_text_based": true,
+    "message": "تم استخراج النص من PDF نصي بنجاح."
+  }
+}
+```
+
+إذا كان PDF بلا نص قابل للاستخراج، يرجع `is_text_based=false` ورسالة توضّح أن الملف يحتاج OCR في مرحلة لاحقة.
 
 ### تحميل بيانات تجريبية
 

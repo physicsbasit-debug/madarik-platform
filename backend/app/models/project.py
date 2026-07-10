@@ -62,6 +62,15 @@ class UploadedFileInfo(BaseModel):
     type: str = "غير معروف"
 
 
+class ExtractedTextInfo(BaseModel):
+    text: str = ""
+    preview: str = ""
+    page_count: int = Field(default=0, ge=0)
+    character_count: int = Field(default=0, ge=0)
+    is_text_based: bool = False
+    message: str = ""
+
+
 class QuestionItem(BaseModel):
     id: str
     original_number: str
@@ -89,6 +98,7 @@ class ProjectSession(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     metadata: ProjectMetadata = Field(default_factory=ProjectMetadata)
     uploaded_file: UploadedFileInfo | None = None
+    extracted_text: ExtractedTextInfo | None = None
     questions: list[QuestionItem] = Field(default_factory=list)
     glossary: list[GlossaryTerm] = Field(default_factory=list)
     current_step: StepKey = StepKey.setup

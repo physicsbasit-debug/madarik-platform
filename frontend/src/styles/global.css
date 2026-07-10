@@ -614,3 +614,51 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+.success-card {
+  border-color: rgba(15, 118, 110, 0.24);
+  background: #ecfdf5;
+}
+
+.warning-card {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: #fffbeb;
+}
+
+.extracted-text-panel {
+  margin-top: 18px;
+  border: 1px solid rgba(15, 52, 96, 0.1);
+  border-radius: 22px;
+  padding: 18px;
+  background: #ffffff;
+}
+
+.extracted-text-panel.success-panel {
+  border-color: rgba(15, 118, 110, 0.24);
+  background: #f0fdfa;
+}
+
+.extracted-text-panel.warning-panel {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: #fffbeb;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #0f3460;
+}
+
+.extracted-text-panel pre {
+  white-space: pre-wrap;
+  overflow-x: auto;
+  margin: 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.74);
+  color: #0f172a;
+  text-align: left;
+  line-height: 1.7;
+}

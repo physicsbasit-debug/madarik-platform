@@ -27,6 +27,15 @@ export interface UploadedFileInfo {
   type: string;
 }
 
+export interface ExtractedTextInfo {
+  text: string;
+  preview: string;
+  pageCount: number;
+  characterCount: number;
+  isTextBased: boolean;
+  message: string;
+}
+
 export interface QuestionItem {
   id: string;
   originalNumber: string;
@@ -54,6 +63,7 @@ export interface ProjectSession {
   id: string;
   metadata: ProjectMetadata;
   uploadedFile: UploadedFileInfo | null;
+  extractedText: ExtractedTextInfo | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   currentStep: StepKey;

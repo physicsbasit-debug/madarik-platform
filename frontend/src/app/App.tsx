@@ -15,6 +15,7 @@ import {
   loadDemoContent,
   reorderQuestions,
   setUploadedFileInfo,
+  uploadPdfAndExtractText,
   updateGlossaryTerm as updateGlossaryTermOnServer,
   updateProjectMetadata,
   updateProjectStep,
@@ -22,6 +23,7 @@ import {
 } from '../services/api';
 import type {
   ApiConnectionStatus,
+  ExtractedTextInfo,
   GlossaryTerm,
   ProjectMetadata,
   ProjectSession,
@@ -53,6 +55,7 @@ function applyProjectSession(
     setProjectId: (projectId: string) => void;
     setMetadata: (metadata: ProjectMetadata) => void;
     setUploadedFile: (fileInfo: UploadedFileInfo | null) => void;
+    setExtractedText: (extractedText: ExtractedTextInfo | null) => void;
     setQuestions: (questions: QuestionItem[]) => void;
     setGlossary: (glossary: GlossaryTerm[]) => void;
   },
@@ -60,6 +63,7 @@ function applyProjectSession(
   setters.setProjectId(project.id);
   setters.setMetadata(project.metadata);
   setters.setUploadedFile(project.uploadedFile);
+  setters.setExtractedText(project.extractedText);
   setters.setQuestions(project.questions);
   setters.setGlossary(project.glossary);
 }
@@ -71,6 +75,7 @@ export function App() {
   const [lastSyncNote, setLastSyncNote] = useState('يتم إنشاء جلسة مشروع مؤقتة...');
   const [metadata, setMetadata] = useState<ProjectMetadata>(defaultMetadata);
   const [uploadedFile, setUploadedFile] = useState<UploadedFileInfo | null>(null);
+  const [extractedText, setExtractedText] = useState<ExtractedTextInfo | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>(sampleQuestions);
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
 
@@ -86,6 +91,7 @@ export function App() {
       setProjectId,
       setMetadata,
       setUploadedFile,
+      setExtractedText,
       setQuestions,
       setGlossary,
     });
@@ -106,6 +112,7 @@ export function App() {
       setProjectId(null);
       setMetadata(defaultMetadata);
       setUploadedFile(null);
+      setExtractedText(null);
       setQuestions(sampleQuestions);
       setGlossary(sampleGlossary);
       setApiStatus('offline');
@@ -164,21 +171,56 @@ export function App() {
       });
   }
 
-  function handleFileSelected(fileInfo: UploadedFileInfo | null) {
-    setUploadedFile(fileInfo);
+  function handleFileSelected(file: File | null) {
+    if (!file) {
+      setUploadedFile(null);
+      setExtractedText(null);
 
-    if (!projectId || apiStatus === 'offline') return;
+      if (!projectId || apiStatus === 'offline') return;
+      setApiStatus('syncing');
+      setUploadedFileInfo(projectId, null)
+        .then((project) => {
+          applyProject(project);
+          setApiStatus('connected');
+          setLastSyncNote('تمت إزالة الملف ونتيجة الاستخراج من الجلسة.');
+        })
+        .catch((error: unknown) => {
+          console.error(error);
+          setApiStatus('offline');
+          setLastSyncNote('فشلت إزالة معلومات الملف من Backend. بقيت الحالة محليًا.');
+        });
+      return;
+    }
+
+    const fileInfo: UploadedFileInfo = { name: file.name, size: file.size, type: file.type || 'غير معروف' };
+    setUploadedFile(fileInfo);
+    setExtractedText(null);
+
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('تم اختيار الملف محليًا فقط. لا يمكن استخلاص PDF دون اتصال Backend. الكون يضحك في الخلفية.');
+      return;
+    }
+
     setApiStatus('syncing');
-    setUploadedFileInfo(projectId, fileInfo)
+    uploadPdfAndExtractText(projectId, file)
       .then((project) => {
         applyProject(project);
         setApiStatus('connected');
-        setLastSyncNote(fileInfo ? 'تم حفظ معلومات الملف في Backend. لم يُرفع الملف الحقيقي بعد.' : 'تمت إزالة معلومات الملف من الجلسة.');
+        setLastSyncNote(project.extractedText?.message ?? 'تم رفع PDF ومحاولة استخراج النص.');
       })
       .catch((error: unknown) => {
         console.error(error);
-        setApiStatus('offline');
-        setLastSyncNote('فشلت مزامنة معلومات الملف. بقيت الحالة محليًا.');
+        setApiStatus('connected');
+        setUploadedFile(fileInfo);
+        setExtractedText({
+          text: '',
+          preview: '',
+          pageCount: 0,
+          characterCount: 0,
+          isTextBased: false,
+          message: 'تعذر استخراج النص من الملف. تأكد أن الملف PDF نصي وليس صورة أو ملفًا غير صالح.',
+        });
+        setLastSyncNote('فشل استخراج النص من PDF. لم يتم تفعيل OCR بعد في هذه المرحلة.');
       });
   }
 
@@ -283,10 +325,10 @@ export function App() {
     <main className="app-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 1-B Backend API Integration</p>
+          <p className="eyebrow">Phase 1-C PDF Text Extraction</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
-            واجهة متعددة الخطوات متصلة الآن بجلسة FastAPI مؤقتة. لا يوجد OCR أو ترجمة أو تصدير فعلي بعد، فقط ربط منظم بين الواجهة والخلفية.
+            واجهة متعددة الخطوات تستطيع الآن رفع PDF نصي واستخراج النص الخام عبر FastAPI. لا يوجد OCR أو ترجمة أو تصدير فعلي بعد، فالتهور مؤجل كالعادة.
           </p>
         </div>
         <button className="ghost-button" type="button" onClick={() => void resetProject()}>
@@ -340,6 +382,7 @@ export function App() {
             stepKey={activeStep.key}
             metadata={metadata}
             uploadedFile={uploadedFile}
+            extractedText={extractedText}
             questions={questions}
             glossary={glossary}
             onMetadataChange={handleMetadataChange}
@@ -370,10 +413,11 @@ interface StepContentProps {
   stepKey: StepKey;
   metadata: ProjectMetadata;
   uploadedFile: UploadedFileInfo | null;
+  extractedText: ExtractedTextInfo | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   onMetadataChange: (metadata: ProjectMetadata) => void;
-  onFileSelected: (fileInfo: UploadedFileInfo | null) => void;
+  onFileSelected: (file: File | null) => void;
   onUpdateQuestion: (questionId: string, updates: Partial<QuestionItem>) => void;
   onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
   onUpdateGlossaryTerm: (termId: string, updates: Partial<GlossaryTerm>) => void;
@@ -384,6 +428,7 @@ function StepContent({
   stepKey,
   metadata,
   uploadedFile,
+  extractedText,
   questions,
   glossary,
   onMetadataChange,
@@ -397,9 +442,9 @@ function StepContent({
     case 'setup':
       return <ProjectSetupStep metadata={metadata} onChange={onMetadataChange} />;
     case 'upload':
-      return <FileUploadStep uploadedFile={uploadedFile} onFileSelected={onFileSelected} />;
+      return <FileUploadStep uploadedFile={uploadedFile} extractedText={extractedText} onFileSelected={onFileSelected} />;
     case 'extract':
-      return <ExtractionStep questions={questions} onReloadDemo={onReloadDemo} />;
+      return <ExtractionStep questions={questions} extractedText={extractedText} onReloadDemo={onReloadDemo} />;
     case 'glossary':
       return <GlossaryStep glossary={glossary} onUpdateTerm={onUpdateGlossaryTerm} />;
     case 'review':

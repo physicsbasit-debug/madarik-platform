@@ -6,6 +6,7 @@ from app.models.project import (
     ProjectMetadata,
     ProjectSession,
     QuestionPatch,
+    ExtractedTextInfo,
     UploadedFileInfo,
 )
 from app.services.demo_content import get_demo_glossary, get_demo_questions
@@ -51,7 +52,23 @@ class InMemoryProjectStore:
         if project is None:
             return None
         project.uploaded_file = uploaded_file
+        if uploaded_file is None:
+            project.extracted_text = None
         project.current_step = StepKey.upload
+        return self.touch(project_id)
+
+    def set_extracted_text(
+        self,
+        project_id: str,
+        uploaded_file: UploadedFileInfo,
+        extracted_text: ExtractedTextInfo,
+    ) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.uploaded_file = uploaded_file
+        project.extracted_text = extracted_text
+        project.current_step = StepKey.extract
         return self.touch(project_id)
 
     def load_demo_content(self, project_id: str) -> ProjectSession | None:

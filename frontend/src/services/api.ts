@@ -1,4 +1,5 @@
 import type {
+  ExtractedTextInfo,
   GlossaryTerm,
   ProjectMetadata,
   ProjectSession,
@@ -31,6 +32,15 @@ interface ApiUploadedFileInfo {
   type: string;
 }
 
+interface ApiExtractedTextInfo {
+  text: string;
+  preview: string;
+  page_count: number;
+  character_count: number;
+  is_text_based: boolean;
+  message: string;
+}
+
 interface ApiQuestionItem {
   id: string;
   original_number: string;
@@ -58,6 +68,7 @@ interface ApiProjectSession {
   id: string;
   metadata: ApiProjectMetadata;
   uploaded_file: ApiUploadedFileInfo | null;
+  extracted_text: ApiExtractedTextInfo | null;
   questions: ApiQuestionItem[];
   glossary: ApiGlossaryTerm[];
   current_step: StepKey;
@@ -97,6 +108,18 @@ function fromApiMetadata(metadata: ApiProjectMetadata): ProjectMetadata {
   };
 }
 
+function fromApiExtractedText(info: ApiExtractedTextInfo | null): ExtractedTextInfo | null {
+  if (!info) return null;
+  return {
+    text: info.text,
+    preview: info.preview,
+    pageCount: info.page_count,
+    characterCount: info.character_count,
+    isTextBased: info.is_text_based,
+    message: info.message,
+  };
+}
+
 function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
   return {
     id: question.id,
@@ -129,6 +152,7 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     id: project.id,
     metadata: fromApiMetadata(project.metadata),
     uploadedFile: project.uploaded_file,
+    extractedText: fromApiExtractedText(project.extracted_text),
     questions: project.questions.map(fromApiQuestion),
     glossary: project.glossary.map(fromApiGlossaryTerm),
     currentStep: project.current_step,
@@ -185,6 +209,24 @@ export async function setUploadedFileInfo(projectId: string, uploadedFile: Uploa
     method: 'PUT',
     body: JSON.stringify(uploadedFile),
   });
+  return fromApiProject(project);
+}
+
+export async function uploadPdfAndExtractText(projectId: string, file: File): Promise<ProjectSession> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/upload-pdf`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`PDF extraction failed ${response.status}: ${body}`);
+  }
+
+  const project = (await response.json()) as ApiProjectSession;
   return fromApiProject(project);
 }
 

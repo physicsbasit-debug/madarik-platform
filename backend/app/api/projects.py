@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.models.project import (
+    ExtractedTextInfo,
     GlossaryTermPatch,
     ProjectMetadata,
     ProjectSession,
@@ -10,6 +11,7 @@ from app.models.project import (
     UploadedFileInfo,
 )
 from app.services.session_store import project_store
+from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -63,6 +65,50 @@ def set_upload_info(project_id: str, uploaded_file: UploadedFileInfo | None = No
         raise HTTPException(status_code=404, detail="Project not found")
     return project
 
+
+
+
+@router.post("/{project_id}/upload-pdf")
+async def upload_pdf_and_extract_text(project_id: str, file: UploadFile = File(...)) -> ProjectSession:
+    """Upload a real text-based PDF and extract selectable text for Phase 1-C."""
+
+    _get_or_404(project_id)
+
+    filename = file.filename or "uploaded.pdf"
+    if not filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="يدعم هذا المسار ملفات PDF فقط في Phase 1-C.")
+
+    file_bytes = await file.read()
+    uploaded_file = UploadedFileInfo(name=filename, size=len(file_bytes), type=file.content_type or "application/pdf")
+
+    try:
+        result = extract_text_from_pdf_bytes(file_bytes)
+    except TextExtractionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if not result.is_text_based:
+        extracted_text = ExtractedTextInfo(
+            text="",
+            preview="",
+            page_count=result.page_count,
+            character_count=0,
+            is_text_based=False,
+            message="لم يتم العثور على نص قابل للاستخراج. يبدو أن الملف PDF مصوّر أو ممسوح ضوئيًا، وسيحتاج OCR في مرحلة لاحقة.",
+        )
+    else:
+        extracted_text = ExtractedTextInfo(
+            text=result.text,
+            preview=result.preview,
+            page_count=result.page_count,
+            character_count=result.character_count,
+            is_text_based=True,
+            message="تم استخراج النص من PDF نصي بنجاح.",
+        )
+
+    project = project_store.set_extracted_text(project_id, uploaded_file, extracted_text)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
 
 @router.post("/{project_id}/demo-content")
 def load_demo_content(project_id: str) -> ProjectSession:
