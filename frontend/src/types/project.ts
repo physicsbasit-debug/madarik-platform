@@ -138,3 +138,18 @@ export interface AuthSessionInfo {
   token: string;
   account: AuthAccountPublic;
 }
+
+
+export interface AuthCreateAccountInput {
+  username: string;
+  displayName: string;
+  password: string;
+  role: AccountRole;
+  isActive: boolean;
+}
+
+export interface AuthUpdateAccountInput {
+  displayName?: string;
+  role?: AccountRole;
+  isActive?: boolean;
+}

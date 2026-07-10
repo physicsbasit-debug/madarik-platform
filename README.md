@@ -1,4 +1,4 @@
-# منصة مدارك - Phase 2-B2 Project Ownership & Access Rules
+# منصة مدارك - Phase 2-B3 User Management Lite
 
 منصة مدارك هي منصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى موارد عربية وثنائية اللغة قابلة للمراجعة والطباعة.
 
@@ -236,3 +236,16 @@ Endpoints:
 الوثيقة التفصيلية:
 
 `docs/PHASE2_B2_PROJECT_OWNERSHIP_ACCESS.md`
+
+
+## Phase 2-B3: User Management Lite
+
+أضيفت إدارة حسابات خفيفة للمالك:
+- عرض الحسابات.
+- إنشاء حساب.
+- تفعيل/تعطيل حساب.
+- حماية إدارة الحسابات لتكون للمالك فقط.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_B3_USER_MANAGEMENT_LITE.md`

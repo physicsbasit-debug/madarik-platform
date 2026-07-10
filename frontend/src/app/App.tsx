@@ -14,6 +14,7 @@ import { ReviewStep } from '../features/review/ReviewStep';
 import {
   bootstrapOwner,
   bulkUpdateQuestionStatus,
+  createAuthAccount,
   createProject,
   exportProjectDocx,
   exportProjectPdf,
@@ -42,12 +43,15 @@ import {
   getProject,
   getProjectReadiness,
   importProjectSnapshot,
+  listAuthAccounts,
   login,
   logout,
   listProjects,
+  updateAuthAccount,
 } from '../services/api';
 import type {
   ApiConnectionStatus,
+  AccountRole,
   AuthAccountPublic,
   AuthStatus,
   ExtractedTextInfo,
@@ -121,6 +125,8 @@ export function App() {
   const [authAccount, setAuthAccount] = useState<AuthAccountPublic | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(() => window.localStorage.getItem('madarik-auth-token'));
   const [authMessage, setAuthMessage] = useState('الحسابات اختيارية الآن، وستصبح أساس الصلاحيات لاحقًا.');
+  const [authAccounts, setAuthAccounts] = useState<AuthAccountPublic[]>([]);
+  const [authAccountsLoading, setAuthAccountsLoading] = useState(false);
 
   const activeStep = steps[activeIndex];
   const progressLabel = useMemo(() => `${activeIndex + 1} من ${steps.length}`, [activeIndex]);
@@ -143,6 +149,50 @@ export function App() {
 
 
 
+
+  async function refreshAuthAccounts() {
+    if (authAccount?.role !== 'owner') {
+      setAuthAccounts([]);
+      return;
+    }
+
+    setAuthAccountsLoading(true);
+    try {
+      const accounts = await listAuthAccounts();
+      setAuthAccounts(accounts);
+      setAuthMessage(`تم تحديث قائمة الحسابات: ${accounts.length} حساب.`);
+    } catch (error) {
+      console.error(error);
+      setAuthMessage('فشل تحديث قائمة الحسابات.');
+    } finally {
+      setAuthAccountsLoading(false);
+    }
+  }
+
+  async function createManagedAccount(username: string, displayName: string, password: string, role: AccountRole) {
+    try {
+      await createAuthAccount({ username, displayName, password, role, isActive: true });
+      const accounts = await listAuthAccounts();
+      setAuthAccounts(accounts);
+      setAuthMessage('تم إنشاء الحساب الجديد.');
+    } catch (error) {
+      console.error(error);
+      setAuthMessage('فشل إنشاء الحساب. قد يكون اسم المستخدم مستخدمًا سابقًا.');
+    }
+  }
+
+  async function toggleManagedAccount(accountId: string, isActive: boolean) {
+    try {
+      await updateAuthAccount(accountId, { isActive });
+      const accounts = await listAuthAccounts();
+      setAuthAccounts(accounts);
+      setAuthMessage(isActive ? 'تم تفعيل الحساب.' : 'تم تعطيل الحساب.');
+    } catch (error) {
+      console.error(error);
+      setAuthMessage('فشل تحديث حالة الحساب.');
+    }
+  }
+
   async function refreshAuthStatus() {
     try {
       const status = await getAuthStatus();
@@ -155,6 +205,7 @@ export function App() {
           setAuthToken(storedToken);
           setAuthAccount(account);
           setAuthMessage(`تم استعادة جلسة الدخول: ${account.displayName}.`);
+          if (account.role === 'owner') listAuthAccounts().then(setAuthAccounts).catch((accountsError: unknown) => console.error(accountsError));
         } catch {
           window.localStorage.removeItem('madarik-auth-token');
           setAuthToken(null);
@@ -176,6 +227,7 @@ export function App() {
       setAuthAccount(session.account);
       setAuthStatus({ accountsExist: true, requiresBootstrap: false });
       setAuthMessage('تم إنشاء حساب مالك المنصة وتسجيل الدخول.');
+      listAuthAccounts().then(setAuthAccounts).catch((accountsError: unknown) => console.error(accountsError));
       listProjects(50).then(setProjectLibrary).catch((libraryError: unknown) => console.error(libraryError));
     } catch (error) {
       console.error(error);
@@ -190,6 +242,7 @@ export function App() {
       setAuthToken(session.token);
       setAuthAccount(session.account);
       setAuthMessage(`تم تسجيل الدخول: ${session.account.displayName}.`);
+      if (session.account.role === 'owner') listAuthAccounts().then(setAuthAccounts).catch((accountsError: unknown) => console.error(accountsError));
       listProjects(50).then(setProjectLibrary).catch((libraryError: unknown) => console.error(libraryError));
     } catch (error) {
       console.error(error);
@@ -204,6 +257,7 @@ export function App() {
     window.localStorage.removeItem('madarik-auth-token');
     setAuthToken(null);
     setAuthAccount(null);
+    setAuthAccounts([]);
     setAuthMessage('تم تسجيل الخروج.');
     listProjects(50).then(setProjectLibrary).catch((libraryError: unknown) => console.error(libraryError));
   }
@@ -867,7 +921,7 @@ export function App() {
     <main className="app-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 2-B2 Project Ownership</p>
+          <p className="eyebrow">Phase 2-B3 Project Ownership</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
             واجهة متعددة الخطوات لمعالجة أوراق الاختبارات، مع تخزين دائم، مكتبة مشاريع، وحسابات أولية تربط المشاريع الجديدة بالمستخدم الحالي وتحترم قواعد الوصول. أخيرًا أصبح للمشروع صاحب، لا يتجول في SQLite مثل يتيم رقمي.
@@ -899,10 +953,15 @@ export function App() {
       <AuthPanel
         status={authStatus}
         account={authAccount}
+        accounts={authAccounts}
+        accountsLoading={authAccountsLoading}
         message={authMessage}
         onBootstrap={bootstrapOwnerAccount}
         onLogin={loginAccount}
         onLogout={logoutAccount}
+        onRefreshAccounts={refreshAuthAccounts}
+        onCreateAccount={createManagedAccount}
+        onToggleAccount={toggleManagedAccount}
       />
 
       {isProjectLibraryVisible ? (
@@ -944,7 +1003,7 @@ export function App() {
         </div>
         <div>
           <span>مرحلة التطوير</span>
-          <strong>Phase 2-B2</strong>
+          <strong>Phase 2-B3</strong>
         </div>
       </section>
 

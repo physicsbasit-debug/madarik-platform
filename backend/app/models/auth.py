@@ -42,3 +42,18 @@ class AuthLoginRequest(BaseModel):
 class AuthSessionInfo(BaseModel):
     token: str
     account: AuthAccountPublic
+
+
+
+class AuthCreateAccountRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=40)
+    display_name: str = Field(min_length=2, max_length=80)
+    password: str = Field(min_length=6, max_length=128)
+    role: AccountRole = AccountRole.teacher
+    is_active: bool = True
+
+
+class AuthUpdateAccountRequest(BaseModel):
+    display_name: str | None = Field(default=None, min_length=2, max_length=80)
+    role: AccountRole | None = None
+    is_active: bool | None = None

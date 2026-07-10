@@ -133,6 +133,97 @@ class AuthRepository:
             raise RuntimeError("Owner account was not created")
         return account
 
+    def list_accounts(self) -> list[AuthAccountPublic]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM auth_accounts ORDER BY created_at ASC"
+            ).fetchall()
+        return [_row_to_account(row) for row in rows]
+
+    def create_account(
+        self,
+        username: str,
+        display_name: str,
+        password: str,
+        role: AccountRole,
+        is_active: bool = True,
+    ) -> AuthAccountPublic:
+        now = _utc_now()
+        account_id = secrets.token_hex(16)
+        salt = secrets.token_hex(16)
+        username_normalized = _normalize_username(username)
+        password_hash = _hash_password(password, salt)
+
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO auth_accounts (
+                    id, username, display_name, role, password_hash, password_salt,
+                    is_active, created_at, last_login_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                """,
+                (
+                    account_id,
+                    username_normalized,
+                    display_name.strip(),
+                    role.value,
+                    password_hash,
+                    salt,
+                    1 if is_active else 0,
+                    now.isoformat(),
+                ),
+            )
+
+        account = self.get_account_by_id(account_id)
+        if account is None:
+            raise RuntimeError("Account was not created")
+        return account
+
+    def update_account(
+        self,
+        account_id: str,
+        display_name: str | None = None,
+        role: AccountRole | None = None,
+        is_active: bool | None = None,
+    ) -> AuthAccountPublic | None:
+        account = self.get_account_by_id(account_id)
+        if account is None:
+            return None
+
+        next_display_name = display_name.strip() if display_name is not None else account.display_name
+        next_role = role.value if role is not None else account.role.value
+        next_is_active = account.is_active if is_active is None else is_active
+
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE auth_accounts
+                SET display_name = ?, role = ?, is_active = ?
+                WHERE id = ?
+                """,
+                (
+                    next_display_name,
+                    next_role,
+                    1 if next_is_active else 0,
+                    account_id,
+                ),
+            )
+
+            if is_active is False:
+                connection.execute("DELETE FROM auth_sessions WHERE account_id = ?", (account_id,))
+
+        return self.get_account_by_id(account_id)
+
+    def count_active_owners(self) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM auth_accounts WHERE role = ? AND is_active = 1",
+                (AccountRole.owner.value,),
+            ).fetchone()
+        return int(row["count"] if row else 0)
+
+
     def get_account_by_username(self, username: str) -> AuthAccountPublic | None:
         with self._connect() as connection:
             row = connection.execute(

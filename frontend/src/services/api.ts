@@ -11,9 +11,12 @@ import type {
   StepKey,
   UploadedFileInfo,
   TranslationProviderStatus,
+  AccountRole,
   AuthAccountPublic,
+  AuthCreateAccountInput,
   AuthSessionInfo,
   AuthStatus,
+  AuthUpdateAccountInput,
 } from '../types/project';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -352,6 +355,39 @@ export async function logout(token: string): Promise<void> {
   });
 }
 
+
+
+export async function listAuthAccounts(): Promise<AuthAccountPublic[]> {
+  const accounts = await requestJson<ApiAuthAccountPublic[]>('/auth/accounts');
+  return accounts.map(fromApiAuthAccount);
+}
+
+export async function createAuthAccount(input: AuthCreateAccountInput): Promise<AuthAccountPublic> {
+  const account = await requestJson<ApiAuthAccountPublic>('/auth/accounts', {
+    method: 'POST',
+    body: JSON.stringify({
+      username: input.username,
+      display_name: input.displayName,
+      password: input.password,
+      role: input.role,
+      is_active: input.isActive,
+    }),
+  });
+  return fromApiAuthAccount(account);
+}
+
+export async function updateAuthAccount(accountId: string, input: AuthUpdateAccountInput): Promise<AuthAccountPublic> {
+  const account = await requestJson<ApiAuthAccountPublic>(`/auth/accounts/${accountId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      display_name: input.displayName,
+      role: input.role,
+      is_active: input.isActive,
+    }),
+  });
+  return fromApiAuthAccount(account);
+}
+
 export async function getProject(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}`);
   return fromApiProject(project);
@@ -617,6 +653,8 @@ export async function exportProjectPdf(projectId: string): Promise<Blob> {
 export async function getTranslationProviderStatus(): Promise<TranslationProviderStatus> {
   return await requestJson<TranslationProviderStatus>('/projects/translation-provider/status');
 }
+
+
 
 
 export async function getProjectReadiness(projectId: string): Promise<ProjectReadinessReport> {
