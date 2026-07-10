@@ -9,6 +9,7 @@ from app.models.project import (
     ExtractedTextInfo,
     UploadedFileInfo,
     QuestionItem,
+    GlossaryTerm,
 )
 from app.services.demo_content import get_demo_glossary, get_demo_questions
 
@@ -88,6 +89,15 @@ class InMemoryProjectStore:
             return None
         project.questions = questions
         project.current_step = StepKey.review
+        return self.touch(project_id)
+
+
+    def set_glossary(self, project_id: str, glossary: list[GlossaryTerm]) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.glossary = glossary
+        project.current_step = StepKey.glossary
         return self.touch(project_id)
 
     def update_question(self, project_id: str, question_id: str, patch: QuestionPatch) -> ProjectSession | None:

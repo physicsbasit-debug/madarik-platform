@@ -11,6 +11,7 @@ import { ProjectSetupStep } from '../features/project-setup/ProjectSetupStep';
 import { ReviewStep } from '../features/review/ReviewStep';
 import {
   createProject,
+  generateGlossaryFromQuestions,
   deleteProject,
   loadDemoContent,
   parseExtractedQuestions,
@@ -325,6 +326,31 @@ export function App() {
     }
   }
 
+
+  async function generateGlossaryFromQuestionCards() {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن توليد قاموس حقيقي دون اتصال Backend. القاموس الحالي محلي فقط.');
+      return;
+    }
+
+    if (questions.length === 0) {
+      setLastSyncNote('لا توجد أسئلة يمكن استخراج مصطلحات منها. نحتاج مادة خام، لا نقرأ النوايا.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await generateGlossaryFromQuestions(projectId);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote(`تم توليد ${project.glossary.length} مصطلحًا من بطاقات الأسئلة.`);
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل توليد قاموس الورقة. قد لا تحتوي الأسئلة على مصطلحات ضمن القاموس الأولي.');
+    }
+  }
+
   async function reloadDemoFromBackend() {
     if (!projectId || apiStatus === 'offline') {
       setQuestions(sampleQuestions);
@@ -350,10 +376,10 @@ export function App() {
     <main className="app-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 1-C PDF Text Extraction</p>
+          <p className="eyebrow">Phase 1-E1 Glossary Engine</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
-            واجهة متعددة الخطوات تستطيع الآن رفع PDF نصي واستخراج النص الخام ثم تحويله إلى بطاقات أسئلة قابلة للمراجعة. لا يوجد OCR أو ترجمة أو تصدير فعلي بعد، فالتهور مؤجل كالعادة.
+            واجهة متعددة الخطوات تستطيع رفع PDF نصي، استخراج النص، تحويله إلى بطاقات أسئلة، ثم توليد قاموس مصطلحات أولي للمعلم. لا توجد ترجمة AI أو OCR أو تصدير فعلي بعد، فالوحوش التقنية تنتظر دورها.
           </p>
         </div>
         <button className="ghost-button" type="button" onClick={() => void resetProject()}>
@@ -415,6 +441,7 @@ export function App() {
             onUpdateQuestion={updateQuestion}
             onMoveQuestion={moveQuestion}
             onUpdateGlossaryTerm={updateGlossaryTerm}
+            onGenerateGlossary={generateGlossaryFromQuestionCards}
             onReloadDemo={reloadDemoFromBackend}
             onParseQuestions={parseQuestionsFromExtractedText}
           />
@@ -447,6 +474,7 @@ interface StepContentProps {
   onUpdateQuestion: (questionId: string, updates: Partial<QuestionItem>) => void;
   onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
   onUpdateGlossaryTerm: (termId: string, updates: Partial<GlossaryTerm>) => void;
+  onGenerateGlossary: () => void;
   onReloadDemo: () => void;
   onParseQuestions: () => void;
 }
@@ -463,6 +491,7 @@ function StepContent({
   onUpdateQuestion,
   onMoveQuestion,
   onUpdateGlossaryTerm,
+  onGenerateGlossary,
   onReloadDemo,
   onParseQuestions,
 }: StepContentProps) {
@@ -474,7 +503,7 @@ function StepContent({
     case 'extract':
       return <ExtractionStep questions={questions} extractedText={extractedText} onReloadDemo={onReloadDemo} onParseQuestions={onParseQuestions} />;
     case 'glossary':
-      return <GlossaryStep glossary={glossary} onUpdateTerm={onUpdateGlossaryTerm} />;
+      return <GlossaryStep glossary={glossary} onUpdateTerm={onUpdateGlossaryTerm} onGenerateGlossary={onGenerateGlossary} />;
     case 'review':
       return <ReviewStep questions={questions} onUpdateQuestion={onUpdateQuestion} onMoveQuestion={onMoveQuestion} />;
     case 'export':

@@ -11,6 +11,7 @@ from app.models.project import (
     UploadedFileInfo,
 )
 from app.services.session_store import project_store
+from app.services.glossary import extract_glossary_terms_from_questions
 from app.services.question_parser import parse_questions_from_text
 from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
 
@@ -131,6 +132,29 @@ def parse_extracted_questions(project_id: str) -> ProjectSession:
     if updated_project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return updated_project
+
+
+
+@router.post("/{project_id}/glossary/generate")
+def generate_project_glossary(project_id: str) -> ProjectSession:
+    """Generate a teacher-review glossary from parsed question cards for Phase 1-E1."""
+
+    project = _get_or_404(project_id)
+    if not project.questions:
+        raise HTTPException(status_code=400, detail="لا توجد بطاقات أسئلة يمكن استخراج مصطلحات منها.")
+
+    detected_terms = extract_glossary_terms_from_questions(
+        project.questions,
+        default_subject=project.metadata.subject,
+    )
+    if not detected_terms:
+        raise HTTPException(status_code=400, detail="لم يتم العثور على مصطلحات علمية ضمن قاموس Phase 1-E1 الأولي.")
+
+    updated_project = project_store.set_glossary(project_id, detected_terms)
+    if updated_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return updated_project
+
 
 @router.post("/{project_id}/demo-content")
 def load_demo_content(project_id: str) -> ProjectSession:

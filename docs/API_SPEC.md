@@ -1,4 +1,4 @@
-# API Spec - منصة مدارك Phase 1-D
+# API Spec - منصة مدارك Phase 1-E1
 
 Base path:
 
@@ -60,29 +60,17 @@ Body:
 {"name":"sample.pdf","size":2048,"type":"application/pdf"}
 ```
 
-يُستخدم هذا المسار عند إزالة الملف أو حفظ معلومات شكلية. المسار الحقيقي لرفع PDF هو المسار التالي.
-
 ### رفع PDF واستخراج النص
 
 ```http
 POST /api/projects/{project_id}/upload-pdf
 ```
 
-نوع الطلب:
+نوع الطلب: `multipart/form-data`
 
-```text
-multipart/form-data
-```
+الحقل: `file`
 
-الحقل:
-
-```text
-file
-```
-
-يرجع جلسة المشروع مع معلومات الملف ونتيجة استخراج النص.
-
-إذا كان PDF بلا نص قابل للاستخراج، يرجع `is_text_based=false` ورسالة توضّح أن الملف يحتاج OCR في مرحلة لاحقة.
+يرجع جلسة المشروع مع معلومات الملف ونتيجة استخراج النص. إذا كان PDF بلا نص قابل للاستخراج، يرجع `is_text_based=false` ورسالة توضّح أن الملف يحتاج OCR في مرحلة لاحقة.
 
 ### تقسيم النص المستخرج إلى أسئلة
 
@@ -91,6 +79,14 @@ POST /api/projects/{project_id}/parse-questions
 ```
 
 يتطلب وجود `extracted_text` ناتج من PDF نصي. يحول النص إلى بطاقات `QuestionItem` باستخدام قواعد أولية، ويضع الأسئلة الناتجة بحالة `needs_review`.
+
+### توليد قاموس الورقة من الأسئلة
+
+```http
+POST /api/projects/{project_id}/glossary/generate
+```
+
+يتطلب وجود بطاقات أسئلة. يستخدم محرك Phase 1-E1 القائم على قائمة مصطلحات علمية أولية لاستخراج مصطلحات للمعلم فقط. المصطلحات الناتجة تكون `source=detected` و`status=needs_review`.
 
 ### تحميل بيانات تجريبية
 

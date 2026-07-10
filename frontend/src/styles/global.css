@@ -674,3 +674,14 @@ button:disabled {
 .inline-actions .secondary-button {
   width: auto;
 }
+
+.split-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.glossary-notice {
+  margin-bottom: 16px;
+}
