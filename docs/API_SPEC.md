@@ -72,3 +72,29 @@ POST /api/projects/{project_id}/export/pdf
 ```
 
 يرفض التصدير إذا لم توجد أسئلة نشطة غير محذوفة.
+
+---
+
+## Phase 1-H1: Question assets
+
+### رفع مرفق سؤال
+
+```text
+POST /api/projects/{project_id}/questions/{question_id}/assets
+```
+
+يرفع صورة أو جدولًا بصيغة PNG/JPG ويربطه ببطاقة سؤال محددة داخل جلسة المشروع المؤقتة.
+
+القيود المؤقتة:
+
+- PNG أو JPG/JPEG فقط.
+- حد الحجم: 2MB.
+- لا يتم استخراج المرفقات تلقائيًا من PDF في هذه المرحلة.
+
+### حذف مرفق سؤال
+
+```text
+DELETE /api/projects/{project_id}/questions/{question_id}/assets/{asset_id}
+```
+
+يحذف مرفقًا محددًا من بطاقة السؤال داخل جلسة المشروع المؤقتة.

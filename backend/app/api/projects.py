@@ -10,6 +10,7 @@ from app.models.project import (
     ProjectLogoInfo,
     ProjectSession,
     QuestionPatch,
+    QuestionAssetInfo,
     QuestionReorderRequest,
     StepUpdate,
     UploadedFileInfo,
@@ -285,6 +286,45 @@ def update_question(project_id: str, question_id: str, patch: QuestionPatch) -> 
     project = project_store.update_question(project_id, question_id, patch)
     if project is None:
         raise HTTPException(status_code=404, detail="Project or question not found")
+    return project
+
+
+@router.post("/{project_id}/questions/{question_id}/assets")
+async def upload_question_asset(project_id: str, question_id: str, file: UploadFile = File(...)) -> ProjectSession:
+    """Attach an optional question image/table snapshot for Phase 1-H1."""
+
+    _get_or_404(project_id)
+
+    filename = file.filename or "question-asset"
+    content_type = file.content_type or "application/octet-stream"
+    allowed_types = {"image/png", "image/jpeg", "image/jpg"}
+    if content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="يدعم مرفق السؤال صور PNG وJPG فقط في Phase 1-H1.")
+
+    file_bytes = await file.read()
+    max_size = 2_000_000
+    if len(file_bytes) > max_size:
+        raise HTTPException(status_code=400, detail="حجم مرفق السؤال كبير. الحد الأقصى المؤقت هو 2MB.")
+
+    asset = QuestionAssetInfo(
+        name=filename,
+        size=len(file_bytes),
+        type=content_type,
+        data_base64=base64.b64encode(file_bytes).decode("ascii"),
+    )
+    project = project_store.add_question_asset(project_id, question_id, asset)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project or question not found")
+    return project
+
+
+@router.delete("/{project_id}/questions/{question_id}/assets/{asset_id}")
+def delete_question_asset(project_id: str, question_id: str, asset_id: str) -> ProjectSession:
+    """Remove a question attachment from the temporary session."""
+
+    project = project_store.remove_question_asset(project_id, question_id, asset_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project, question, or asset not found")
     return project
 
 

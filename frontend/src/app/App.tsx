@@ -15,12 +15,14 @@ import {
   exportProjectPdf,
   generateGlossaryFromQuestions,
   deleteProject,
+  deleteQuestionAsset,
   deleteSchoolLogo,
   loadDemoContent,
   parseExtractedQuestions,
   reorderQuestions,
   setUploadedFileInfo,
   translateProjectQuestions,
+  uploadQuestionAsset,
   uploadPdfAndExtractText,
   uploadSchoolLogo,
   updateGlossaryTerm as updateGlossaryTermOnServer,
@@ -282,6 +284,45 @@ export function App() {
       });
   }
 
+  async function handleQuestionAssetUpload(questionId: string, file: File) {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن ربط مرفق بالسؤال دون اتصال Backend. المرفقات تُحفظ مؤقتًا في الخلفية.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await uploadQuestionAsset(projectId, questionId, file);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote('تم ربط الصورة/الجدول ببطاقة السؤال وسيظهر في DOCX وPDF.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل رفع مرفق السؤال. يدعم Phase 1-H1 صور PNG وJPG بحجم لا يتجاوز 2MB.');
+    }
+  }
+
+  async function handleQuestionAssetDelete(questionId: string, assetId: string) {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن حذف المرفق دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await deleteQuestionAsset(projectId, questionId, assetId);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote('تم حذف مرفق السؤال من الجلسة المؤقتة.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل حذف مرفق السؤال.');
+    }
+  }
+
+
   function updateQuestion(questionId: string, updates: Partial<QuestionItem>) {
     setQuestions((currentQuestions) =>
       currentQuestions.map((question) => (question.id === questionId ? { ...question, ...updates } : question)),
@@ -526,10 +567,10 @@ export function App() {
     <main className="app-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 1-F3 Export Branding</p>
+          <p className="eyebrow">Phase 1-H1 Question Assets</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
-            واجهة متعددة الخطوات تستطيع رفع PDF نصي، استخراج النص، تحويله إلى بطاقات أسئلة، توليد قاموس مصطلحات، ترجمة الأسئلة، ثم تصدير DOCX وPDF بتنسيق RTL مع شعار مدرسة اختياري. لا يوجد OCR أو صور أسئلة داخل التصدير بعد، فالوحوش التقنية تنتظر دورها.
+            واجهة متعددة الخطوات تستطيع رفع PDF نصي، استخراج النص، تحويله إلى بطاقات أسئلة، توليد قاموس، ترجمة أولية، ربط صور/جداول يدوية بالأسئلة، ثم تصدير DOCX وPDF بتنسيق RTL. لا يوجد OCR أو استخراج صور تلقائي من PDF بعد، فالوحوش التقنية تنتظر دورها.
           </p>
         </div>
         <button className="ghost-button" type="button" onClick={() => void resetProject()}>
@@ -597,6 +638,8 @@ export function App() {
             onUpdateGlossaryTerm={updateGlossaryTerm}
             onGenerateGlossary={generateGlossaryFromQuestionCards}
             onTranslateQuestions={translateQuestions}
+            onUploadQuestionAsset={handleQuestionAssetUpload}
+            onDeleteQuestionAsset={handleQuestionAssetDelete}
             onReloadDemo={reloadDemoFromBackend}
             onParseQuestions={parseQuestionsFromExtractedText}
             onExportDocx={exportDocx}
@@ -639,6 +682,8 @@ interface StepContentProps {
   onUpdateGlossaryTerm: (termId: string, updates: Partial<GlossaryTerm>) => void;
   onGenerateGlossary: () => void;
   onTranslateQuestions: () => void;
+  onUploadQuestionAsset: (questionId: string, file: File) => void;
+  onDeleteQuestionAsset: (questionId: string, assetId: string) => void;
   onReloadDemo: () => void;
   onParseQuestions: () => void;
   onExportDocx: () => Promise<void>;
@@ -665,6 +710,8 @@ function StepContent({
   onUpdateGlossaryTerm,
   onGenerateGlossary,
   onTranslateQuestions,
+  onUploadQuestionAsset,
+  onDeleteQuestionAsset,
   onReloadDemo,
   onParseQuestions,
   onExportDocx,
@@ -688,6 +735,8 @@ function StepContent({
           onUpdateQuestion={onUpdateQuestion}
           onMoveQuestion={onMoveQuestion}
           onTranslateQuestions={onTranslateQuestions}
+          onUploadQuestionAsset={onUploadQuestionAsset}
+          onDeleteQuestionAsset={onDeleteQuestionAsset}
           translationProviderStatus={translationProviderStatus}
         />
       );

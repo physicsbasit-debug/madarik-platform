@@ -26,6 +26,7 @@ export const sampleQuestions: QuestionItem[] = [
     status: 'approved',
     orderIndex: 1,
     attachmentNote: 'لا توجد صورة مرتبطة بهذا السؤال.',
+    attachments: [],
   },
   {
     id: 'q-2',
@@ -37,6 +38,7 @@ export const sampleQuestions: QuestionItem[] = [
     status: 'needs_review',
     orderIndex: 2,
     attachmentNote: 'رسم دائرة كهربائية تجريبي سيُحفظ كصورة في المراحل اللاحقة.',
+    attachments: [],
     reviewNotes: 'تحقق لاحقًا من ارتباط السؤال بالرسم عند تفعيل استخراج الصور.',
   },
   {
@@ -49,6 +51,7 @@ export const sampleQuestions: QuestionItem[] = [
     status: 'approved',
     orderIndex: 3,
     attachmentNote: 'المعادلات والوحدات تُترك كما هي في Phase 1-A.',
+    attachments: [],
   },
   {
     id: 'q-4',
@@ -60,6 +63,7 @@ export const sampleQuestions: QuestionItem[] = [
     status: 'approved',
     orderIndex: 4,
     attachmentNote: 'جدول نتائج تجريبي سيُربط بالسؤال في مرحلة استخراج الملفات الحقيقية.',
+    attachments: [],
   },
 ];
 

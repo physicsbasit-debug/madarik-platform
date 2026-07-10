@@ -5,6 +5,7 @@ import type {
   ProjectSession,
   SchoolLogoInfo,
   QuestionItem,
+  QuestionAssetInfo,
   QuestionStatus,
   StepKey,
   UploadedFileInfo,
@@ -50,6 +51,14 @@ interface ApiExtractedTextInfo {
   message: string;
 }
 
+interface ApiQuestionAssetInfo {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  data_base64: string;
+}
+
 interface ApiQuestionItem {
   id: string;
   original_number: string;
@@ -60,6 +69,7 @@ interface ApiQuestionItem {
   status: QuestionStatus;
   order_index: number;
   attachment_note?: string | null;
+  attachments: ApiQuestionAssetInfo[];
   review_notes?: string | null;
 }
 
@@ -140,6 +150,17 @@ function fromApiSchoolLogo(info: ApiSchoolLogoInfo | null): SchoolLogoInfo | nul
   };
 }
 
+
+function fromApiQuestionAsset(asset: ApiQuestionAssetInfo): QuestionAssetInfo {
+  return {
+    id: asset.id,
+    name: asset.name,
+    size: asset.size,
+    type: asset.type,
+    dataBase64: asset.data_base64,
+  };
+}
+
 function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
   return {
     id: question.id,
@@ -151,6 +172,7 @@ function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
     status: question.status,
     orderIndex: question.order_index,
     attachmentNote: question.attachment_note,
+    attachments: (question.attachments ?? []).map(fromApiQuestionAsset),
     reviewNotes: question.review_notes,
   };
 }
@@ -313,6 +335,32 @@ export async function updateQuestion(
   });
   return fromApiProject(project);
 }
+
+export async function uploadQuestionAsset(projectId: string, questionId: string, file: File): Promise<ProjectSession> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/questions/${questionId}/assets`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Question asset upload failed ${response.status}: ${body}`);
+  }
+
+  const project = (await response.json()) as ApiProjectSession;
+  return fromApiProject(project);
+}
+
+export async function deleteQuestionAsset(projectId: string, questionId: string, assetId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/questions/${questionId}/assets/${assetId}`, {
+    method: 'DELETE',
+  });
+  return fromApiProject(project);
+}
+
 
 export async function reorderQuestions(projectId: string, orderedQuestionIds: string[]): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/questions/reorder`, {

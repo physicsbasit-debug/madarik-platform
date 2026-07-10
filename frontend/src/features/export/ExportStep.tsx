@@ -24,7 +24,7 @@ export function ExportStep({
 }: ExportStepProps) {
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF فعلي متاح الآن، مع دعم شعار المدرسة الاختياري في Phase 1-F3. راجع الملفين قبل الاستخدام، فالآلة مفيدة لكنها ليست لجنة مراجعة.');
+  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF فعلي متاح الآن، مع دعم شعار المدرسة ومرفقات الأسئلة اليدوية في Phase 1-H1. راجع الملفين قبل الاستخدام، فالآلة مفيدة لكنها ليست لجنة مراجعة.');
 
   const approvedQuestions = questions
     .filter((question) => question.status !== 'deleted')
@@ -66,7 +66,7 @@ export function ExportStep({
         <div className="section-heading">
           <p className="eyebrow">تصدير فعلي</p>
           <h3>جاهزية الورقة النهائية</h3>
-          <p>تستطيع الآن إنشاء ملف Word وملف PDF بتنسيق RTL أولي، مع إدراج شعار المدرسة إذا رُفع في خطوة بيانات المشروع. صور الأسئلة والجداول ما زالت مؤجلة.</p>
+          <p>تستطيع الآن إنشاء ملف Word وملف PDF بتنسيق RTL أولي، مع إدراج شعار المدرسة ومرفقات الصور/الجداول المرتبطة بالأسئلة يدويًا.</p>
         </div>
 
         <div className="metrics-row">

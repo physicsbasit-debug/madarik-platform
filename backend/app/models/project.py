@@ -69,6 +69,14 @@ class ProjectLogoInfo(BaseModel):
     data_base64: str
 
 
+class QuestionAssetInfo(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    size: int = Field(ge=0)
+    type: str
+    data_base64: str
+
+
 class ExtractedTextInfo(BaseModel):
     text: str = ""
     preview: str = ""
@@ -88,6 +96,7 @@ class QuestionItem(BaseModel):
     status: QuestionStatus = QuestionStatus.approved
     order_index: int
     attachment_note: str | None = None
+    attachments: list[QuestionAssetInfo] = Field(default_factory=list)
     review_notes: str | None = None
 
 

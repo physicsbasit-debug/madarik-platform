@@ -11,6 +11,7 @@ from app.models.project import (
     ProjectLogoInfo,
     QuestionItem,
     GlossaryTerm,
+    QuestionAssetInfo,
 )
 from app.services.demo_content import get_demo_glossary, get_demo_questions
 
@@ -145,6 +146,47 @@ class InMemoryProjectStore:
         ]
         project.current_step = StepKey.review
         return self.touch(project_id)
+
+    def add_question_asset(self, project_id: str, question_id: str, asset: QuestionAssetInfo) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+
+        for index, question in enumerate(project.questions):
+            if question.id == question_id:
+                note = question.attachment_note or "تم ربط صورة/جدول بهذا السؤال للمراجعة والتصدير."
+                project.questions[index] = question.model_copy(
+                    update={
+                        "attachments": [*question.attachments, asset],
+                        "attachment_note": note,
+                    }
+                )
+                project.current_step = StepKey.review
+                return self.touch(project_id)
+        return None
+
+    def remove_question_asset(self, project_id: str, question_id: str, asset_id: str) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+
+        for index, question in enumerate(project.questions):
+            if question.id == question_id:
+                remaining_assets = [asset for asset in question.attachments if asset.id != asset_id]
+                if len(remaining_assets) == len(question.attachments):
+                    return None
+                note = question.attachment_note
+                if not remaining_assets and note == "تم ربط صورة/جدول بهذا السؤال للمراجعة والتصدير.":
+                    note = None
+                project.questions[index] = question.model_copy(
+                    update={
+                        "attachments": remaining_assets,
+                        "attachment_note": note,
+                    }
+                )
+                project.current_step = StepKey.review
+                return self.touch(project_id)
+        return None
 
     def update_glossary_term(self, project_id: str, term_id: str, patch: GlossaryTermPatch) -> ProjectSession | None:
         project = self.get(project_id)

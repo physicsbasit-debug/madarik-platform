@@ -100,6 +100,15 @@ def _logo_bytes(project: ProjectSession) -> bytes | None:
         return None
 
 
+def _asset_bytes(data_base64: str) -> bytes | None:
+    if not data_base64:
+        return None
+    try:
+        return base64.b64decode(data_base64)
+    except Exception:
+        return None
+
+
 def _add_docx_logo(document: Document, project: ProjectSession) -> None:
     logo_bytes = _logo_bytes(project)
     if not logo_bytes:
@@ -196,6 +205,35 @@ def _add_english_text(document: Document, text: str) -> None:
     _set_run_rtl(run, rtl=False)
 
 
+def _add_docx_question_assets(document: Document, question: QuestionItem) -> None:
+    if not question.attachments:
+        return
+
+    label = document.add_paragraph()
+    _set_paragraph_bidi(label, rtl=True)
+    label_run = label.add_run("مرفقات السؤال:")
+    label_run.bold = True
+    label_run.font.size = Pt(10)
+    _set_run_rtl(label_run, rtl=True)
+
+    for asset in question.attachments:
+        asset_bytes = _asset_bytes(asset.data_base64)
+        if not asset_bytes:
+            continue
+        paragraph = document.add_paragraph()
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        try:
+            run = paragraph.add_run()
+            run.add_picture(BytesIO(asset_bytes), width=Inches(4.6))
+        except Exception:
+            paragraph.clear()
+            _set_paragraph_bidi(paragraph, rtl=True)
+            broken = paragraph.add_run(f"تعذر إدراج المرفق: {asset.name}")
+            broken.font.size = Pt(9)
+            broken.italic = True
+            _set_run_rtl(broken, rtl=True)
+
+
 def _add_questions(document: Document, project: ProjectSession, questions: list[QuestionItem]) -> None:
     for display_number, question in enumerate(questions, start=1):
         _add_question_number(document, display_number, question)
@@ -205,6 +243,8 @@ def _add_questions(document: Document, project: ProjectSession, questions: list[
             _add_arabic_text(document, question.translated_text or "[تحتاج ترجمة]")
         else:
             _add_arabic_text(document, question.translated_text or question.original_text)
+
+        _add_docx_question_assets(document, question)
 
         if question.attachment_note:
             note = document.add_paragraph()
@@ -430,6 +470,29 @@ def _add_pdf_header(story: list, project: ProjectSession, questions: list[Questi
     story.append(Spacer(1, 10))
 
 
+def _add_pdf_question_assets(story: list, question: QuestionItem, styles: dict[str, ParagraphStyle]) -> None:
+    if not question.attachments:
+        return
+
+    story.append(_pdf_paragraph("مرفقات السؤال:", styles["small"], rtl=True))
+    for asset in question.attachments:
+        asset_bytes = _asset_bytes(asset.data_base64)
+        if not asset_bytes:
+            continue
+        try:
+            image = RLImage(BytesIO(asset_bytes))
+            max_width = 13.5 * cm
+            max_height = 8.5 * cm
+            scale = min(max_width / image.drawWidth, max_height / image.drawHeight, 1)
+            image.drawWidth *= scale
+            image.drawHeight *= scale
+            image.hAlign = "CENTER"
+            story.append(image)
+            story.append(Spacer(1, 0.2 * cm))
+        except Exception:
+            story.append(_pdf_paragraph(f"تعذر إدراج المرفق: {asset.name}", styles["small"], rtl=True))
+
+
 def _add_pdf_questions(story: list, project: ProjectSession, questions: list[QuestionItem], styles: dict[str, ParagraphStyle]) -> None:
     for display_number, question in enumerate(questions, start=1):
         story.append(_pdf_paragraph(f"{display_number}. السؤال{_question_marks_label(question)}", styles["question"], rtl=True))
@@ -439,6 +502,8 @@ def _add_pdf_questions(story: list, project: ProjectSession, questions: list[Que
             story.append(_pdf_paragraph(question.translated_text or "[تحتاج ترجمة]", styles["body_ar"], rtl=True))
         else:
             story.append(_pdf_paragraph(question.translated_text or question.original_text, styles["body_ar"], rtl=True))
+
+        _add_pdf_question_assets(story, question, styles)
 
         if question.attachment_note:
             story.append(_pdf_paragraph(f"ملاحظة مرفق: {question.attachment_note}", styles["small"], rtl=True))

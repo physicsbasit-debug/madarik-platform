@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, Languages, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ImagePlus, Languages, RotateCcw, Trash2, X } from 'lucide-react';
+import type { ChangeEvent } from 'react';
 import type { QuestionItem, QuestionStatus, TranslationProviderStatus } from '../../types/project';
 
 interface ReviewStepProps {
@@ -6,6 +7,8 @@ interface ReviewStepProps {
   onUpdateQuestion: (questionId: string, updates: Partial<QuestionItem>) => void;
   onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
   onTranslateQuestions: () => void;
+  onUploadQuestionAsset: (questionId: string, file: File) => void;
+  onDeleteQuestionAsset: (questionId: string, assetId: string) => void;
   translationProviderStatus: TranslationProviderStatus | null;
 }
 
@@ -15,7 +18,21 @@ const statusLabels: Record<QuestionStatus, string> = {
   deleted: 'محذوف',
 };
 
-export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion, onTranslateQuestions, translationProviderStatus }: ReviewStepProps) {
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} بايت`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} ك.ب`;
+  return `${(size / (1024 * 1024)).toFixed(1)} م.ب`;
+}
+
+export function ReviewStep({
+  questions,
+  onUpdateQuestion,
+  onMoveQuestion,
+  onTranslateQuestions,
+  onUploadQuestionAsset,
+  onDeleteQuestionAsset,
+  translationProviderStatus,
+}: ReviewStepProps) {
   const sortedQuestions = [...questions].sort((a, b) => a.orderIndex - b.orderIndex);
   const activeQuestions = sortedQuestions.filter((question) => question.status !== 'deleted');
 
@@ -31,13 +48,20 @@ export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion, onTran
     return index >= 0 && index < activeQuestions.length - 1;
   }
 
+  function handleAssetInput(questionId: string, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    onUploadQuestionAsset(questionId, file);
+  }
+
   return (
     <section className="review-layout">
       <div className="section-heading split-heading">
         <div>
           <p className="eyebrow">مراجعة الأسئلة</p>
           <h3>بطاقات مستقلة قابلة للتعديل والحذف والترتيب</h3>
-          <p>أي سؤال محذوف لا يدخل في التصدير النهائي، ويُعاد ترقيم الأسئلة المعتمدة تلقائيًا.</p>
+          <p>أي سؤال محذوف لا يدخل في التصدير النهائي، ويُعاد ترقيم الأسئلة المعتمدة تلقائيًا. يمكن الآن ربط صورة أو جدول بكل سؤال يدويًا.</p>
         </div>
         <button className="primary-button" type="button" onClick={onTranslateQuestions} disabled={activeQuestions.length === 0}>
           <Languages size={18} />
@@ -46,9 +70,16 @@ export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion, onTran
       </div>
 
       <div className="notice-card translation-notice">
-        <strong>Phase 1-G1:</strong>
+        <strong>Phase 1-H1:</strong>
         <span>
-          الترجمة تمر عبر طبقة مزود آمنة. الوضع الحالي:
+          تستطيع ربط صور/جداول يدوية بالسؤال لتظهر في المراجعة والتصدير. استخراج الصور تلقائيًا من PDF مؤجل، لأن PDF يحب التمثيل علينا.
+        </span>
+      </div>
+
+      <div className="notice-card translation-notice">
+        <strong>مزود الترجمة:</strong>
+        <span>
+          الوضع الحالي:
           {' '}
           {translationProviderStatus?.provider === 'mock' || !translationProviderStatus?.configured
             ? 'ترجمة تجريبية محلية مع fallback'
@@ -69,9 +100,9 @@ export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion, onTran
                 value={question.status}
                 onChange={(event) => onUpdateQuestion(question.id, { status: event.target.value as QuestionStatus })}
               >
-                <option value="approved">معتمد</option>
-                <option value="needs_review">يحتاج مراجعة</option>
-                <option value="deleted">محذوف</option>
+                <option value="approved">{statusLabels.approved}</option>
+                <option value="needs_review">{statusLabels.needs_review}</option>
+                <option value="deleted">{statusLabels.deleted}</option>
               </select>
             </header>
 
@@ -112,7 +143,38 @@ export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion, onTran
               </label>
             </div>
 
-            <div className="attachment-box">{question.attachmentNote}</div>
+            <section className="asset-panel">
+              <div className="asset-panel-header">
+                <div>
+                  <strong>مرفقات السؤال</strong>
+                  <span>{question.attachments.length > 0 ? `${question.attachments.length} مرفق` : 'لا توجد مرفقات بعد'}</span>
+                </div>
+                <label className="secondary-button compact asset-upload-button">
+                  <ImagePlus size={16} />
+                  إضافة صورة/جدول
+                  <input type="file" accept="image/png,image/jpeg" onChange={(event) => handleAssetInput(question.id, event)} />
+                </label>
+              </div>
+
+              {question.attachments.length > 0 ? (
+                <div className="asset-gallery">
+                  {question.attachments.map((asset) => (
+                    <figure key={asset.id} className="asset-card">
+                      <img src={`data:${asset.type};base64,${asset.dataBase64}`} alt={asset.name} />
+                      <figcaption>
+                        <span>{asset.name}</span>
+                        <small>{formatFileSize(asset.size)}</small>
+                      </figcaption>
+                      <button type="button" className="asset-delete-button" onClick={() => onDeleteQuestionAsset(question.id, asset.id)} aria-label="حذف المرفق">
+                        <X size={15} />
+                      </button>
+                    </figure>
+                  ))}
+                </div>
+              ) : (
+                <div className="attachment-box">{question.attachmentNote ?? 'يمكنك إضافة صورة رسم أو جدول لهذا السؤال يدويًا.'}</div>
+              )}
+            </section>
 
             <footer className="card-actions">
               <button type="button" className="secondary-button compact" disabled={!canMove(question, 'up')} onClick={() => onMoveQuestion(question.id, 'up')}>

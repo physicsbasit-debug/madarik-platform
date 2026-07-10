@@ -43,6 +43,14 @@ export interface ExtractedTextInfo {
   message: string;
 }
 
+export interface QuestionAssetInfo {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  dataBase64: string;
+}
+
 export interface QuestionItem {
   id: string;
   originalNumber: string;
@@ -53,6 +61,7 @@ export interface QuestionItem {
   status: QuestionStatus;
   orderIndex: number;
   attachmentNote?: string | null;
+  attachments: QuestionAssetInfo[];
   reviewNotes?: string | null;
 }
 
