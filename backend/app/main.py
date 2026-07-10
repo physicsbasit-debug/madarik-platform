@@ -7,8 +7,8 @@ from app.core.config import settings
 
 app = FastAPI(
     title="Madarik API",
-    description="Phase 1-B temporary API integration for منصة مدارك.",
-    version="0.0.0-phase1b",
+    description="Phase 1-I1 API for منصة مدارك with PDF text extraction and image OCR intake.",
+    version="0.0.0-phase1i1",
 )
 
 app.add_middleware(

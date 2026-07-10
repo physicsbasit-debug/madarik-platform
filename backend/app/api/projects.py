@@ -19,6 +19,7 @@ from app.services.session_store import project_store
 from app.services.glossary import extract_glossary_terms_from_questions
 from app.services.question_parser import parse_questions_from_text
 from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
+from app.services.ocr import OcrExtractionError, extract_text_from_image_bytes
 from app.services.translation import translate_questions_with_glossary
 from app.services.ai_provider import get_ai_provider_status
 from app.services.export import (
@@ -173,6 +174,55 @@ async def upload_pdf_and_extract_text(project_id: str, file: UploadFile = File(.
         raise HTTPException(status_code=404, detail="Project not found")
     return project
 
+
+@router.post("/{project_id}/upload-image-ocr")
+async def upload_image_and_extract_text(project_id: str, file: UploadFile = File(...)) -> ProjectSession:
+    """Upload an image and run English OCR for Phase 1-I1."""
+
+    _get_or_404(project_id)
+
+    filename = file.filename or "uploaded-image"
+    content_type = file.content_type or "application/octet-stream"
+    allowed_types = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
+    allowed_extensions = (".png", ".jpg", ".jpeg", ".webp")
+    if content_type not in allowed_types and not filename.lower().endswith(allowed_extensions):
+        raise HTTPException(status_code=400, detail="يدعم OCR في Phase 1-I1 صور PNG وJPG وWEBP فقط.")
+
+    file_bytes = await file.read()
+    max_size = 4_000_000
+    if len(file_bytes) > max_size:
+        raise HTTPException(status_code=400, detail="حجم الصورة كبير. الحد الأقصى المؤقت هو 4MB.")
+
+    uploaded_file = UploadedFileInfo(name=filename, size=len(file_bytes), type=content_type)
+
+    try:
+        result = extract_text_from_image_bytes(file_bytes)
+    except OcrExtractionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if not result.is_text_based:
+        extracted_text = ExtractedTextInfo(
+            text="",
+            preview="",
+            page_count=result.image_count,
+            character_count=0,
+            is_text_based=False,
+            message="لم يتمكن OCR من العثور على نص واضح في الصورة. جرّب صورة أوضح أو قصّ السؤال فقط.",
+        )
+    else:
+        extracted_text = ExtractedTextInfo(
+            text=result.text,
+            preview=result.preview,
+            page_count=result.image_count,
+            character_count=result.character_count,
+            is_text_based=True,
+            message="تم استخراج النص من الصورة باستخدام OCR إنجليزي مبدئي.",
+        )
+
+    project = project_store.set_extracted_text(project_id, uploaded_file, extracted_text)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
 
 
 @router.post("/{project_id}/parse-questions")

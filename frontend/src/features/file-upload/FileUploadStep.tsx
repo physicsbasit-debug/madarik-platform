@@ -29,11 +29,11 @@ export function FileUploadStep({ uploadedFile, extractedText, onFileSelected }: 
     <div className="step-grid two-columns">
       <section className="form-card upload-zone">
         <FileUp size={42} />
-        <h3>رفع PDF نصي</h3>
+        <h3>رفع PDF نصي أو صورة</h3>
         <p>
-          في Phase 1-C يتم رفع ملف PDF حقيقي إلى Backend لاستخراج النص القابل للتحديد فقط. ملفات PDF المصوّرة ستحتاج OCR لاحقًا، فلا نكذب على الورق.
+          في Phase 1-I1 يدعم المسار PDF النصي، ويضيف OCR إنجليزيًا مبدئيًا للصور PNG/JPG/WEBP. PDF المصوّر الكامل ما زال مؤجلًا حتى لا نفتح حفلة تخطيط PDF.
         </p>
-        <input type="file" accept=".pdf,application/pdf" onChange={handleFileChange} />
+        <input type="file" accept=".pdf,application/pdf,image/png,image/jpeg,image/webp" onChange={handleFileChange} />
       </section>
 
       <section className="form-card">
@@ -65,7 +65,7 @@ export function FileUploadStep({ uploadedFile, extractedText, onFileSelected }: 
         ) : (
           <div className="notice-card">
             <ShieldCheck size={22} />
-            <span>لا يتم تشغيل OCR في هذه المرحلة. المطلوب الآن إثبات قراءة PDF النصي فقط، خطوة خطوة بلا بهلوانيات.</span>
+            <span>OCR يعمل الآن مبدئيًا على الصور الإنجليزية الواضحة فقط. PDF النصي يقرأ مباشرة، وPDF المصوّر الكامل مؤجل لمرحلة لاحقة.</span>
           </div>
         )}
       </section>

@@ -98,3 +98,14 @@ DELETE /api/projects/{project_id}/questions/{question_id}/assets/{asset_id}
 ```
 
 يحذف مرفقًا محددًا من بطاقة السؤال داخل جلسة المشروع المؤقتة.
+
+
+---
+
+## Phase 1-I1: Image OCR Intake
+
+- أضيف دعم رفع الصور PNG/JPG/WEBP لاستخراج النص الإنجليزي مبدئيًا عبر Tesseract OCR.
+- بقي PDF النصي مدعومًا كما في Phase 1-C.
+- لا يشمل هذا الاستخراج OCR كاملًا لملفات PDF المصوّرة متعددة الصفحات.
+- endpoint الجديد: `POST /api/projects/{project_id}/upload-image-ocr`.
+- النص المستخرج من الصورة يستخدم في مسار تقسيم الأسئلة الحالي.
