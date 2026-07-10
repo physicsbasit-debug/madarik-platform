@@ -1,4 +1,4 @@
-# منصة مدارك - Phase 2-B1 Accounts & Roles Foundation
+# منصة مدارك - Phase 2-B2 Project Ownership & Access Rules
 
 منصة مدارك هي منصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى موارد عربية وثنائية اللغة قابلة للمراجعة والطباعة.
 
@@ -227,3 +227,12 @@ Endpoints:
 الوثيقة التفصيلية:
 
 `docs/PHASE2_B1_ACCOUNTS_ROLES_FOUNDATION.md`
+
+
+## Phase 2-B2: Project Ownership & Access Rules
+
+أضيف ربط المشاريع بالحساب الحالي وقواعد وصول أولية فوق مكتبة المشاريع.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_B2_PROJECT_OWNERSHIP_ACCESS.md`
