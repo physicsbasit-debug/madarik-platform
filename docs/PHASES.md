@@ -133,3 +133,12 @@ Endpoints:
 ## Phase 1-RC1: Release Candidate
 
 تم تثبيت نسخة مرشحة أولى بعد اكتمال مسار Phase 1 الأساسي واختبارات القبول الآلية. أي إضافات كبيرة تؤجل إلى Phase 2.
+
+
+## Phase 2-A1: Persistence Foundation
+
+أضيف تخزين دائم للمشاريع باستخدام SQLite وطبقة Repository دون إدخال حسابات أو مكتبة مشاريع كاملة.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_A1_PERSISTENCE_FOUNDATION.md`

@@ -16,6 +16,7 @@ from app.models.project import (
     QuestionStatus,
 )
 from app.services.demo_content import get_demo_glossary, get_demo_questions
+from app.services.project_repository import ProjectRepository, project_repository
 
 
 class InMemoryProjectStore:
@@ -24,12 +25,14 @@ class InMemoryProjectStore:
     This is deliberately temporary. Persistent drafts are deferred to later phases.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, repository: ProjectRepository | None = None) -> None:
         self._projects: dict[str, ProjectSession] = {}
+        self._repository = repository or project_repository
 
     def create(self, metadata: ProjectMetadata | None = None) -> ProjectSession:
         project = ProjectSession(metadata=metadata or ProjectMetadata())
         self._projects[project.id] = project
+        self._repository.save(project)
         return project
 
 
@@ -52,19 +55,30 @@ class InMemoryProjectStore:
             deep=True,
         )
         self._projects[project.id] = project
+        self._repository.save(project)
         return project
 
     def get(self, project_id: str) -> ProjectSession | None:
-        return self._projects.get(project_id)
+        cached = self._projects.get(project_id)
+        if cached is not None:
+            return cached
+
+        persisted = self._repository.load(project_id)
+        if persisted is not None:
+            self._projects[project_id] = persisted
+        return persisted
 
     def delete(self, project_id: str) -> bool:
-        return self._projects.pop(project_id, None) is not None
+        existed_in_memory = self._projects.pop(project_id, None) is not None
+        existed_in_repository = self._repository.delete(project_id)
+        return existed_in_memory or existed_in_repository
 
     def touch(self, project_id: str) -> ProjectSession | None:
         project = self.get(project_id)
         if project is None:
             return None
         project.updated_at = datetime.now(timezone.utc)
+        self._repository.save(project)
         return project
 
     def update_metadata(self, project_id: str, metadata: ProjectMetadata) -> ProjectSession | None:
@@ -246,6 +260,12 @@ class InMemoryProjectStore:
                 project.current_step = StepKey.glossary
                 return self.touch(project_id)
         return None
+
+    def list_recent(self, limit: int = 50) -> list[ProjectSession]:
+        projects = self._repository.list_recent(limit)
+        for project in projects:
+            self._projects[project.id] = project
+        return projects
 
 
 project_store = InMemoryProjectStore()

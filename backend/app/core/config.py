@@ -1,13 +1,22 @@
 import os
+from pathlib import Path
 
 from pydantic import BaseModel
 
 
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_DATA_DIR = BACKEND_ROOT / "data"
+
+
 class Settings(BaseModel):
-    """Runtime settings for the early Madarik API phases."""
+    """Runtime settings for the Madarik API."""
 
     app_name: str = "منصة مدارك"
     allowed_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    # Phase 2-A1: SQLite persistence foundation.
+    data_dir: str = os.getenv("MADARIK_DATA_DIR", str(DEFAULT_DATA_DIR))
+    db_path: str = os.getenv("MADARIK_DB_PATH", str(DEFAULT_DATA_DIR / "madarik.sqlite3"))
 
     # Phase 1-G1: AI provider layer. Mock remains the safe default.
     ai_provider: str = os.getenv("MADARIK_AI_PROVIDER", "mock")

@@ -52,6 +52,19 @@ def _get_or_404(project_id: str) -> ProjectSession:
     return project
 
 
+
+@router.get("")
+def list_projects(limit: int = 50) -> list[ProjectSession]:
+    """List recently persisted projects for Phase 2-A1.
+
+    This is a backend foundation endpoint only. The full project library UI is
+    intentionally deferred to Phase 2-A2, because apparently restraint must be
+    engineered too.
+    """
+
+    return project_store.list_recent(limit)
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_project(metadata: ProjectMetadata | None = None) -> ProjectSession:
     """Create a temporary project session."""
