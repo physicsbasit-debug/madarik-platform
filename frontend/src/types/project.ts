@@ -94,7 +94,15 @@ export type ApiConnectionStatus = 'connecting' | 'connected' | 'syncing' | 'offl
 export interface TranslationProviderStatus {
   provider: string;
   configured: boolean;
+  externalEnabled?: boolean;
+  ready?: boolean;
+  reason?: string;
   model: string;
+  baseUrlConfigured?: boolean;
+  timeoutSeconds?: number;
+  maxInputChars?: number;
+  temperature?: number;
+  supportedProviders?: string[];
   fallback: string;
 }
 

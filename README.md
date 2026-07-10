@@ -1,4 +1,4 @@
-# منصة مدارك - Phase 2-B3 User Management Lite
+# منصة مدارك - Phase 2-C1 AI Provider Hardening
 
 منصة مدارك هي منصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى موارد عربية وثنائية اللغة قابلة للمراجعة والطباعة.
 
@@ -249,3 +249,17 @@ Endpoints:
 الوثيقة التفصيلية:
 
 `docs/PHASE2_B3_USER_MANAGEMENT_LITE.md`
+
+
+## Phase 2-C1: AI Provider Hardening
+
+تم تقوية طبقة مزود الذكاء الاصطناعي:
+- حالة مزود أكثر تفصيلًا.
+- إعدادات حدود ومدى الاتصال الخارجي.
+- دعم `openai-compatible`.
+- fallback آمن عند فشل الشبكة أو عدم الجاهزية.
+- عدم كشف المفاتيح.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_C1_AI_PROVIDER_HARDENING.md`

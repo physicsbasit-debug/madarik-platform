@@ -78,6 +78,39 @@ function fromApiAuthSession(session: ApiAuthSessionInfo): AuthSessionInfo {
   };
 }
 
+
+interface ApiTranslationProviderStatus {
+  provider: string;
+  configured: boolean;
+  external_enabled?: boolean;
+  ready?: boolean;
+  reason?: string;
+  model: string;
+  base_url_configured?: boolean;
+  timeout_seconds?: number;
+  max_input_chars?: number;
+  temperature?: number;
+  supported_providers?: string[];
+  fallback: string;
+}
+
+function fromApiTranslationProviderStatus(status: ApiTranslationProviderStatus): TranslationProviderStatus {
+  return {
+    provider: status.provider,
+    configured: status.configured,
+    externalEnabled: status.external_enabled,
+    ready: status.ready,
+    reason: status.reason,
+    model: status.model,
+    baseUrlConfigured: status.base_url_configured,
+    timeoutSeconds: status.timeout_seconds,
+    maxInputChars: status.max_input_chars,
+    temperature: status.temperature,
+    supportedProviders: status.supported_providers,
+    fallback: status.fallback,
+  };
+}
+
 interface ApiProjectMetadata {
   school_name: string;
   directorate: string;
@@ -651,7 +684,8 @@ export async function exportProjectPdf(projectId: string): Promise<Blob> {
 
 
 export async function getTranslationProviderStatus(): Promise<TranslationProviderStatus> {
-  return await requestJson<TranslationProviderStatus>('/projects/translation-provider/status');
+  const status = await requestJson<ApiTranslationProviderStatus>('/projects/translation-provider/status');
+  return fromApiTranslationProviderStatus(status);
 }
 
 

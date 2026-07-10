@@ -65,3 +65,59 @@ def test_provider_falls_back_when_openai_is_not_configured(monkeypatch):
     assert result.provider == "mock"
     assert result.used_external_provider is False
     assert "fallback" in result.note
+
+
+
+def test_provider_status_reports_hardening_fields(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "openai-compatible")
+    monkeypatch.setattr(settings, "ai_api_key", "secret-value-that-must-not-leak")
+    monkeypatch.setattr(settings, "ai_model", "test-model")
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 2400)
+    monkeypatch.setattr(settings, "ai_temperature", 0.2)
+
+    status = get_ai_provider_status()
+
+    assert status["provider"] == "openai-compatible"
+    assert status["configured"] is True
+    assert status["ready"] is True
+    assert status["reason"] == "ready"
+    assert status["max_input_chars"] == 2400
+    assert status["temperature"] == 0.2
+    assert "openai-compatible" in status["supported_providers"]
+    assert "secret-value-that-must-not-leak" not in str(status)
+
+
+def test_provider_falls_back_when_external_disabled(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "openai")
+    monkeypatch.setattr(settings, "ai_api_key", "secret")
+    monkeypatch.setattr(settings, "ai_model", "test-model")
+    monkeypatch.setattr(settings, "ai_external_enabled", False)
+
+    result = translate_with_optional_external_provider(
+        original_text="State the function of the cell membrane. [1]",
+        glossary=[],
+        fallback_translation="اذكر وظيفة غشاء الخلية. [1]",
+    )
+
+    assert result.provider == "mock"
+    assert result.used_external_provider is False
+    assert "تعطيل" in result.note
+
+
+def test_provider_falls_back_when_input_too_long(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "openai")
+    monkeypatch.setattr(settings, "ai_api_key", "secret")
+    monkeypatch.setattr(settings, "ai_model", "test-model")
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 10)
+
+    result = translate_with_optional_external_provider(
+        original_text="Explain why the current decreases when resistance increases. [2]",
+        glossary=[],
+        fallback_translation="فسّر لماذا تقل شدة التيار. [2]",
+    )
+
+    assert result.provider == "mock"
+    assert result.used_external_provider is False
+    assert "أطول من الحد" in result.note
