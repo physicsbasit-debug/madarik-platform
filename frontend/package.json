@@ -1,6 +1,6 @@
 {
   "name": "madarik-frontend",
-  "version": "0.0.0-phase1n2",
+  "version": "1.0.0-rc.1",
   "private": true,
   "type": "module",
   "scripts": {
