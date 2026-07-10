@@ -1,4 +1,4 @@
-# منصة مدارك - Phase 2-A2 Project Library
+# منصة مدارك - Phase 2-B1 Accounts & Roles Foundation
 
 منصة مدارك هي منصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى موارد عربية وثنائية اللغة قابلة للمراجعة والطباعة.
 
@@ -214,3 +214,16 @@ Endpoints:
 الوثيقة التفصيلية:
 
 `docs/PHASE2_A2_PROJECT_LIBRARY.md`
+
+
+## Phase 2-B1: Accounts & Roles Foundation
+
+أضيفت طبقة حسابات وصلاحيات أولية:
+- إنشاء حساب المالك عند أول تشغيل.
+- تسجيل الدخول والخروج.
+- جلسات محفوظة في SQLite.
+- أدوار أولية: owner / teacher / reviewer.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_B1_ACCOUNTS_ROLES_FOUNDATION.md`
