@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from uuid import uuid4
 
 from app.models.project import (
     GlossaryTermPatch,
@@ -28,6 +29,28 @@ class InMemoryProjectStore:
 
     def create(self, metadata: ProjectMetadata | None = None) -> ProjectSession:
         project = ProjectSession(metadata=metadata or ProjectMetadata())
+        self._projects[project.id] = project
+        return project
+
+
+    def import_snapshot(self, snapshot: ProjectSession) -> ProjectSession:
+        """Import a user-provided project snapshot as a new temporary project.
+
+        The snapshot receives a fresh project id to avoid collisions with any
+        currently-open in-memory session. This is not server-side persistence; it
+        is a local JSON handoff that lets the teacher survive reloads, browser
+        drama, and the ancient curse of unsaved work.
+        """
+
+        now = datetime.now(timezone.utc)
+        project = snapshot.model_copy(
+            update={
+                "id": str(uuid4()),
+                "created_at": now,
+                "updated_at": now,
+            },
+            deep=True,
+        )
         self._projects[project.id] = project
         return project
 

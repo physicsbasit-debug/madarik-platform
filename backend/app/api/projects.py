@@ -66,6 +66,21 @@ def get_project(project_id: str) -> ProjectSession:
     return _get_or_404(project_id)
 
 
+
+@router.get("/{project_id}/snapshot")
+def export_project_snapshot(project_id: str) -> ProjectSession:
+    """Return the current temporary project as a JSON snapshot for Phase 1-M1."""
+
+    return _get_or_404(project_id)
+
+
+@router.post("/import-snapshot", status_code=status.HTTP_201_CREATED)
+def import_project_snapshot(snapshot: ProjectSession) -> ProjectSession:
+    """Import a JSON snapshot as a new temporary project session."""
+
+    return project_store.import_snapshot(snapshot)
+
+
 @router.patch("/{project_id}/metadata")
 def update_project_metadata(project_id: str, metadata: ProjectMetadata) -> ProjectSession:
     """Update project metadata from the frontend setup step."""

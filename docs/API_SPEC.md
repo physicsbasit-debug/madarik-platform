@@ -136,3 +136,16 @@ Endpoint جديد:
 `POST /api/projects/{project_id}/questions/bulk-status`
 
 الهدف من المرحلة تقليل النقرات المتكررة قبل فحص الجاهزية والتصدير.
+
+
+## Phase 1-M1: Project Snapshot Import/Export
+
+أضيف حفظ واستيراد نسخة عمل بصيغة JSON من جهاز المستخدم دون حسابات ودون قاعدة بيانات دائمة.
+
+Endpoints:
+
+`GET /api/projects/{project_id}/snapshot`
+
+`POST /api/projects/import-snapshot`
+
+الهدف أن يستطيع المعلم حفظ مشروعه واستعادته لاحقًا حتى لو أُعيد تحميل الصفحة أو انتهت الجلسة المؤقتة.

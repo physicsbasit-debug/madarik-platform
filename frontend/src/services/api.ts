@@ -501,3 +501,17 @@ export async function getProjectReadiness(projectId: string): Promise<ProjectRea
   const report = await requestJson<ApiProjectReadinessReport>(`/projects/${projectId}/readiness`);
   return fromApiReadinessReport(report);
 }
+
+
+export async function exportProjectSnapshot(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/snapshot`);
+  return fromApiProject(project);
+}
+
+export async function importProjectSnapshot(snapshot: unknown): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>('/projects/import-snapshot', {
+    method: 'POST',
+    body: JSON.stringify(snapshot),
+  });
+  return fromApiProject(project);
+}

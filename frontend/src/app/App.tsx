@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, DatabaseZap, FileText, RefreshCcw, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, ArrowRight, DatabaseZap, Download, FileText, RefreshCcw, Upload, Wifi, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StepNavigation } from '../components/StepNavigation';
 import { steps } from '../constants/steps';
@@ -14,6 +14,7 @@ import {
   createProject,
   exportProjectDocx,
   exportProjectPdf,
+  exportProjectSnapshot,
   generateGlossaryFromQuestions,
   deleteProject,
   deleteQuestionAsset,
@@ -34,6 +35,7 @@ import {
   updateQuestion as updateQuestionOnServer,
   getTranslationProviderStatus,
   getProjectReadiness,
+  importProjectSnapshot,
 } from '../services/api';
 import type {
   ApiConnectionStatus,
@@ -167,6 +169,65 @@ export function App() {
 
   function goPrevious() {
     setActiveIndex((current) => Math.max(current - 1, 0));
+  }
+
+
+  async function downloadProjectSnapshot() {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن حفظ نسخة مشروع دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const snapshot = await exportProjectSnapshot(projectId);
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeTitle = (metadata.paperTitle || 'madarik-project').replace(/[^A-Za-z0-9_\-]+/g, '_');
+      link.href = url;
+      link.download = `${safeTitle || 'madarik-project'}_snapshot.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setApiStatus('connected');
+      setLastSyncNote('تم تنزيل نسخة JSON من مشروع العمل الحالي.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل تنزيل نسخة المشروع.');
+    }
+  }
+
+  async function importProjectSnapshotFile(file: File | null) {
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      setLastSyncNote('ملف الاستعادة يجب أن يكون JSON صادرًا من منصة مدارك.');
+      return;
+    }
+
+    if (apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن استعادة مشروع دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const rawText = await file.text();
+      const snapshot = JSON.parse(rawText) as unknown;
+      const project = await importProjectSnapshot(snapshot);
+      setActiveIndex(0);
+      applyProject(project);
+      setProjectReadiness(null);
+      setApiStatus('connected');
+      setLastSyncNote(`تم استيراد نسخة المشروع كجلسة جديدة: ${project.id.slice(0, 8)}`);
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل استيراد نسخة المشروع. تأكد أن الملف صادر من منصة مدارك ولم يتم العبث به كما يفعل البشر عادة.');
+    }
   }
 
   async function resetProject() {
