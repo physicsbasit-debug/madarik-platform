@@ -1,152 +1,66 @@
-# API Spec - منصة مدارك Phase 1-E2
-
-Base path:
-
-```text
-/api
-```
+# API_SPEC - منصة مدارك
 
 ## Health
 
-```http
-GET /api/health
-```
-
-يرجع حالة الخدمة.
+`GET /api/health`
 
 ## Projects
 
 ### إنشاء مشروع
 
-```http
-POST /api/projects
-```
-
-Body اختياري من نوع `ProjectMetadata` بصيغة snake_case.
+`POST /api/projects`
 
 ### قراءة مشروع
 
-```http
-GET /api/projects/{project_id}
-```
+`GET /api/projects/{project_id}`
 
 ### تحديث بيانات الورقة
 
-```http
-PATCH /api/projects/{project_id}/metadata
-```
+`PATCH /api/projects/{project_id}/metadata`
 
 ### تحديث الخطوة الحالية
 
-```http
-PATCH /api/projects/{project_id}/step
-```
-
-Body:
-
-```json
-{"current_step":"setup"}
-```
-
-### حفظ معلومات ملف شكلية
-
-```http
-PUT /api/projects/{project_id}/upload-info
-```
-
-Body:
-
-```json
-{"name":"sample.pdf","size":2048,"type":"application/pdf"}
-```
+`PATCH /api/projects/{project_id}/step`
 
 ### رفع PDF واستخراج النص
 
-```http
-POST /api/projects/{project_id}/upload-pdf
-```
+`POST /api/projects/{project_id}/upload-pdf`
 
-نوع الطلب: `multipart/form-data`
+### تقسيم النص إلى أسئلة
 
-الحقل: `file`
+`POST /api/projects/{project_id}/parse-questions`
 
-يرجع جلسة المشروع مع معلومات الملف ونتيجة استخراج النص. إذا كان PDF بلا نص قابل للاستخراج، يرجع `is_text_based=false` ورسالة توضّح أن الملف يحتاج OCR في مرحلة لاحقة.
+### توليد قاموس الورقة
 
-### تقسيم النص المستخرج إلى أسئلة
+`POST /api/projects/{project_id}/glossary/generate`
 
-```http
-POST /api/projects/{project_id}/parse-questions
-```
+### ترجمة الأسئلة
 
-يتطلب وجود `extracted_text` ناتج من PDF نصي. يحول النص إلى بطاقات `QuestionItem` باستخدام قواعد أولية، ويضع الأسئلة الناتجة بحالة `needs_review`.
-
-### توليد قاموس الورقة من الأسئلة
-
-```http
-POST /api/projects/{project_id}/glossary/generate
-```
-
-يتطلب وجود بطاقات أسئلة. يستخدم محرك Phase 1-E2 القائم على قائمة مصطلحات علمية أولية لاستخراج مصطلحات للمعلم فقط. المصطلحات الناتجة تكون `source=detected` و`status=needs_review`.
-
-### تحميل بيانات تجريبية
-
-```http
-POST /api/projects/{project_id}/demo-content
-```
-
-يرجع أسئلة وقاموسًا تجريبيين من Backend.
+`POST /api/projects/{project_id}/translate-questions`
 
 ### تحديث سؤال
 
-```http
-PATCH /api/projects/{project_id}/questions/{question_id}
-```
-
-Body جزئي:
-
-```json
-{"translated_text":"ترجمة معدلة","marks":2,"status":"needs_review"}
-```
+`PATCH /api/projects/{project_id}/questions/{question_id}`
 
 ### إعادة ترتيب الأسئلة
 
-```http
-POST /api/projects/{project_id}/questions/reorder
-```
+`POST /api/projects/{project_id}/questions/reorder`
 
-Body:
+### تحديث مصطلح
 
-```json
-{"ordered_question_ids":["q-1","q-2","q-3","q-4"]}
-```
+`PATCH /api/projects/{project_id}/glossary/{term_id}`
 
-### تحديث مصطلح في القاموس
+### تصدير DOCX
 
-```http
-PATCH /api/projects/{project_id}/glossary/{term_id}
-```
+`POST /api/projects/{project_id}/export/docx`
 
-Body جزئي:
+يرجع ملف Word حقيقي بصيغة DOCX.
 
-```json
-{"arabic_term":"مصطلح معدل","status":"approved"}
-```
+- Content-Type: `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+- لا يصدّر الأسئلة المحذوفة.
+- يعيد ترقيم الأسئلة وفق ترتيب المعلم.
+- يدعم النسخة العربية والثنائية حسب `metadata.output_mode`.
 
-### حذف مشروع الجلسة
+### حذف المشروع المؤقت
 
-```http
-DELETE /api/projects/{project_id}
-```
-
-يحذف المشروع المؤقت من الذاكرة.
-
-
-## Phase 1-E2 Translation Engine
-
-### Translate question cards
-
-```text
-POST /api/projects/{project_id}/translate-questions
-```
-
-يترجم بطاقات الأسئلة غير المحذوفة ترجمة أولية قابلة للمراجعة، مع استخدام قاموس الورقة وقاموس أوامر الأسئلة. هذه المرحلة لا تستخدم مزود AI خارجي بعد، حتى تبقى GitHub Actions مستقرة دون مفاتيح API.
+`DELETE /api/projects/{project_id}`

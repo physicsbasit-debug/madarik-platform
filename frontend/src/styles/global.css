@@ -689,3 +689,12 @@ button:disabled {
 .translation-notice {
   margin-bottom: 18px;
 }
+
+.spin-icon {
+  animation: madarik-spin 0.9s linear infinite;
+}
+
+@keyframes madarik-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

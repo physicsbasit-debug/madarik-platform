@@ -293,3 +293,16 @@ export async function updateGlossaryTerm(
   });
   return fromApiProject(project);
 }
+
+export async function exportProjectDocx(projectId: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/export/docx`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`DOCX export failed ${response.status}: ${body}`);
+  }
+
+  return await response.blob();
+}

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi.responses import Response
 
 from app.models.project import (
     ExtractedTextInfo,
@@ -15,6 +16,7 @@ from app.services.glossary import extract_glossary_terms_from_questions
 from app.services.question_parser import parse_questions_from_text
 from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
 from app.services.translation import translate_questions_with_glossary
+from app.services.export import DOCX_MIME_TYPE, build_project_docx_bytes, safe_docx_filename
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -171,6 +173,24 @@ def translate_project_questions(project_id: str) -> ProjectSession:
         raise HTTPException(status_code=404, detail="Project not found")
     return updated_project
 
+
+
+@router.post("/{project_id}/export/docx")
+def export_project_docx(project_id: str) -> Response:
+    """Generate a real RTL DOCX file for Phase 1-F1."""
+
+    project = _get_or_404(project_id)
+    try:
+        docx_bytes = build_project_docx_bytes(project)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    filename = safe_docx_filename(project)
+    headers = {
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "Cache-Control": "no-store",
+    }
+    return Response(content=docx_bytes, media_type=DOCX_MIME_TYPE, headers=headers)
 
 @router.post("/{project_id}/demo-content")
 def load_demo_content(project_id: str) -> ProjectSession:

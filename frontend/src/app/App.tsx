@@ -11,6 +11,7 @@ import { ProjectSetupStep } from '../features/project-setup/ProjectSetupStep';
 import { ReviewStep } from '../features/review/ReviewStep';
 import {
   createProject,
+  exportProjectDocx,
   generateGlossaryFromQuestions,
   deleteProject,
   loadDemoContent,
@@ -378,6 +379,40 @@ export function App() {
     }
   }
 
+
+  async function exportDocx() {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن إنشاء DOCX دون اتصال Backend. ملف Word يحتاج محرك التصدير في الخلفية.');
+      return;
+    }
+
+    if (questions.filter((question) => question.status !== 'deleted').length === 0) {
+      setLastSyncNote('لا توجد أسئلة نشطة قابلة للتصدير. لا نصدر ورقة فارغة، رغم أن بعض النماذج الرسمية تفعل ذلك.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const blob = await exportProjectDocx(projectId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeTitle = (metadata.paperTitle || 'madarik-export').replace(/[^A-Za-z0-9_\-]+/g, '_');
+      link.download = `${safeTitle || 'madarik-export'}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setApiStatus('connected');
+      setLastSyncNote('تم إنشاء ملف Word عبر Backend بنجاح.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل إنشاء ملف Word. تحقق من وجود أسئلة نشطة ثم أعد المحاولة.');
+      throw error;
+    }
+  }
+
   async function reloadDemoFromBackend() {
     if (!projectId || apiStatus === 'offline') {
       setQuestions(sampleQuestions);
@@ -472,6 +507,8 @@ export function App() {
             onTranslateQuestions={translateQuestions}
             onReloadDemo={reloadDemoFromBackend}
             onParseQuestions={parseQuestionsFromExtractedText}
+            onExportDocx={exportDocx}
+            canExportDocx={Boolean(projectId && apiStatus !== 'offline')}
           />
 
           <div className="actions-row">
@@ -506,6 +543,8 @@ interface StepContentProps {
   onTranslateQuestions: () => void;
   onReloadDemo: () => void;
   onParseQuestions: () => void;
+  onExportDocx: () => Promise<void>;
+  canExportDocx: boolean;
 }
 
 function StepContent({
@@ -524,6 +563,8 @@ function StepContent({
   onTranslateQuestions,
   onReloadDemo,
   onParseQuestions,
+  onExportDocx,
+  canExportDocx,
 }: StepContentProps) {
   switch (stepKey) {
     case 'setup':
@@ -544,6 +585,14 @@ function StepContent({
         />
       );
     case 'export':
-      return <ExportStep metadata={metadata} questions={questions} glossary={glossary} />;
+      return (
+        <ExportStep
+          metadata={metadata}
+          questions={questions}
+          glossary={glossary}
+          canExportDocx={canExportDocx}
+          onExportDocx={onExportDocx}
+        />
+      );
   }
 }

@@ -1,51 +1,36 @@
-# Phases - منصة مدارك
+# مراحل منصة مدارك
 
-## Phase 0 - Skeleton ✅
+## نقاط الاستقرار المنجزة
 
-- هيكل `frontend/`, `backend/`, `docs/`.
-- FastAPI health endpoint.
-- React/Vite skeleton.
-- GitHub Actions.
+- Phase 0: Project Skeleton ✅
+- Phase 1-A: Static Multi-Step UI ✅
+- Phase 1-B: Backend API Integration ✅
+- Phase 1-C: PDF Text Extraction ✅
+- Phase 1-D: Question Parser ✅
+- Phase 1-E1: Glossary Engine ✅
+- Phase 1-E2: Translation Engine ✅
+- Phase 1-F1: DOCX Export RTL ✅
 
-## Phase 1-A - Static Multi-Step UI ✅
+## Phase 1-F1: DOCX Export RTL
 
-- واجهة RTL متعددة الخطوات.
-- بيانات تجريبية داخل الواجهة.
-- بطاقات أسئلة وقاموس وتجربة تصدير شكلية.
+### الهدف
 
-## Phase 1-B - Backend API Integration ✅
+إضافة تصدير Word حقيقي بصيغة DOCX للنسخة العربية أو الثنائية، مع دعم RTL ورأس ورقة رسمي.
 
-- إنشاء مشروع مؤقت في Backend.
-- مزامنة بيانات الورقة والأسئلة والقاموس.
-- بيانات تجريبية من FastAPI.
+### يدخل في المرحلة
 
-## Phase 1-C - PDF Text Extraction ✅
+- خدمة `export.py`.
+- Endpoint `POST /api/projects/{project_id}/export/docx`.
+- زر تحميل Word من شاشة التصدير.
+- تصدير الأسئلة غير المحذوفة فقط.
+- إعادة ترقيم الأسئلة في الملف النهائي.
+- رأس RTL ببيانات الورقة.
+- اختبارات Backend للتصدير.
 
-- رفع PDF نصي.
-- استخراج النص باستخدام `pypdf`.
-- عرض مقتطف النص المستخرج في الواجهة.
+### مؤجل
 
-## Phase 1-D - Question Parser ✅
-
-- تحويل النص المستخرج إلى بطاقات أسئلة.
-- التقاط أنماط أرقام الأسئلة والدرجات البسيطة.
-- عرض الأسئلة الناتجة في شاشة المراجعة.
-
-## Phase 1-E2 - Glossary Engine ✅ في هذه الحزمة
-
-- توليد قاموس مصطلحات من بطاقات الأسئلة.
-- الاعتماد على قائمة مصطلحات علمية أولية لا على AI.
-- المصطلحات الناتجة للمعلم فقط وبحالة `needs_review`.
-- استمرار قابلية تعديل المصطلحات.
-
-## Phase 1-E2 - Translation Engine مؤجلة
-
-- ترجمة كل سؤال على حدة.
-- استخدام قاموس أوامر السؤال.
-- استخدام قاموس المصطلحات المعتمد.
-- إبقاء الترجمة قابلة للتعديل.
-
-## Phase 1-F - DOCX/PDF Export مؤجلة
-
-- تصدير Word وPDF بتنسيق RTL.
-- دعم النسخة العربية والثنائية النظيفة.
+- PDF.
+- إدراج الصور والجداول.
+- شعار المدرسة.
+- AI خارجي.
+- OCR.
