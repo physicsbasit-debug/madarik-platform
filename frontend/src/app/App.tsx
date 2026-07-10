@@ -747,7 +747,7 @@ export function App() {
         </div>
         <div>
           <span>مرحلة التطوير</span>
-          <strong>Phase 1-N1</strong>
+          <strong>Phase 1-N2</strong>
         </div>
       </section>
 

@@ -1,4 +1,4 @@
-# منصة مدارك - Phase 1-N1 Final UI & Documentation Polish
+# منصة مدارك - Phase 1-N2 Acceptance Test Pack
 
 منصة مدارك هي منصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى موارد عربية وثنائية اللغة قابلة للمراجعة والطباعة.
 
@@ -147,3 +147,18 @@ Endpoints:
   - `docs/PHASE1_ACCEPTANCE_CHECKLIST.md`
 
 لا تضيف هذه المرحلة منطقًا كبيرًا جديدًا، بل تجهز المشروع للانتقال إلى اختبار قبول حقيقي ونسخة RC1.
+
+
+## Phase 1-N2: Acceptance Test Pack
+
+أضيفت حزمة اختبار قبول قبل RC1:
+
+- وثيقة بروتوكول اختبار القبول:
+  - `docs/PHASE1_ACCEPTANCE_PROTOCOL.md`
+- نموذج تقرير اختبار قبول:
+  - `docs/PHASE1_ACCEPTANCE_REPORT_TEMPLATE.md`
+- نص عينة لإنشاء PDF اختباري:
+  - `docs/PHASE1_ACCEPTANCE_SAMPLE_TEXT.md`
+- اختبارات Backend إضافية تغطي دورة قبول كاملة مع Snapshot round-trip.
+
+هذه المرحلة لا تضيف ميزة للمستخدم النهائي، بل تؤمن الانتقال إلى RC1 بأقل قدر من الفوضى البشرية المعتادة.
