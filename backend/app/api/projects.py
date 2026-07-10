@@ -19,6 +19,7 @@ from app.services.glossary import extract_glossary_terms_from_questions
 from app.services.question_parser import parse_questions_from_text
 from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
 from app.services.translation import translate_questions_with_glossary
+from app.services.ai_provider import get_ai_provider_status
 from app.services.export import (
     DOCX_MIME_TYPE,
     PDF_MIME_TYPE,
@@ -29,6 +30,13 @@ from app.services.export import (
 )
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+@router.get("/translation-provider/status")
+def get_translation_provider_status() -> dict[str, object]:
+    """Return safe AI provider metadata without exposing secrets."""
+
+    return get_ai_provider_status()
 
 
 def _get_or_404(project_id: str) -> ProjectSession:

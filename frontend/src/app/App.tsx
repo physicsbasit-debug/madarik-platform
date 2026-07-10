@@ -27,6 +27,7 @@ import {
   updateProjectMetadata,
   updateProjectStep,
   updateQuestion as updateQuestionOnServer,
+  getTranslationProviderStatus,
 } from '../services/api';
 import type {
   ApiConnectionStatus,
@@ -38,6 +39,7 @@ import type {
   SchoolLogoInfo,
   StepKey,
   UploadedFileInfo,
+  TranslationProviderStatus,
 } from '../types/project';
 
 function sortQuestions(questions: QuestionItem[]) {
@@ -89,6 +91,7 @@ export function App() {
   const [extractedText, setExtractedText] = useState<ExtractedTextInfo | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>(sampleQuestions);
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
+  const [translationProviderStatus, setTranslationProviderStatus] = useState<TranslationProviderStatus | null>(null);
 
   const activeStep = steps[activeIndex];
   const progressLabel = useMemo(() => `${activeIndex + 1} من ${steps.length}`, [activeIndex]);
@@ -115,6 +118,8 @@ export function App() {
 
     try {
       const createdProject = await createProject(defaultMetadata);
+      const providerStatus = await getTranslationProviderStatus();
+      setTranslationProviderStatus(providerStatus);
       const hydratedProject = await loadDemoContent(createdProject.id);
       applyProject(hydratedProject);
       setApiStatus('connected');
@@ -128,6 +133,7 @@ export function App() {
       setExtractedText(null);
       setQuestions(sampleQuestions);
       setGlossary(sampleGlossary);
+      setTranslationProviderStatus({ provider: 'mock', configured: false, model: '', fallback: 'mock' });
       setApiStatus('offline');
       setLastSyncNote('تعذر الاتصال بالخلفية. تعمل الواجهة ببيانات محلية مؤقتة. يا لها من بداية درامية، لكنها مقبولة في التطوير.');
     }
@@ -395,7 +401,7 @@ export function App() {
       applyProject(project);
       setApiStatus('connected');
       setActiveIndex(4);
-      setLastSyncNote('تمت ترجمة الأسئلة ترجمة أولية قابلة للمراجعة عبر Phase 1-E2.');
+      setLastSyncNote('تمت ترجمة الأسئلة عبر طبقة مزود Phase 1-G1 مع fallback آمن وقابل للمراجعة.');
     } catch (error) {
       console.error(error);
       setApiStatus('connected');
@@ -581,6 +587,7 @@ export function App() {
             extractedText={extractedText}
             questions={questions}
             glossary={glossary}
+            translationProviderStatus={translationProviderStatus}
             onMetadataChange={handleMetadataChange}
             onLogoSelected={handleLogoSelected}
             onLogoRemove={handleLogoRemove}
@@ -622,6 +629,7 @@ interface StepContentProps {
   extractedText: ExtractedTextInfo | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
+  translationProviderStatus: TranslationProviderStatus | null;
   onMetadataChange: (metadata: ProjectMetadata) => void;
   onLogoSelected: (file: File | null) => void;
   onLogoRemove: () => void;
@@ -647,6 +655,7 @@ function StepContent({
   extractedText,
   questions,
   glossary,
+  translationProviderStatus,
   onMetadataChange,
   onLogoSelected,
   onLogoRemove,
@@ -679,6 +688,7 @@ function StepContent({
           onUpdateQuestion={onUpdateQuestion}
           onMoveQuestion={onMoveQuestion}
           onTranslateQuestions={onTranslateQuestions}
+          translationProviderStatus={translationProviderStatus}
         />
       );
     case 'export':

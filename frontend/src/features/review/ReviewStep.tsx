@@ -1,11 +1,12 @@
 import { ArrowDown, ArrowUp, Languages, RotateCcw, Trash2 } from 'lucide-react';
-import type { QuestionItem, QuestionStatus } from '../../types/project';
+import type { QuestionItem, QuestionStatus, TranslationProviderStatus } from '../../types/project';
 
 interface ReviewStepProps {
   questions: QuestionItem[];
   onUpdateQuestion: (questionId: string, updates: Partial<QuestionItem>) => void;
   onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
   onTranslateQuestions: () => void;
+  translationProviderStatus: TranslationProviderStatus | null;
 }
 
 const statusLabels: Record<QuestionStatus, string> = {
@@ -14,7 +15,7 @@ const statusLabels: Record<QuestionStatus, string> = {
   deleted: 'محذوف',
 };
 
-export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion, onTranslateQuestions }: ReviewStepProps) {
+export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion, onTranslateQuestions, translationProviderStatus }: ReviewStepProps) {
   const sortedQuestions = [...questions].sort((a, b) => a.orderIndex - b.orderIndex);
   const activeQuestions = sortedQuestions.filter((question) => question.status !== 'deleted');
 
@@ -45,8 +46,15 @@ export function ReviewStep({ questions, onUpdateQuestion, onMoveQuestion, onTran
       </div>
 
       <div className="notice-card translation-notice">
-        <strong>Phase 1-E2:</strong>
-        <span>الترجمة هنا أولية ومحافظة، تعتمد على قاموس الورقة وأوامر الأسئلة. راجعها قبل أي تصدير، فالمترجم ما زال في سنة أولى مدارك.</span>
+        <strong>Phase 1-G1:</strong>
+        <span>
+          الترجمة تمر عبر طبقة مزود آمنة. الوضع الحالي:
+          {' '}
+          {translationProviderStatus?.provider === 'mock' || !translationProviderStatus?.configured
+            ? 'ترجمة تجريبية محلية مع fallback'
+            : `مزود خارجي مفعل: ${translationProviderStatus.provider} / ${translationProviderStatus.model}`}
+          . راجع الترجمة قبل أي تصدير، فالذكاء الاصطناعي ليس موظف ضبط جودة حتى الآن.
+        </span>
       </div>
 
       <div className="question-card-list">

@@ -78,3 +78,10 @@ export interface ProjectSession {
 }
 
 export type ApiConnectionStatus = 'connecting' | 'connected' | 'syncing' | 'offline';
+
+export interface TranslationProviderStatus {
+  provider: string;
+  configured: boolean;
+  model: string;
+  fallback: string;
+}

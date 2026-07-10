@@ -1,34 +1,62 @@
-# منصة مدارك - Phase 1-F3 Export Branding
+# منصة مدارك - Phase 1-G1 AI Provider Layer
 
 منصة مدارك هي منصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى موارد عربية وثنائية اللغة قابلة للمراجعة والطباعة.
 
 ## حالة هذه الحزمة
 
-هذه الحزمة تمثل مرحلة:
-
 ```text
-Phase 1-F3: Export Branding
+Phase 1-G1: AI Provider Layer
+الحالة: جاهزة للرفع والاختبار عبر GitHub Actions
 ```
 
-تتضمن هذه المرحلة:
+## ما تضيفه Phase 1-G1
 
-- رفع PDF نصي واستخراج النص.
-- تحويل النص المستخرج إلى بطاقات أسئلة.
-- توليد قاموس مصطلحات أولي.
-- ترجمة أولية محافظة قابلة للمراجعة.
-- مراجعة الأسئلة وتعديلها وحذفها وترتيبها.
-- تصدير DOCX فعلي بتنسيق RTL.
-- تصدير PDF فعلي بتنسيق RTL أولي.
-- رفع شعار مدرسة اختياري وإدراجه في DOCX وPDF.
+- طبقة مزود ترجمة اختيارية داخل Backend.
+- بقاء الترجمة التجريبية المحلية `mock` كوضع افتراضي آمن.
+- دعم إعداد مزود خارجي لاحقًا عبر متغيرات بيئة فقط، لا من الواجهة.
+- fallback تلقائي إذا لم يوجد مفتاح API أو فشل المزود الخارجي.
+- endpoint آمن لعرض حالة المزود دون كشف الأسرار.
+- تحديث شاشة مراجعة الأسئلة لعرض حالة مزود الترجمة.
+
+## المسار الحالي
+
+```text
+رفع PDF نصي
+→ استخراج النص
+→ تقسيم النص إلى بطاقات أسئلة
+→ توليد قاموس مصطلحات أولي
+→ ترجمة أولية عبر طبقة مزود آمنة
+→ مراجعة وتعديل وحذف وترتيب
+→ تصدير DOCX/PDF بتنسيق RTL
+→ إدراج شعار المدرسة اختياريًا في التصدير
+```
+
+## إعدادات مزود الترجمة
+
+الوضع الافتراضي لا يحتاج أي مفتاح:
+
+```bash
+MADARIK_AI_PROVIDER=mock
+```
+
+للتجارب المستقبلية فقط، يمكن ضبط مزود خارجي من الخادم:
+
+```bash
+MADARIK_AI_PROVIDER=openai
+MADARIK_AI_API_KEY=...
+MADARIK_AI_MODEL=...
+```
+
+لا تُرسل مفاتيح API إلى المتصفح ولا تظهر في endpoint الحالة.
 
 ## ما لا يدخل في هذه المرحلة
 
 - لا OCR.
-- لا AI خارجي فعلي.
 - لا نموذج إجابة.
-- لا تصدير صور وجداول داخل PDF/Word بعد.
 - لا حفظ دائم للمشاريع.
 - لا حسابات مستخدمين.
+- لا ترجمة نصوص داخل الصور.
+- لا إدراج صور الأسئلة والجداول في التصدير بعد.
 
 ## تشغيل Backend
 
@@ -57,53 +85,3 @@ cd frontend
 npm install
 npm run dev
 ```
-
-## الفحص
-
-```bash
-cd backend
-pytest -q
-```
-
-```bash
-cd frontend
-npm run build
-```
-
-## Endpoints مهمة
-
-```text
-GET  /api/health
-POST /api/projects
-POST /api/projects/{project_id}/upload-pdf
-POST /api/projects/{project_id}/parse-questions
-POST /api/projects/{project_id}/glossary/generate
-POST /api/projects/{project_id}/translate-questions
-POST /api/projects/{project_id}/export/docx
-POST /api/projects/{project_id}/export/pdf
-```
-
-## ملاحظة PDF
-
-تصدير PDF في هذه المرحلة أولي ومحافظ:
-
-- يدعم RTL باستخدام ReportLab مع تشكيل عربي عبر `arabic-reshaper` و`python-bidi`.
-- يعتمد على خط Unicode متاح في النظام مثل DejaVu Sans.
-- لا يترجم النص داخل الصور ولا يدرج الرسوم والجداول بعد.
-
-## نقطة الاستقرار السابقة
-
-- Phase 0 Skeleton ✅
-- Phase 1-A Static UI ✅
-- Phase 1-B Backend API Integration ✅
-- Phase 1-C PDF Text Extraction ✅
-- Phase 1-D Question Parser ✅
-- Phase 1-E1 Glossary Engine ✅
-- Phase 1-E2 Translation Engine ✅
-- Phase 1-F1 DOCX Export RTL ✅
-- Phase 1-F3 Export Branding ⏳
-
-
-## Phase 1-F3: Export Branding
-
-أضافت هذه المرحلة دعم شعار المدرسة الاختياري داخل جلسة المشروع المؤقتة، مع إدراجه في ملفات DOCX وPDF عند التصدير. لا يوجد حفظ دائم للشعار بعد، ولا يتم إدراج صور الأسئلة أو الجداول في هذه المرحلة.

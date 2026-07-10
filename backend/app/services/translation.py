@@ -2,6 +2,7 @@ import re
 from uuid import uuid4
 
 from app.models.project import GlossaryTerm, QuestionItem, QuestionStatus
+from app.services.ai_provider import translate_with_optional_external_provider
 
 
 COMMAND_TRANSLATIONS: list[tuple[str, str]] = [
@@ -194,7 +195,7 @@ def translate_question_text(original_text: str, glossary: list[GlossaryTerm]) ->
 
 
 def translate_questions_with_glossary(questions: list[QuestionItem], glossary: list[GlossaryTerm]) -> list[QuestionItem]:
-    """Translate non-deleted questions using the reviewed glossary and command map."""
+    """Translate non-deleted questions using the reviewed glossary and provider layer."""
 
     translated_questions: list[QuestionItem] = []
     for question in questions:
@@ -202,15 +203,27 @@ def translate_questions_with_glossary(questions: list[QuestionItem], glossary: l
             translated_questions.append(question)
             continue
 
-        translated_text = translate_question_text(question.original_text, glossary)
-        review_note = "ترجمة Phase 1-E2 أولية قابلة للمراجعة قبل التصدير."
+        fallback_translation = translate_question_text(question.original_text, glossary)
+        provider_result = translate_with_optional_external_provider(
+            original_text=question.original_text,
+            glossary=glossary,
+            fallback_translation=fallback_translation,
+        )
+
+        review_note = (
+            "ترجمة Phase 1-G1 عبر طبقة مزود الترجمة. "
+            f"المزود المستخدم: {provider_result.provider}. "
+            "راجع الترجمة قبل التصدير."
+        )
+        if provider_result.note:
+            review_note = f"{review_note}\n{provider_result.note}"
         if question.review_notes:
             review_note = f"{question.review_notes}\n{review_note}"
 
         translated_questions.append(
             question.model_copy(
                 update={
-                    "translated_text": translated_text,
+                    "translated_text": provider_result.translated_text,
                     "status": QuestionStatus.needs_review,
                     "review_notes": review_note,
                 }
