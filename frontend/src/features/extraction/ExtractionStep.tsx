@@ -18,10 +18,10 @@ export function ExtractionStep({ questions, extractedText, onReloadDemo, onParse
     <div className="step-grid">
       <section className="form-card wide-card">
         <div className="section-heading">
-          <p className="eyebrow">Phase 1-I1: PDF نصي + OCR صور مبدئي</p>
+          <p className="eyebrow">Phase 1-I2: PDF نصي + OCR صور/PDF مصوّر مبدئي</p>
           <h3>النص الخام المستخرج</h3>
           <p>
-            في هذه المرحلة نقرأ PDF النصي مباشرة أو نستخرج نصًا إنجليزيًا مبدئيًا من صورة واضحة، ثم نحوله إلى بطاقات أسئلة بقواعد أولية.
+            في هذه المرحلة نقرأ PDF النصي مباشرة، ونجرّب OCR إنجليزيًا مبدئيًا للصور وPDF المصوّر محدود الصفحات، ثم نحول النص إلى بطاقات أسئلة بقواعد أولية.
           </p>
         </div>
 
@@ -29,7 +29,7 @@ export function ExtractionStep({ questions, extractedText, onReloadDemo, onParse
           <MetricCard label="بطاقات الأسئلة" value={questions.length} hint="من Backend أو بيانات تجريبية" />
           <MetricCard label="مجموع الدرجات" value={totalMarks} hint="محسوب من البطاقات" />
           <MetricCard label="تحتاج مراجعة" value={needsReview} hint="تقسيم آلي أولي" />
-          <MetricCard label="أحرف النص" value={extractedText?.characterCount ?? 0} hint="من PDF أو OCR صورة" />
+          <MetricCard label="أحرف النص" value={extractedText?.characterCount ?? 0} hint="من PDF أو OCR" />
         </div>
 
         {extractedText ? (
@@ -45,7 +45,7 @@ export function ExtractionStep({ questions, extractedText, onReloadDemo, onParse
             )}
           </div>
         ) : (
-          <div className="empty-state">ارفع PDF نصيًا أو صورة واضحة من خطوة رفع الملف ليظهر هنا مقتطف النص المستخرج.</div>
+          <div className="empty-state">ارفع PDF نصيًا أو صورة واضحة أو PDF مصوّرًا بسيطًا ليظهر هنا مقتطف النص المستخرج.</div>
         )}
 
         <div className="inline-actions">

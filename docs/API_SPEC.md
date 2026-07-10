@@ -102,10 +102,17 @@ DELETE /api/projects/{project_id}/questions/{question_id}/assets/{asset_id}
 
 ---
 
-## Phase 1-I1: Image OCR Intake
+## Phase 1-I2: PDF OCR Fallback
 
 - أضيف دعم رفع الصور PNG/JPG/WEBP لاستخراج النص الإنجليزي مبدئيًا عبر Tesseract OCR.
 - بقي PDF النصي مدعومًا كما في Phase 1-C.
 - لا يشمل هذا الاستخراج OCR كاملًا لملفات PDF المصوّرة متعددة الصفحات.
 - endpoint الجديد: `POST /api/projects/{project_id}/upload-image-ocr`.
 - النص المستخرج من الصورة يستخدم في مسار تقسيم الأسئلة الحالي.
+
+
+## Phase 1-I2
+
+`POST /api/projects/{project_id}/upload-pdf-ocr`
+
+يشغّل OCR إنجليزيًا مبدئيًا على صفحات PDF المصوّر المحدودة.

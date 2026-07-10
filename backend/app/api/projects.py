@@ -20,6 +20,7 @@ from app.services.glossary import extract_glossary_terms_from_questions
 from app.services.question_parser import parse_questions_from_text
 from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
 from app.services.ocr import OcrExtractionError, extract_text_from_image_bytes
+from app.services.pdf_ocr import PdfOcrExtractionError, extract_text_from_scanned_pdf_bytes
 from app.services.translation import translate_questions_with_glossary
 from app.services.ai_provider import get_ai_provider_status
 from app.services.export import (
@@ -175,9 +176,56 @@ async def upload_pdf_and_extract_text(project_id: str, file: UploadFile = File(.
     return project
 
 
+@router.post("/{project_id}/upload-pdf-ocr")
+async def upload_scanned_pdf_and_extract_text(project_id: str, file: UploadFile = File(...)) -> ProjectSession:
+    """Upload a PDF and try OCR on its rendered pages for Phase 1-I2."""
+
+    _get_or_404(project_id)
+
+    filename = file.filename or "uploaded.pdf"
+    if not filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="يدعم مسار OCR لملفات PDF فقط.")
+
+    file_bytes = await file.read()
+    max_size = 8_000_000
+    if len(file_bytes) > max_size:
+        raise HTTPException(status_code=400, detail="حجم PDF كبير. الحد الأقصى المؤقت لمسار OCR هو 8MB.")
+
+    uploaded_file = UploadedFileInfo(name=filename, size=len(file_bytes), type=file.content_type or "application/pdf")
+
+    try:
+        result = extract_text_from_scanned_pdf_bytes(file_bytes)
+    except PdfOcrExtractionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if not result.is_text_based:
+        extracted_text = ExtractedTextInfo(
+            text="",
+            preview="",
+            page_count=result.page_count,
+            character_count=0,
+            is_text_based=False,
+            message=f"تم تشغيل OCR على {result.processed_pages} صفحة من PDF، لكن لم يظهر نص واضح. جرّب صورة أوضح أو PDF أعلى جودة.",
+        )
+    else:
+        extracted_text = ExtractedTextInfo(
+            text=result.text,
+            preview=result.preview,
+            page_count=result.page_count,
+            character_count=result.character_count,
+            is_text_based=True,
+            message=f"تم استخراج النص من PDF مصوّر باستخدام OCR مبدئي على {result.processed_pages} صفحة.",
+        )
+
+    project = project_store.set_extracted_text(project_id, uploaded_file, extracted_text)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
 @router.post("/{project_id}/upload-image-ocr")
 async def upload_image_and_extract_text(project_id: str, file: UploadFile = File(...)) -> ProjectSession:
-    """Upload an image and run English OCR for Phase 1-I1."""
+    """Upload an image and run English OCR for Phase 1-I2."""
 
     _get_or_404(project_id)
 
@@ -186,7 +234,7 @@ async def upload_image_and_extract_text(project_id: str, file: UploadFile = File
     allowed_types = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
     allowed_extensions = (".png", ".jpg", ".jpeg", ".webp")
     if content_type not in allowed_types and not filename.lower().endswith(allowed_extensions):
-        raise HTTPException(status_code=400, detail="يدعم OCR في Phase 1-I1 صور PNG وJPG وWEBP فقط.")
+        raise HTTPException(status_code=400, detail="يدعم OCR في Phase 1-I2 صور PNG وJPG وWEBP فقط.")
 
     file_bytes = await file.read()
     max_size = 4_000_000

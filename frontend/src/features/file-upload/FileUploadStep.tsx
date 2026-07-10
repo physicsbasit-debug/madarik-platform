@@ -31,7 +31,7 @@ export function FileUploadStep({ uploadedFile, extractedText, onFileSelected }: 
         <FileUp size={42} />
         <h3>رفع PDF نصي أو صورة</h3>
         <p>
-          في Phase 1-I1 يدعم المسار PDF النصي، ويضيف OCR إنجليزيًا مبدئيًا للصور PNG/JPG/WEBP. PDF المصوّر الكامل ما زال مؤجلًا حتى لا نفتح حفلة تخطيط PDF.
+          في Phase 1-I2 يدعم المسار PDF النصي، ويجرّب OCR إنجليزيًا مبدئيًا للصور وPDF المصوّر محدود الصفحات.
         </p>
         <input type="file" accept=".pdf,application/pdf,image/png,image/jpeg,image/webp" onChange={handleFileChange} />
       </section>
@@ -65,7 +65,7 @@ export function FileUploadStep({ uploadedFile, extractedText, onFileSelected }: 
         ) : (
           <div className="notice-card">
             <ShieldCheck size={22} />
-            <span>OCR يعمل الآن مبدئيًا على الصور الإنجليزية الواضحة فقط. PDF النصي يقرأ مباشرة، وPDF المصوّر الكامل مؤجل لمرحلة لاحقة.</span>
+            <span>OCR يعمل مبدئيًا على الصور الإنجليزية الواضحة وعلى PDF المصوّر محدود الصفحات. النتائج تبقى للمراجعة البشرية.</span>
           </div>
         )}
       </section>

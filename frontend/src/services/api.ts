@@ -297,6 +297,25 @@ export async function uploadPdfAndExtractText(projectId: string, file: File): Pr
 }
 
 
+export async function uploadPdfOcrAndExtractText(projectId: string, file: File): Promise<ProjectSession> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/upload-pdf-ocr`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`PDF OCR extraction failed ${response.status}: ${body}`);
+  }
+
+  const project = (await response.json()) as ApiProjectSession;
+  return fromApiProject(project);
+}
+
+
 export async function uploadImageAndExtractText(projectId: string, file: File): Promise<ProjectSession> {
   const formData = new FormData();
   formData.append('file', file);

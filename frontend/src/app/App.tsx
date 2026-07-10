@@ -24,6 +24,7 @@ import {
   translateProjectQuestions,
   uploadQuestionAsset,
   uploadPdfAndExtractText,
+  uploadPdfOcrAndExtractText,
   uploadImageAndExtractText,
   uploadSchoolLogo,
   updateGlossaryTerm as updateGlossaryTermOnServer,
@@ -272,14 +273,20 @@ export function App() {
         pageCount: 0,
         characterCount: 0,
         isTextBased: false,
-        message: 'يدعم Phase 1-I1 ملفات PDF النصية وصور PNG/JPG/WEBP فقط.',
+        message: 'يدعم Phase 1-I2 ملفات PDF النصية أو المصوّرة البسيطة وصور PNG/JPG/WEBP فقط.',
       });
       setLastSyncNote('نوع الملف غير مدعوم في هذه المرحلة. لا نطلب من التطبيق قراءة كل مخلوقات التخزين مرة واحدة.');
       return;
     }
 
     setApiStatus('syncing');
-    const extractionRequest = isImageFile ? uploadImageAndExtractText(projectId, file) : uploadPdfAndExtractText(projectId, file);
+    const extractionRequest = isImageFile
+      ? uploadImageAndExtractText(projectId, file)
+      : uploadPdfAndExtractText(projectId, file).then((project) => {
+          if (project.extractedText?.isTextBased) return project;
+          return uploadPdfOcrAndExtractText(projectId, file);
+        });
+
     extractionRequest
       .then((project) => {
         applyProject(project);
@@ -298,9 +305,9 @@ export function App() {
           isTextBased: false,
           message: isImageFile
             ? 'تعذر تشغيل OCR على الصورة. جرّب صورة أوضح أو قصّ منطقة السؤال فقط.'
-            : 'تعذر استخراج النص من PDF. تأكد أن الملف PDF نصي وليس صورة أو ملفًا غير صالح.',
+            : 'تعذر استخراج النص من PDF نصيًا أو عبر OCR مبدئي. تأكد من جودة الملف أو جرّب صورة واضحة.',
         });
-        setLastSyncNote(isImageFile ? 'فشل OCR المبدئي للصورة.' : 'فشل استخراج النص من PDF. استخدم صورة واضحة إن كان الملف ممسوحًا.');
+        setLastSyncNote(isImageFile ? 'فشل OCR المبدئي للصورة.' : 'فشل استخراج النص من PDF نصيًا وOCR. جرّب صورة واضحة أو ملفًا أعلى جودة.');
       });
   }
 

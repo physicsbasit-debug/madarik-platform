@@ -35,7 +35,7 @@ PDF نصي
 
 ---
 
-## Phase 1-I1: Image OCR Intake
+## Phase 1-I2: PDF OCR Fallback
 
 - أضيف دعم رفع الصور PNG/JPG/WEBP لاستخراج النص الإنجليزي مبدئيًا عبر Tesseract OCR.
 - بقي PDF النصي مدعومًا كما في Phase 1-C.
