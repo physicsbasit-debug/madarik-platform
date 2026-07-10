@@ -138,6 +138,11 @@ class QuestionReorderRequest(BaseModel):
     ordered_question_ids: list[str]
 
 
+class QuestionBulkStatusRequest(BaseModel):
+    status: QuestionStatus
+    include_deleted: bool = False
+
+
 class GlossaryTermPatch(BaseModel):
     arabic_term: str | None = None
     status: GlossaryTermStatus | None = None

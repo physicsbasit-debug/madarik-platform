@@ -10,6 +10,7 @@ import { GlossaryStep } from '../features/glossary/GlossaryStep';
 import { ProjectSetupStep } from '../features/project-setup/ProjectSetupStep';
 import { ReviewStep } from '../features/review/ReviewStep';
 import {
+  bulkUpdateQuestionStatus,
   createProject,
   exportProjectDocx,
   exportProjectPdf,
@@ -42,6 +43,7 @@ import type {
   ProjectReadinessReport,
   ProjectSession,
   QuestionItem,
+  QuestionStatus,
   SchoolLogoInfo,
   StepKey,
   UploadedFileInfo,
@@ -312,6 +314,28 @@ export function App() {
         });
         setLastSyncNote(isImageFile ? 'فشل OCR المبدئي للصورة.' : 'فشل استخراج النص من PDF نصيًا وOCR. جرّب صورة واضحة أو ملفًا أعلى جودة.');
       });
+  }
+
+
+  async function bulkUpdateReviewStatus(status: QuestionStatus, includeDeleted = false) {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن تنفيذ إجراء جماعي دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await bulkUpdateQuestionStatus(projectId, status, includeDeleted);
+      applyProject(project);
+      setProjectReadiness(null);
+      setApiStatus('connected');
+      const label = status === 'approved' ? 'معتمد' : status === 'needs_review' ? 'يحتاج مراجعة' : 'محذوف';
+      setLastSyncNote(`تم تحديث حالة الأسئلة جماعيًا إلى: ${label}.`);
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل تنفيذ الإجراء الجماعي على الأسئلة.');
+    }
   }
 
   async function handleQuestionAssetUpload(questionId: string, file: File) {
@@ -693,6 +717,7 @@ export function App() {
             onUpdateGlossaryTerm={updateGlossaryTerm}
             onGenerateGlossary={generateGlossaryFromQuestionCards}
             onTranslateQuestions={translateQuestions}
+            onBulkUpdateStatus={bulkUpdateReviewStatus}
             onUploadQuestionAsset={handleQuestionAssetUpload}
             onDeleteQuestionAsset={handleQuestionAssetDelete}
             onReloadDemo={reloadDemoFromBackend}
@@ -740,6 +765,7 @@ interface StepContentProps {
   onUpdateGlossaryTerm: (termId: string, updates: Partial<GlossaryTerm>) => void;
   onGenerateGlossary: () => void;
   onTranslateQuestions: () => void;
+  onBulkUpdateStatus: (status: QuestionStatus, includeDeleted?: boolean) => void;
   onUploadQuestionAsset: (questionId: string, file: File) => void;
   onDeleteQuestionAsset: (questionId: string, assetId: string) => void;
   onReloadDemo: () => void;
@@ -770,6 +796,7 @@ function StepContent({
   onUpdateGlossaryTerm,
   onGenerateGlossary,
   onTranslateQuestions,
+  onBulkUpdateStatus,
   onUploadQuestionAsset,
   onDeleteQuestionAsset,
   onReloadDemo,
@@ -796,6 +823,7 @@ function StepContent({
           onUpdateQuestion={onUpdateQuestion}
           onMoveQuestion={onMoveQuestion}
           onTranslateQuestions={onTranslateQuestions}
+          onBulkUpdateStatus={onBulkUpdateStatus}
           onUploadQuestionAsset={onUploadQuestionAsset}
           onDeleteQuestionAsset={onDeleteQuestionAsset}
           translationProviderStatus={translationProviderStatus}

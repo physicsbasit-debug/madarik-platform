@@ -428,6 +428,19 @@ export async function deleteQuestionAsset(projectId: string, questionId: string,
 }
 
 
+
+export async function bulkUpdateQuestionStatus(
+  projectId: string,
+  status: QuestionStatus,
+  includeDeleted = false,
+): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/questions/bulk-status`, {
+    method: 'POST',
+    body: JSON.stringify({ status, include_deleted: includeDeleted }),
+  });
+  return fromApiProject(project);
+}
+
 export async function reorderQuestions(projectId: string, orderedQuestionIds: string[]): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/questions/reorder`, {
     method: 'POST',

@@ -12,6 +12,7 @@ from app.models.project import (
     ProjectSession,
     QuestionPatch,
     QuestionAssetInfo,
+    QuestionBulkStatusRequest,
     QuestionReorderRequest,
     StepUpdate,
     UploadedFileInfo,
@@ -434,6 +435,21 @@ def delete_question_asset(project_id: str, question_id: str, asset_id: str) -> P
     project = project_store.remove_question_asset(project_id, question_id, asset_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project, question, or asset not found")
+    return project
+
+
+
+@router.post("/{project_id}/questions/bulk-status")
+def bulk_update_question_status(project_id: str, payload: QuestionBulkStatusRequest) -> ProjectSession:
+    """Apply one review status to many questions for Phase 1-L1."""
+
+    project = project_store.bulk_update_question_status(
+        project_id,
+        status=payload.status,
+        include_deleted=payload.include_deleted,
+    )
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
     return project
 
 

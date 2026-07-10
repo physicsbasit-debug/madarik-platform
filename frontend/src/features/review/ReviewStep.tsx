@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ImagePlus, Languages, RotateCcw, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, CheckCircle2, ImagePlus, Languages, RotateCcw, Trash2, X } from 'lucide-react';
 import type { ChangeEvent } from 'react';
 import type { QuestionItem, QuestionStatus, TranslationProviderStatus } from '../../types/project';
 
@@ -7,6 +7,7 @@ interface ReviewStepProps {
   onUpdateQuestion: (questionId: string, updates: Partial<QuestionItem>) => void;
   onMoveQuestion: (questionId: string, direction: 'up' | 'down') => void;
   onTranslateQuestions: () => void;
+  onBulkUpdateStatus: (status: QuestionStatus, includeDeleted?: boolean) => void;
   onUploadQuestionAsset: (questionId: string, file: File) => void;
   onDeleteQuestionAsset: (questionId: string, assetId: string) => void;
   translationProviderStatus: TranslationProviderStatus | null;
@@ -29,6 +30,7 @@ export function ReviewStep({
   onUpdateQuestion,
   onMoveQuestion,
   onTranslateQuestions,
+  onBulkUpdateStatus,
   onUploadQuestionAsset,
   onDeleteQuestionAsset,
   translationProviderStatus,
@@ -86,6 +88,21 @@ export function ReviewStep({
             : `مزود خارجي مفعل: ${translationProviderStatus.provider} / ${translationProviderStatus.model}`}
           . راجع الترجمة قبل أي تصدير، فالذكاء الاصطناعي ليس موظف ضبط جودة حتى الآن.
         </span>
+      </div>
+
+      <div className="review-bulk-actions">
+        <button type="button" className="secondary-button compact" onClick={() => onBulkUpdateStatus('approved', false)} disabled={activeQuestions.length === 0}>
+          <CheckCircle2 size={16} />
+          اعتماد كل الأسئلة النشطة
+        </button>
+        <button type="button" className="secondary-button compact" onClick={() => onBulkUpdateStatus('needs_review', false)} disabled={activeQuestions.length === 0}>
+          <RotateCcw size={16} />
+          تحويل النشطة إلى تحتاج مراجعة
+        </button>
+        <button type="button" className="secondary-button compact" onClick={() => onBulkUpdateStatus('needs_review', true)} disabled={sortedQuestions.length === 0}>
+          <RotateCcw size={16} />
+          استعادة الكل للمراجعة
+        </button>
       </div>
 
       <div className="question-card-list">

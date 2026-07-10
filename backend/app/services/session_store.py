@@ -12,6 +12,7 @@ from app.models.project import (
     QuestionItem,
     GlossaryTerm,
     QuestionAssetInfo,
+    QuestionStatus,
 )
 from app.services.demo_content import get_demo_glossary, get_demo_questions
 
@@ -130,6 +131,28 @@ class InMemoryProjectStore:
                 project.current_step = StepKey.review
                 return self.touch(project_id)
         return None
+
+
+    def bulk_update_question_status(
+        self,
+        project_id: str,
+        status: QuestionStatus,
+        include_deleted: bool = False,
+    ) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+
+        updated_questions: list[QuestionItem] = []
+        for question in project.questions:
+            if question.status == QuestionStatus.deleted and not include_deleted:
+                updated_questions.append(question)
+                continue
+            updated_questions.append(question.model_copy(update={"status": status}))
+
+        project.questions = updated_questions
+        project.current_step = StepKey.review
+        return self.touch(project_id)
 
     def reorder_questions(self, project_id: str, ordered_question_ids: list[str]) -> ProjectSession | None:
         project = self.get(project_id)
