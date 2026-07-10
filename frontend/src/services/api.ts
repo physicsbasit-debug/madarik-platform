@@ -11,9 +11,69 @@ import type {
   StepKey,
   UploadedFileInfo,
   TranslationProviderStatus,
+  AuthAccountPublic,
+  AuthSessionInfo,
+  AuthStatus,
 } from '../types/project';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+const AUTH_TOKEN_STORAGE_KEY = 'madarik-auth-token';
+
+function getStoredAuthToken(): string | null {
+  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+}
+
+function buildAuthHeaders(): HeadersInit {
+  const token = getStoredAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+
+interface ApiAuthAccountPublic {
+  id: string;
+  username: string;
+  display_name: string;
+  role: 'owner' | 'teacher' | 'reviewer';
+  is_active: boolean;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+interface ApiAuthStatus {
+  accounts_exist: boolean;
+  requires_bootstrap: boolean;
+}
+
+interface ApiAuthSessionInfo {
+  token: string;
+  account: ApiAuthAccountPublic;
+}
+
+function fromApiAuthAccount(account: ApiAuthAccountPublic): AuthAccountPublic {
+  return {
+    id: account.id,
+    username: account.username,
+    displayName: account.display_name,
+    role: account.role,
+    isActive: account.is_active,
+    createdAt: account.created_at,
+    lastLoginAt: account.last_login_at,
+  };
+}
+
+function fromApiAuthStatus(status: ApiAuthStatus): AuthStatus {
+  return {
+    accountsExist: status.accounts_exist,
+    requiresBootstrap: status.requires_bootstrap,
+  };
+}
+
+function fromApiAuthSession(session: ApiAuthSessionInfo): AuthSessionInfo {
+  return {
+    token: session.token,
+    account: fromApiAuthAccount(session.account),
+  };
+}
 
 interface ApiProjectMetadata {
   school_name: string;
@@ -102,6 +162,7 @@ interface ApiProjectReadinessReport {
 
 interface ApiProjectSession {
   id: string;
+  owner_account_id: string | null;
   created_at: string;
   updated_at: string;
   metadata: ApiProjectMetadata;
@@ -223,6 +284,7 @@ function fromApiReadinessReport(report: ApiProjectReadinessReport): ProjectReadi
 function fromApiProject(project: ApiProjectSession): ProjectSession {
   return {
     id: project.id,
+    ownerAccountId: project.owner_account_id,
     createdAt: project.created_at,
     updatedAt: project.updated_at,
     metadata: fromApiMetadata(project.metadata),
@@ -240,6 +302,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...buildAuthHeaders(),
       ...(init?.headers ?? {}),
     },
   });
@@ -252,6 +315,42 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+
+
+export async function getAuthStatus(): Promise<AuthStatus> {
+  const status = await requestJson<ApiAuthStatus>('/auth/status');
+  return fromApiAuthStatus(status);
+}
+
+export async function bootstrapOwner(username: string, displayName: string, password: string): Promise<AuthSessionInfo> {
+  const session = await requestJson<ApiAuthSessionInfo>('/auth/bootstrap', {
+    method: 'POST',
+    body: JSON.stringify({ username, display_name: displayName, password }),
+  });
+  return fromApiAuthSession(session);
+}
+
+export async function login(username: string, password: string): Promise<AuthSessionInfo> {
+  const session = await requestJson<ApiAuthSessionInfo>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+  return fromApiAuthSession(session);
+}
+
+export async function getCurrentAccount(token: string): Promise<AuthAccountPublic> {
+  const account = await requestJson<ApiAuthAccountPublic>('/auth/me', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return fromApiAuthAccount(account);
+}
+
+export async function logout(token: string): Promise<void> {
+  await requestJson<{ logged_out: boolean }>('/auth/logout', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
 
 export async function getProject(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}`);
@@ -305,6 +404,7 @@ export async function uploadSchoolLogo(projectId: string, file: File): Promise<P
 
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/school-logo`, {
     method: 'POST',
+    headers: buildAuthHeaders(),
     body: formData,
   });
 
@@ -328,6 +428,7 @@ export async function uploadPdfAndExtractText(projectId: string, file: File): Pr
 
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/upload-pdf`, {
     method: 'POST',
+    headers: buildAuthHeaders(),
     body: formData,
   });
 
@@ -347,6 +448,7 @@ export async function uploadPdfOcrAndExtractText(projectId: string, file: File):
 
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/upload-pdf-ocr`, {
     method: 'POST',
+    headers: buildAuthHeaders(),
     body: formData,
   });
 
@@ -366,6 +468,7 @@ export async function uploadImageAndExtractText(projectId: string, file: File): 
 
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/upload-image-ocr`, {
     method: 'POST',
+    headers: buildAuthHeaders(),
     body: formData,
   });
 
@@ -423,6 +526,7 @@ export async function uploadQuestionAsset(projectId: string, questionId: string,
 
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/questions/${questionId}/assets`, {
     method: 'POST',
+    headers: buildAuthHeaders(),
     body: formData,
   });
 
@@ -483,6 +587,7 @@ export async function updateGlossaryTerm(
 export async function exportProjectDocx(projectId: string): Promise<Blob> {
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/export/docx`, {
     method: 'POST',
+    headers: buildAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -497,6 +602,7 @@ export async function exportProjectDocx(projectId: string): Promise<Blob> {
 export async function exportProjectPdf(projectId: string): Promise<Blob> {
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/export/pdf`, {
     method: 'POST',
+    headers: buildAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -511,6 +617,7 @@ export async function exportProjectPdf(projectId: string): Promise<Blob> {
 export async function getTranslationProviderStatus(): Promise<TranslationProviderStatus> {
   return await requestJson<TranslationProviderStatus>('/projects/translation-provider/status');
 }
+
 
 export async function getProjectReadiness(projectId: string): Promise<ProjectReadinessReport> {
   const report = await requestJson<ApiProjectReadinessReport>(`/projects/${projectId}/readiness`);

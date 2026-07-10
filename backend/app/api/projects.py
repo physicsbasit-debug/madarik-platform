@@ -1,8 +1,8 @@
 import base64
-
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
 from fastapi.responses import Response
 
+from app.models.auth import AccountRole, AuthAccountPublic
 from app.models.project import (
     ExtractedTextInfo,
     GlossaryTermPatch,
@@ -17,6 +17,7 @@ from app.models.project import (
     StepUpdate,
     UploadedFileInfo,
 )
+from app.services.auth_repository import auth_repository
 from app.services.session_store import project_store
 from app.services.glossary import extract_glossary_terms_from_questions
 from app.services.question_parser import parse_questions_from_text
@@ -35,6 +36,36 @@ from app.services.export import (
     safe_pdf_filename,
 )
 
+def _extract_bearer_token(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    return token.strip()
+
+
+def _resolve_current_account(authorization: str | None = Header(default=None)) -> AuthAccountPublic | None:
+    token = _extract_bearer_token(authorization)
+    return auth_repository.get_account_by_token(token) if token else None
+
+
+def _has_project_access(project: ProjectSession, account: AuthAccountPublic | None) -> bool:
+    if project.owner_account_id is None:
+        return True
+    if account is None:
+        return False
+    if account.role == AccountRole.owner:
+        return True
+    return project.owner_account_id == account.id
+
+
+def _require_project_access(project: ProjectSession, account: AuthAccountPublic | None) -> ProjectSession:
+    if not _has_project_access(project, account):
+        raise HTTPException(status_code=403, detail="لا تملك صلاحية الوصول إلى هذا المشروع.")
+    return project
+
+
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
@@ -45,59 +76,60 @@ def get_translation_provider_status() -> dict[str, object]:
     return get_ai_provider_status()
 
 
-def _get_or_404(project_id: str) -> ProjectSession:
+def _get_or_404(project_id: str, account: AuthAccountPublic | None) -> ProjectSession:
     project = project_store.get(project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    return project
+    return _require_project_access(project, account)
 
 
 
 @router.get("")
-def list_projects(limit: int = 50) -> list[ProjectSession]:
-    """List recently persisted projects for Phase 2-A1.
+def list_projects(limit: int = 50, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> list[ProjectSession]:
+    """List accessible persisted projects for Phase 2-B2."""
 
-    This is a backend foundation endpoint only. The full project library UI is
-    intentionally deferred to Phase 2-A2, because apparently restraint must be
-    engineered too.
-    """
-
-    return project_store.list_recent(limit)
+    account = account
+    include_all = account is not None and account.role == AccountRole.owner
+    account_id = account.id if account is not None else None
+    return project_store.list_recent(limit, account_id=account_id, include_all=include_all)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_project(metadata: ProjectMetadata | None = None) -> ProjectSession:
-    """Create a temporary project session."""
+def create_project(metadata: ProjectMetadata | None = None, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
+    """Create a project and attach ownership when an account session is present."""
 
-    return project_store.create(metadata)
+    account = account
+    return project_store.create(metadata, owner_account_id=account.id if account else None)
 
 
 @router.get("/{project_id}")
-def get_project(project_id: str) -> ProjectSession:
+def get_project(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Return a temporary project session."""
 
-    return _get_or_404(project_id)
+    return _get_or_404(project_id, account)
 
 
 
 @router.get("/{project_id}/snapshot")
-def export_project_snapshot(project_id: str) -> ProjectSession:
+def export_project_snapshot(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Return the current temporary project as a JSON snapshot for Phase 1-M1."""
 
-    return _get_or_404(project_id)
+    return _get_or_404(project_id, account)
 
 
 @router.post("/import-snapshot", status_code=status.HTTP_201_CREATED)
-def import_project_snapshot(snapshot: ProjectSession) -> ProjectSession:
-    """Import a JSON snapshot as a new temporary project session."""
+def import_project_snapshot(snapshot: ProjectSession, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
+    """Import a JSON snapshot as a new project owned by the current account when present."""
 
-    return project_store.import_snapshot(snapshot)
+    account = account
+    return project_store.import_snapshot(snapshot, owner_account_id=account.id if account else None)
 
 
 @router.patch("/{project_id}/metadata")
-def update_project_metadata(project_id: str, metadata: ProjectMetadata) -> ProjectSession:
+def update_project_metadata(project_id: str, metadata: ProjectMetadata, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Update project metadata from the frontend setup step."""
 
+    _get_or_404(project_id, account)
     project = project_store.update_metadata(project_id, metadata)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -105,18 +137,19 @@ def update_project_metadata(project_id: str, metadata: ProjectMetadata) -> Proje
 
 
 @router.patch("/{project_id}/step")
-def update_project_step(project_id: str, payload: StepUpdate) -> ProjectSession:
+def update_project_step(project_id: str, payload: StepUpdate, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Remember the current frontend step in the temporary session."""
 
-    project = _get_or_404(project_id)
+    project = _get_or_404(project_id, account)
     project.current_step = payload.current_step
     return project_store.touch(project_id) or project
 
 
 @router.put("/{project_id}/upload-info")
-def set_upload_info(project_id: str, uploaded_file: UploadedFileInfo | None = None) -> ProjectSession:
+def set_upload_info(project_id: str, uploaded_file: UploadedFileInfo | None = None, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Store file metadata only. No real file upload is performed in Phase 1-B."""
 
+    _get_or_404(project_id, account)
     project = project_store.set_uploaded_file(project_id, uploaded_file)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -126,10 +159,10 @@ def set_upload_info(project_id: str, uploaded_file: UploadedFileInfo | None = No
 
 
 @router.post("/{project_id}/school-logo")
-async def upload_school_logo(project_id: str, file: UploadFile = File(...)) -> ProjectSession:
+async def upload_school_logo(project_id: str, file: UploadFile = File(...), account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Store an optional school logo in the temporary project session for Phase 1-F3."""
 
-    _get_or_404(project_id)
+    _get_or_404(project_id, account)
 
     filename = file.filename or "school-logo"
     content_type = file.content_type or "application/octet-stream"
@@ -155,9 +188,10 @@ async def upload_school_logo(project_id: str, file: UploadFile = File(...)) -> P
 
 
 @router.delete("/{project_id}/school-logo")
-def delete_school_logo(project_id: str) -> ProjectSession:
+def delete_school_logo(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Remove the optional school logo from the temporary project session."""
 
+    _get_or_404(project_id, account)
     project = project_store.set_school_logo(project_id, None)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -165,10 +199,10 @@ def delete_school_logo(project_id: str) -> ProjectSession:
 
 
 @router.post("/{project_id}/upload-pdf")
-async def upload_pdf_and_extract_text(project_id: str, file: UploadFile = File(...)) -> ProjectSession:
+async def upload_pdf_and_extract_text(project_id: str, file: UploadFile = File(...), account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Upload a real text-based PDF and extract selectable text for Phase 1-C."""
 
-    _get_or_404(project_id)
+    _get_or_404(project_id, account)
 
     filename = file.filename or "uploaded.pdf"
     if not filename.lower().endswith(".pdf"):
@@ -208,10 +242,10 @@ async def upload_pdf_and_extract_text(project_id: str, file: UploadFile = File(.
 
 
 @router.post("/{project_id}/upload-pdf-ocr")
-async def upload_scanned_pdf_and_extract_text(project_id: str, file: UploadFile = File(...)) -> ProjectSession:
+async def upload_scanned_pdf_and_extract_text(project_id: str, file: UploadFile = File(...), account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Upload a PDF and try OCR on its rendered pages for Phase 1-I2."""
 
-    _get_or_404(project_id)
+    _get_or_404(project_id, account)
 
     filename = file.filename or "uploaded.pdf"
     if not filename.lower().endswith(".pdf"):
@@ -255,10 +289,10 @@ async def upload_scanned_pdf_and_extract_text(project_id: str, file: UploadFile 
 
 
 @router.post("/{project_id}/upload-image-ocr")
-async def upload_image_and_extract_text(project_id: str, file: UploadFile = File(...)) -> ProjectSession:
+async def upload_image_and_extract_text(project_id: str, file: UploadFile = File(...), account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Upload an image and run English OCR for Phase 1-I2."""
 
-    _get_or_404(project_id)
+    _get_or_404(project_id, account)
 
     filename = file.filename or "uploaded-image"
     content_type = file.content_type or "application/octet-stream"
@@ -305,10 +339,10 @@ async def upload_image_and_extract_text(project_id: str, file: UploadFile = File
 
 
 @router.post("/{project_id}/parse-questions")
-def parse_extracted_questions(project_id: str) -> ProjectSession:
+def parse_extracted_questions(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Convert extracted text into reviewable question cards for Phase 1-D."""
 
-    project = _get_or_404(project_id)
+    project = _get_or_404(project_id, account)
     if project.extracted_text is None or not project.extracted_text.text.strip():
         raise HTTPException(status_code=400, detail="لا يوجد نص مستخرج يمكن تقسيمه إلى أسئلة.")
     if not project.extracted_text.is_text_based:
@@ -326,10 +360,10 @@ def parse_extracted_questions(project_id: str) -> ProjectSession:
 
 
 @router.post("/{project_id}/glossary/generate")
-def generate_project_glossary(project_id: str) -> ProjectSession:
+def generate_project_glossary(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Generate a teacher-review glossary from parsed question cards for Phase 1-E1."""
 
-    project = _get_or_404(project_id)
+    project = _get_or_404(project_id, account)
     if not project.questions:
         raise HTTPException(status_code=400, detail="لا توجد بطاقات أسئلة يمكن استخراج مصطلحات منها.")
 
@@ -347,10 +381,10 @@ def generate_project_glossary(project_id: str) -> ProjectSession:
 
 
 @router.post("/{project_id}/translate-questions")
-def translate_project_questions(project_id: str) -> ProjectSession:
+def translate_project_questions(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Translate parsed question cards using the reviewed glossary for Phase 1-E2."""
 
-    project = _get_or_404(project_id)
+    project = _get_or_404(project_id, account)
     if not project.questions:
         raise HTTPException(status_code=400, detail="لا توجد أسئلة قابلة للترجمة.")
 
@@ -364,18 +398,18 @@ def translate_project_questions(project_id: str) -> ProjectSession:
 
 
 @router.get("/{project_id}/readiness")
-def get_project_readiness(project_id: str) -> ProjectReadinessReport:
+def get_project_readiness(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectReadinessReport:
     """Return a conservative readiness report before export for Phase 1-J1."""
 
-    project = _get_or_404(project_id)
+    project = _get_or_404(project_id, account)
     return build_project_readiness_report(project)
 
 
 @router.post("/{project_id}/export/docx")
-def export_project_docx(project_id: str) -> Response:
+def export_project_docx(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> Response:
     """Generate a real RTL DOCX file for Phase 1-F1."""
 
-    project = _get_or_404(project_id)
+    project = _get_or_404(project_id, account)
     try:
         docx_bytes = build_project_docx_bytes(project)
     except ValueError as exc:
@@ -391,10 +425,10 @@ def export_project_docx(project_id: str) -> Response:
 
 
 @router.post("/{project_id}/export/pdf")
-def export_project_pdf(project_id: str) -> Response:
+def export_project_pdf(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> Response:
     """Generate a real RTL PDF file for Phase 1-F2."""
 
-    project = _get_or_404(project_id)
+    project = _get_or_404(project_id, account)
     try:
         pdf_bytes = build_project_pdf_bytes(project)
     except ValueError as exc:
@@ -408,9 +442,10 @@ def export_project_pdf(project_id: str) -> Response:
     return Response(content=pdf_bytes, media_type=PDF_MIME_TYPE, headers=headers)
 
 @router.post("/{project_id}/demo-content")
-def load_demo_content(project_id: str) -> ProjectSession:
+def load_demo_content(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Load backend-owned demo questions and glossary for Phase 1-B."""
 
+    _get_or_404(project_id, account)
     project = project_store.load_demo_content(project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -418,9 +453,10 @@ def load_demo_content(project_id: str) -> ProjectSession:
 
 
 @router.patch("/{project_id}/questions/{question_id}")
-def update_question(project_id: str, question_id: str, patch: QuestionPatch) -> ProjectSession:
+def update_question(project_id: str, question_id: str, patch: QuestionPatch, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Update a question card from the review step."""
 
+    _get_or_404(project_id, account)
     project = project_store.update_question(project_id, question_id, patch)
     if project is None:
         raise HTTPException(status_code=404, detail="Project or question not found")
@@ -428,10 +464,10 @@ def update_question(project_id: str, question_id: str, patch: QuestionPatch) -> 
 
 
 @router.post("/{project_id}/questions/{question_id}/assets")
-async def upload_question_asset(project_id: str, question_id: str, file: UploadFile = File(...)) -> ProjectSession:
+async def upload_question_asset(project_id: str, question_id: str, file: UploadFile = File(...), account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Attach an optional question image/table snapshot for Phase 1-H1."""
 
-    _get_or_404(project_id)
+    _get_or_404(project_id, account)
 
     filename = file.filename or "question-asset"
     content_type = file.content_type or "application/octet-stream"
@@ -457,7 +493,7 @@ async def upload_question_asset(project_id: str, question_id: str, file: UploadF
 
 
 @router.delete("/{project_id}/questions/{question_id}/assets/{asset_id}")
-def delete_question_asset(project_id: str, question_id: str, asset_id: str) -> ProjectSession:
+def delete_question_asset(project_id: str, question_id: str, asset_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Remove a question attachment from the temporary session."""
 
     project = project_store.remove_question_asset(project_id, question_id, asset_id)
@@ -468,9 +504,10 @@ def delete_question_asset(project_id: str, question_id: str, asset_id: str) -> P
 
 
 @router.post("/{project_id}/questions/bulk-status")
-def bulk_update_question_status(project_id: str, payload: QuestionBulkStatusRequest) -> ProjectSession:
+def bulk_update_question_status(project_id: str, payload: QuestionBulkStatusRequest, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Apply one review status to many questions for Phase 1-L1."""
 
+    _get_or_404(project_id, account)
     project = project_store.bulk_update_question_status(
         project_id,
         status=payload.status,
@@ -482,9 +519,10 @@ def bulk_update_question_status(project_id: str, payload: QuestionBulkStatusRequ
 
 
 @router.post("/{project_id}/questions/reorder")
-def reorder_questions(project_id: str, payload: QuestionReorderRequest) -> ProjectSession:
+def reorder_questions(project_id: str, payload: QuestionReorderRequest, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Update question order indices from the frontend."""
 
+    _get_or_404(project_id, account)
     project = project_store.reorder_questions(project_id, payload.ordered_question_ids)
     if project is None:
         raise HTTPException(status_code=400, detail="Invalid question order or project not found")
@@ -492,9 +530,10 @@ def reorder_questions(project_id: str, payload: QuestionReorderRequest) -> Proje
 
 
 @router.patch("/{project_id}/glossary/{term_id}")
-def update_glossary_term(project_id: str, term_id: str, patch: GlossaryTermPatch) -> ProjectSession:
+def update_glossary_term(project_id: str, term_id: str, patch: GlossaryTermPatch, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Update one glossary term from the glossary review step."""
 
+    _get_or_404(project_id, account)
     project = project_store.update_glossary_term(project_id, term_id, patch)
     if project is None:
         raise HTTPException(status_code=404, detail="Project or glossary term not found")
@@ -502,9 +541,10 @@ def update_glossary_term(project_id: str, term_id: str, patch: GlossaryTermPatch
 
 
 @router.delete("/{project_id}")
-def delete_project(project_id: str) -> dict[str, bool]:
+def delete_project(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> dict[str, bool]:
     """Delete the temporary project session."""
 
+    _get_or_404(project_id, account)
     deleted = project_store.delete(project_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Project not found")

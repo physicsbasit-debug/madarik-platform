@@ -77,6 +77,7 @@ export interface GlossaryTerm {
 
 export interface ProjectSession {
   id: string;
+  ownerAccountId: string | null;
   createdAt: string;
   updatedAt: string;
   metadata: ProjectMetadata;
@@ -113,4 +114,27 @@ export interface ProjectReadinessReport {
   deletedQuestionCount: number;
   totalMarks: number;
   issues: ProjectReadinessIssue[];
+}
+
+
+export type AccountRole = 'owner' | 'teacher' | 'reviewer';
+
+export interface AuthAccountPublic {
+  id: string;
+  username: string;
+  displayName: string;
+  role: AccountRole;
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface AuthStatus {
+  accountsExist: boolean;
+  requiresBootstrap: boolean;
+}
+
+export interface AuthSessionInfo {
+  token: string;
+  account: AuthAccountPublic;
 }

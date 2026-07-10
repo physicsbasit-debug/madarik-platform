@@ -26,6 +26,12 @@ function projectStats(project: ProjectSession) {
   return `${activeQuestions} سؤال نشط · ${glossaryTerms} مصطلح`;
 }
 
+function ownerLabel(project: ProjectSession, currentProjectId: string | null) {
+  if (!project.ownerAccountId) return 'مشروع غير مربوط بحساب';
+  if (project.id === currentProjectId) return 'مربوط بالحساب الحالي أو متاح للمالك';
+  return 'مشروع مملوك لحساب';
+}
+
 export function ProjectLibraryPanel({
   projects,
   currentProjectId,
@@ -60,6 +66,7 @@ export function ProjectLibraryPanel({
                 <strong>{project.metadata.paperTitle || 'مشروع بلا عنوان'}</strong>
                 <span>{project.metadata.subject || 'مادة غير محددة'} · {project.metadata.grade || 'صف غير محدد'}</span>
                 <small>{projectStats(project)} · آخر تحديث: {formatDate(project.updatedAt)}</small>
+                <em>{ownerLabel(project, currentProjectId)}</em>
                 {project.id === currentProjectId ? <em>المشروع المفتوح حاليًا</em> : null}
               </div>
               <div className="library-actions">

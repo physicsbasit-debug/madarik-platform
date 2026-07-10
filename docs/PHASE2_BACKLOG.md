@@ -70,3 +70,25 @@
 - مكتبة أوراق عامة.
 - مشاركة عامة للأوراق.
 - OCR عربي إنتاجي.
+
+
+## Phase 2-B1: Accounts & Roles Foundation
+
+أضيفت طبقة حسابات وصلاحيات أولية:
+- إنشاء حساب المالك عند أول تشغيل.
+- تسجيل الدخول والخروج.
+- جلسات محفوظة في SQLite.
+- أدوار أولية: owner / teacher / reviewer.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_B1_ACCOUNTS_ROLES_FOUNDATION.md`
+
+
+## Phase 2-B2: Project Ownership & Access Rules
+
+أضيف ربط المشاريع بالحساب الحالي وقواعد وصول أولية فوق مكتبة المشاريع.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_B2_PROJECT_OWNERSHIP_ACCESS.md`

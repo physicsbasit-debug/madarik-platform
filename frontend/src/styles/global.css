@@ -1071,3 +1071,71 @@ button:disabled {
     width: 100%;
   }
 }
+
+
+.auth-panel {
+  border: 1px solid rgba(15, 52, 96, 0.1);
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 24px 80px rgba(15, 52, 96, 0.08);
+  padding: 24px;
+  margin-bottom: 18px;
+}
+
+.auth-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.auth-panel-header p:not(.eyebrow) {
+  color: #64748b;
+  margin-bottom: 0;
+}
+
+.auth-form-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) minmax(180px, 0.8fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.auth-current-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  background: #ecfdf5;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+}
+
+.auth-current-card strong,
+.auth-current-card span {
+  display: block;
+}
+
+.auth-current-card span {
+  color: #64748b;
+}
+
+.auth-message {
+  margin-top: 14px;
+}
+
+@media (max-width: 920px) {
+  .auth-form-grid,
+  .auth-panel-header,
+  .auth-current-card {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .auth-form-grid > button,
+  .auth-current-card > button {
+    width: 100%;
+  }
+}

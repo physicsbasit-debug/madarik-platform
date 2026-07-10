@@ -112,6 +112,7 @@ class GlossaryTerm(BaseModel):
 
 class ProjectSession(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
+    owner_account_id: str | None = None
     metadata: ProjectMetadata = Field(default_factory=ProjectMetadata)
     uploaded_file: UploadedFileInfo | None = None
     school_logo: ProjectLogoInfo | None = None

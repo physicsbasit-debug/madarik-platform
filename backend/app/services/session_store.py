@@ -29,14 +29,14 @@ class InMemoryProjectStore:
         self._projects: dict[str, ProjectSession] = {}
         self._repository = repository or project_repository
 
-    def create(self, metadata: ProjectMetadata | None = None) -> ProjectSession:
-        project = ProjectSession(metadata=metadata or ProjectMetadata())
+    def create(self, metadata: ProjectMetadata | None = None, owner_account_id: str | None = None) -> ProjectSession:
+        project = ProjectSession(metadata=metadata or ProjectMetadata(), owner_account_id=owner_account_id)
         self._projects[project.id] = project
         self._repository.save(project)
         return project
 
 
-    def import_snapshot(self, snapshot: ProjectSession) -> ProjectSession:
+    def import_snapshot(self, snapshot: ProjectSession, owner_account_id: str | None = None) -> ProjectSession:
         """Import a user-provided project snapshot as a new temporary project.
 
         The snapshot receives a fresh project id to avoid collisions with any
@@ -51,6 +51,7 @@ class InMemoryProjectStore:
                 "id": str(uuid4()),
                 "created_at": now,
                 "updated_at": now,
+                "owner_account_id": owner_account_id,
             },
             deep=True,
         )
@@ -261,8 +262,8 @@ class InMemoryProjectStore:
                 return self.touch(project_id)
         return None
 
-    def list_recent(self, limit: int = 50) -> list[ProjectSession]:
-        projects = self._repository.list_recent(limit)
+    def list_recent(self, limit: int = 50, account_id: str | None = None, include_all: bool = True) -> list[ProjectSession]:
+        projects = self._repository.list_recent(limit, account_id=account_id, include_all=include_all)
         for project in projects:
             self._projects[project.id] = project
         return projects

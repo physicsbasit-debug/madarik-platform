@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StepNavigation } from '../components/StepNavigation';
 import { steps } from '../constants/steps';
 import { defaultMetadata, sampleGlossary, sampleQuestions } from '../data/mockProject';
+import { AuthPanel } from '../features/auth/AuthPanel';
 import { ExtractionStep } from '../features/extraction/ExtractionStep';
 import { ExportStep } from '../features/export/ExportStep';
 import { FileUploadStep } from '../features/file-upload/FileUploadStep';
@@ -11,6 +12,7 @@ import { ProjectSetupStep } from '../features/project-setup/ProjectSetupStep';
 import { ProjectLibraryPanel } from '../features/project-library/ProjectLibraryPanel';
 import { ReviewStep } from '../features/review/ReviewStep';
 import {
+  bootstrapOwner,
   bulkUpdateQuestionStatus,
   createProject,
   exportProjectDocx,
@@ -35,13 +37,19 @@ import {
   updateProjectStep,
   updateQuestion as updateQuestionOnServer,
   getTranslationProviderStatus,
+  getAuthStatus,
+  getCurrentAccount,
   getProject,
   getProjectReadiness,
   importProjectSnapshot,
+  login,
+  logout,
   listProjects,
 } from '../services/api';
 import type {
   ApiConnectionStatus,
+  AuthAccountPublic,
+  AuthStatus,
   ExtractedTextInfo,
   GlossaryTerm,
   ProjectMetadata,
@@ -109,6 +117,10 @@ export function App() {
   const [projectLibrary, setProjectLibrary] = useState<ProjectSession[]>([]);
   const [isProjectLibraryVisible, setProjectLibraryVisible] = useState(false);
   const [isProjectLibraryLoading, setProjectLibraryLoading] = useState(false);
+  const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+  const [authAccount, setAuthAccount] = useState<AuthAccountPublic | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(() => window.localStorage.getItem('madarik-auth-token'));
+  const [authMessage, setAuthMessage] = useState('الحسابات اختيارية الآن، وستصبح أساس الصلاحيات لاحقًا.');
 
   const activeStep = steps[activeIndex];
   const progressLabel = useMemo(() => `${activeIndex + 1} من ${steps.length}`, [activeIndex]);
@@ -129,6 +141,72 @@ export function App() {
     });
   }, []);
 
+
+
+  async function refreshAuthStatus() {
+    try {
+      const status = await getAuthStatus();
+      setAuthStatus(status);
+
+      const storedToken = window.localStorage.getItem('madarik-auth-token');
+      if (storedToken) {
+        try {
+          const account = await getCurrentAccount(storedToken);
+          setAuthToken(storedToken);
+          setAuthAccount(account);
+          setAuthMessage(`تم استعادة جلسة الدخول: ${account.displayName}.`);
+        } catch {
+          window.localStorage.removeItem('madarik-auth-token');
+          setAuthToken(null);
+          setAuthAccount(null);
+          setAuthMessage('انتهت جلسة الدخول السابقة أو لم تعد صالحة.');
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      setAuthMessage('تعذر قراءة حالة الحسابات من Backend.');
+    }
+  }
+
+  async function bootstrapOwnerAccount(username: string, displayName: string, password: string) {
+    try {
+      const session = await bootstrapOwner(username, displayName, password);
+      window.localStorage.setItem('madarik-auth-token', session.token);
+      setAuthToken(session.token);
+      setAuthAccount(session.account);
+      setAuthStatus({ accountsExist: true, requiresBootstrap: false });
+      setAuthMessage('تم إنشاء حساب مالك المنصة وتسجيل الدخول.');
+      listProjects(50).then(setProjectLibrary).catch((libraryError: unknown) => console.error(libraryError));
+    } catch (error) {
+      console.error(error);
+      setAuthMessage('فشل إنشاء حساب المالك. ربما تم إنشاؤه سابقًا أو البيانات غير صالحة.');
+    }
+  }
+
+  async function loginAccount(username: string, password: string) {
+    try {
+      const session = await login(username, password);
+      window.localStorage.setItem('madarik-auth-token', session.token);
+      setAuthToken(session.token);
+      setAuthAccount(session.account);
+      setAuthMessage(`تم تسجيل الدخول: ${session.account.displayName}.`);
+      listProjects(50).then(setProjectLibrary).catch((libraryError: unknown) => console.error(libraryError));
+    } catch (error) {
+      console.error(error);
+      setAuthMessage('فشل تسجيل الدخول. اسم المستخدم أو كلمة المرور غير صحيحة.');
+    }
+  }
+
+  async function logoutAccount() {
+    if (authToken) {
+      await logout(authToken).catch((error: unknown) => console.error(error));
+    }
+    window.localStorage.removeItem('madarik-auth-token');
+    setAuthToken(null);
+    setAuthAccount(null);
+    setAuthMessage('تم تسجيل الخروج.');
+    listProjects(50).then(setProjectLibrary).catch((libraryError: unknown) => console.error(libraryError));
+  }
 
   async function refreshProjectLibrary() {
     if (apiStatus === 'offline') {
@@ -228,6 +306,13 @@ export function App() {
   useEffect(() => {
     void bootstrapProject();
   }, [bootstrapProject]);
+
+
+  useEffect(() => {
+    void refreshAuthStatus();
+  }, []);
+
+
 
   useEffect(() => {
     if (!projectId || apiStatus === 'offline') return;
@@ -782,10 +867,10 @@ export function App() {
     <main className="app-shell">
       <section className="hero-card">
         <div>
-          <p className="eyebrow">Phase 2-A2 Project Library</p>
+          <p className="eyebrow">Phase 2-B2 Project Ownership</p>
           <h1>منصة مدارك</h1>
           <p className="hero-text">
-            واجهة متعددة الخطوات لمعالجة أوراق الاختبارات، مع تخزين دائم عبر SQLite ومكتبة مشاريع محفوظة للفتح والحذف. أخيرًا لم تعد المشاريع تعيش في الذاكرة المؤقتة وكأنها نية حسنة.
+            واجهة متعددة الخطوات لمعالجة أوراق الاختبارات، مع تخزين دائم، مكتبة مشاريع، وحسابات أولية تربط المشاريع الجديدة بالمستخدم الحالي وتحترم قواعد الوصول. أخيرًا أصبح للمشروع صاحب، لا يتجول في SQLite مثل يتيم رقمي.
           </p>
         </div>
         <div className="hero-actions">
@@ -809,6 +894,16 @@ export function App() {
         </div>
       </section>
 
+
+
+      <AuthPanel
+        status={authStatus}
+        account={authAccount}
+        message={authMessage}
+        onBootstrap={bootstrapOwnerAccount}
+        onLogin={loginAccount}
+        onLogout={logoutAccount}
+      />
 
       {isProjectLibraryVisible ? (
         <ProjectLibraryPanel
@@ -849,7 +944,7 @@ export function App() {
         </div>
         <div>
           <span>مرحلة التطوير</span>
-          <strong>Phase 2-A2</strong>
+          <strong>Phase 2-B2</strong>
         </div>
       </section>
 
