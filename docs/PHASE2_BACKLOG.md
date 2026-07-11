@@ -145,3 +145,19 @@
 الوثيقة التفصيلية:
 
 `docs/PHASE2_F2_EDUCATIONAL_QUALITY_TOOLS.md`
+
+
+## Phase 2-RC1: Release Candidate
+
+تم قفل نطاق Phase 2 كنسخة مرشحة:
+- Release notes.
+- Test plan.
+- Scope lock.
+- Acceptance checklist.
+- لا توجد ميزة تشغيلية جديدة في هذه المرحلة.
+
+الوثائق:
+- `docs/PHASE2_RC1_RELEASE_NOTES.md`
+- `docs/PHASE2_RC1_TEST_PLAN.md`
+- `docs/PHASE2_RC1_SCOPE_LOCK.md`
+- `docs/PHASE2_RC1_ACCEPTANCE_CHECKLIST.md`
