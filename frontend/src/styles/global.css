@@ -1213,3 +1213,50 @@ button:disabled {
     width: 100%;
   }
 }
+
+
+.layout-assets-panel {
+  margin-top: 18px;
+  border: 1px solid rgba(15, 52, 96, 0.1);
+  border-radius: 22px;
+  padding: 18px;
+  background: #f8fafc;
+}
+
+.layout-assets-panel p {
+  color: #64748b;
+}
+
+.layout-assets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.layout-asset-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(15, 52, 96, 0.1);
+  border-radius: 18px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.layout-asset-card img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.layout-asset-card div {
+  display: grid;
+  gap: 8px;
+}
+
+.layout-asset-card span {
+  color: #64748b;
+  font-size: 0.9rem;
+}

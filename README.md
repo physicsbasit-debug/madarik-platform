@@ -1,4 +1,4 @@
-# منصة مدارك - Phase 2-C1 AI Provider Hardening
+# منصة مدارك - Phase 2-D1 PDF Layout & Assets Extraction
 
 منصة مدارك هي منصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى موارد عربية وثنائية اللغة قابلة للمراجعة والطباعة.
 
@@ -263,3 +263,16 @@ Endpoints:
 الوثيقة التفصيلية:
 
 `docs/PHASE2_C1_AI_PROVIDER_HARDENING.md`
+
+
+## Phase 2-D1: PDF Layout & Assets Extraction
+
+أضيف استخراج مبدئي للقطات تخطيط PDF:
+- حفظ `layout_assets` داخل المشروع.
+- endpoint لاستخراج لقطات تخطيط من PDF.
+- عرض اللقطات في خطوة الاستخراج.
+- حذف اللقطات من الواجهة.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_D1_PDF_LAYOUT_ASSETS.md`

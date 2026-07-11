@@ -105,3 +105,16 @@
 الوثيقة التفصيلية:
 
 `docs/PHASE2_B3_USER_MANAGEMENT_LITE.md`
+
+
+## Phase 2-D1: PDF Layout & Assets Extraction
+
+أضيف استخراج مبدئي للقطات تخطيط PDF:
+- حفظ `layout_assets` داخل المشروع.
+- endpoint لاستخراج لقطات تخطيط من PDF.
+- عرض اللقطات في خطوة الاستخراج.
+- حذف اللقطات من الواجهة.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_D1_PDF_LAYOUT_ASSETS.md`

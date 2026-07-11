@@ -19,8 +19,10 @@ import {
   exportProjectDocx,
   exportProjectPdf,
   exportProjectSnapshot,
+  extractPdfLayoutAssets,
   generateGlossaryFromQuestions,
   deleteProject,
+  deletePdfLayoutAsset,
   deleteQuestionAsset,
   deleteSchoolLogo,
   loadDemoContent,
@@ -57,6 +59,7 @@ import type {
   ExtractedTextInfo,
   GlossaryTerm,
   ProjectMetadata,
+  PdfLayoutAssetInfo,
   ProjectReadinessReport,
   ProjectSession,
   QuestionItem,
@@ -94,6 +97,7 @@ function applyProjectSession(
     setExtractedText: (extractedText: ExtractedTextInfo | null) => void;
     setQuestions: (questions: QuestionItem[]) => void;
     setGlossary: (glossary: GlossaryTerm[]) => void;
+    setLayoutAssets: (layoutAssets: PdfLayoutAssetInfo[]) => void;
   },
 ) {
   setters.setProjectId(project.id);
@@ -103,6 +107,7 @@ function applyProjectSession(
   setters.setExtractedText(project.extractedText);
   setters.setQuestions(project.questions);
   setters.setGlossary(project.glossary);
+  setters.setLayoutAssets(project.layoutAssets);
 }
 
 export function App() {
@@ -116,6 +121,7 @@ export function App() {
   const [extractedText, setExtractedText] = useState<ExtractedTextInfo | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>(sampleQuestions);
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
+  const [layoutAssets, setLayoutAssets] = useState<PdfLayoutAssetInfo[]>([]);
   const [translationProviderStatus, setTranslationProviderStatus] = useState<TranslationProviderStatus | null>(null);
   const [projectReadiness, setProjectReadiness] = useState<ProjectReadinessReport | null>(null);
   const [projectLibrary, setProjectLibrary] = useState<ProjectSession[]>([]);
@@ -144,6 +150,7 @@ export function App() {
       setExtractedText,
       setQuestions,
       setGlossary,
+      setLayoutAssets,
     });
   }, []);
 
@@ -349,8 +356,10 @@ export function App() {
       setUploadedFile(null);
       setSchoolLogo(null);
       setExtractedText(null);
+      setLayoutAssets([]);
       setQuestions(sampleQuestions);
       setGlossary(sampleGlossary);
+      setLayoutAssets([]);
       setTranslationProviderStatus({ provider: 'mock', configured: false, model: '', fallback: 'mock' });
       setApiStatus('offline');
       setLastSyncNote('تعذر الاتصال بالخلفية. تعمل الواجهة ببيانات محلية مؤقتة. يا لها من بداية درامية، لكنها مقبولة في التطوير.');
@@ -568,8 +577,19 @@ export function App() {
         });
 
     extractionRequest
-      .then((project) => {
+      .then(async (project) => {
         applyProject(project);
+        if (isPdfFile) {
+          try {
+            const projectWithLayout = await extractPdfLayoutAssets(projectId, file);
+            applyProject(projectWithLayout);
+            setApiStatus('connected');
+            setLastSyncNote(`${project.extractedText?.message ?? 'تم رفع الملف ومحاولة استخراج النص.'} وتم استخراج ${projectWithLayout.layoutAssets.length} لقطة تخطيط من PDF.`);
+            return;
+          } catch (layoutError) {
+            console.error(layoutError);
+          }
+        }
         setApiStatus('connected');
         setLastSyncNote(project.extractedText?.message ?? 'تم رفع الملف ومحاولة استخراج النص.');
       })
@@ -591,6 +611,26 @@ export function App() {
       });
   }
 
+
+
+  async function handleLayoutAssetDelete(assetId: string) {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن حذف لقطة التخطيط دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await deletePdfLayoutAsset(projectId, assetId);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote('تم حذف لقطة التخطيط من المشروع.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل حذف لقطة التخطيط.');
+    }
+  }
 
   async function bulkUpdateReviewStatus(status: QuestionStatus, includeDeleted = false) {
     if (!projectId || apiStatus === 'offline') {
@@ -900,6 +940,7 @@ export function App() {
     if (!projectId || apiStatus === 'offline') {
       setQuestions(sampleQuestions);
       setGlossary(sampleGlossary);
+      setLayoutAssets([]);
       setLastSyncNote('تمت إعادة تحميل البيانات التجريبية محليًا.');
       return;
     }
@@ -1028,6 +1069,7 @@ export function App() {
             extractedText={extractedText}
             questions={questions}
             glossary={glossary}
+            layoutAssets={layoutAssets}
             translationProviderStatus={translationProviderStatus}
             onMetadataChange={handleMetadataChange}
             onLogoSelected={handleLogoSelected}
@@ -1041,6 +1083,7 @@ export function App() {
             onBulkUpdateStatus={bulkUpdateReviewStatus}
             onUploadQuestionAsset={handleQuestionAssetUpload}
             onDeleteQuestionAsset={handleQuestionAssetDelete}
+            onDeleteLayoutAsset={handleLayoutAssetDelete}
             onReloadDemo={reloadDemoFromBackend}
             onParseQuestions={parseQuestionsFromExtractedText}
             onExportDocx={exportDocx}
@@ -1075,6 +1118,7 @@ interface StepContentProps {
   extractedText: ExtractedTextInfo | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
+  layoutAssets: PdfLayoutAssetInfo[];
   translationProviderStatus: TranslationProviderStatus | null;
   projectReadiness: ProjectReadinessReport | null;
   onMetadataChange: (metadata: ProjectMetadata) => void;
@@ -1089,6 +1133,7 @@ interface StepContentProps {
   onBulkUpdateStatus: (status: QuestionStatus, includeDeleted?: boolean) => void;
   onUploadQuestionAsset: (questionId: string, file: File) => void;
   onDeleteQuestionAsset: (questionId: string, assetId: string) => void;
+  onDeleteLayoutAsset: (assetId: string) => void;
   onReloadDemo: () => void;
   onParseQuestions: () => void;
   onExportDocx: () => Promise<void>;
@@ -1106,6 +1151,7 @@ function StepContent({
   extractedText,
   questions,
   glossary,
+  layoutAssets,
   translationProviderStatus,
   projectReadiness,
   onMetadataChange,
@@ -1120,6 +1166,7 @@ function StepContent({
   onBulkUpdateStatus,
   onUploadQuestionAsset,
   onDeleteQuestionAsset,
+  onDeleteLayoutAsset,
   onReloadDemo,
   onParseQuestions,
   onExportDocx,
@@ -1132,9 +1179,9 @@ function StepContent({
     case 'setup':
       return <ProjectSetupStep metadata={metadata} schoolLogo={schoolLogo} onChange={onMetadataChange} onLogoSelected={onLogoSelected} onLogoRemove={onLogoRemove} />;
     case 'upload':
-      return <FileUploadStep uploadedFile={uploadedFile} extractedText={extractedText} onFileSelected={onFileSelected} />;
+      return <FileUploadStep uploadedFile={uploadedFile} extractedText={extractedText} layoutAssets={layoutAssets} onFileSelected={onFileSelected} />;
     case 'extract':
-      return <ExtractionStep questions={questions} extractedText={extractedText} onReloadDemo={onReloadDemo} onParseQuestions={onParseQuestions} />;
+      return <ExtractionStep questions={questions} extractedText={extractedText} layoutAssets={layoutAssets} onDeleteLayoutAsset={onDeleteLayoutAsset} onReloadDemo={onReloadDemo} onParseQuestions={onParseQuestions} />;
     case 'glossary':
       return <GlossaryStep glossary={glossary} onUpdateTerm={onUpdateGlossaryTerm} onGenerateGlossary={onGenerateGlossary} />;
     case 'review':

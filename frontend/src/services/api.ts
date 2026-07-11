@@ -4,6 +4,7 @@ import type {
   ProjectMetadata,
   ProjectReadinessReport,
   ProjectSession,
+  PdfLayoutAssetInfo,
   SchoolLogoInfo,
   QuestionItem,
   QuestionAssetInfo,
@@ -139,6 +140,17 @@ interface ApiSchoolLogoInfo {
   data_base64: string;
 }
 
+interface ApiPdfLayoutAssetInfo {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  data_base64: string;
+  page_number: number;
+  source: string;
+  note: string;
+}
+
 interface ApiExtractedTextInfo {
   text: string;
   preview: string;
@@ -207,6 +219,7 @@ interface ApiProjectSession {
   extracted_text: ApiExtractedTextInfo | null;
   questions: ApiQuestionItem[];
   glossary: ApiGlossaryTerm[];
+  layout_assets?: ApiPdfLayoutAssetInfo[];
   current_step: StepKey;
 }
 
@@ -266,6 +279,19 @@ function fromApiSchoolLogo(info: ApiSchoolLogoInfo | null): SchoolLogoInfo | nul
   };
 }
 
+
+function fromApiPdfLayoutAsset(asset: ApiPdfLayoutAssetInfo): PdfLayoutAssetInfo {
+  return {
+    id: asset.id,
+    name: asset.name,
+    size: asset.size,
+    type: asset.type,
+    dataBase64: asset.data_base64,
+    pageNumber: asset.page_number,
+    source: asset.source,
+    note: asset.note,
+  };
+}
 
 function fromApiQuestionAsset(asset: ApiQuestionAssetInfo): QuestionAssetInfo {
   return {
@@ -329,6 +355,7 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     extractedText: fromApiExtractedText(project.extracted_text),
     questions: project.questions.map(fromApiQuestion),
     glossary: project.glossary.map(fromApiGlossaryTerm),
+    layoutAssets: (project.layout_assets ?? []).map(fromApiPdfLayoutAsset),
     currentStep: project.current_step,
   };
 }
@@ -547,6 +574,34 @@ export async function uploadImageAndExtractText(projectId: string, file: File): 
   }
 
   const project = (await response.json()) as ApiProjectSession;
+  return fromApiProject(project);
+}
+
+
+
+export async function extractPdfLayoutAssets(projectId: string, file: File): Promise<ProjectSession> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/layout-assets/pdf`, {
+    method: 'POST',
+    body: formData,
+    headers: buildAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`PDF layout extraction failed ${response.status}: ${body}`);
+  }
+
+  const project = (await response.json()) as ApiProjectSession;
+  return fromApiProject(project);
+}
+
+export async function deletePdfLayoutAsset(projectId: string, assetId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/layout-assets/${assetId}`, {
+    method: 'DELETE',
+  });
   return fromApiProject(project);
 }
 

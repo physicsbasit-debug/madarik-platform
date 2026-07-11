@@ -34,6 +34,17 @@ export interface SchoolLogoInfo {
   dataBase64: string;
 }
 
+export interface PdfLayoutAssetInfo {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  dataBase64: string;
+  pageNumber: number;
+  source: string;
+  note: string;
+}
+
 export interface ExtractedTextInfo {
   text: string;
   preview: string;
@@ -86,6 +97,7 @@ export interface ProjectSession {
   extractedText: ExtractedTextInfo | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
+  layoutAssets: PdfLayoutAssetInfo[];
   currentStep: StepKey;
 }
 

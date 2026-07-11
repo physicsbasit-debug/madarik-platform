@@ -1,10 +1,11 @@
 import type { ChangeEvent } from 'react';
 import { FileSearch, FileUp, ShieldCheck } from 'lucide-react';
-import type { ExtractedTextInfo, UploadedFileInfo } from '../../types/project';
+import type { ExtractedTextInfo, PdfLayoutAssetInfo, UploadedFileInfo } from '../../types/project';
 
 interface FileUploadStepProps {
   uploadedFile: UploadedFileInfo | null;
   extractedText: ExtractedTextInfo | null;
+  layoutAssets: PdfLayoutAssetInfo[];
   onFileSelected: (file: File | null) => void;
 }
 
@@ -14,7 +15,7 @@ function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function FileUploadStep({ uploadedFile, extractedText, onFileSelected }: FileUploadStepProps) {
+export function FileUploadStep({ uploadedFile, extractedText, layoutAssets, onFileSelected }: FileUploadStepProps) {
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -65,9 +66,15 @@ export function FileUploadStep({ uploadedFile, extractedText, onFileSelected }: 
         ) : (
           <div className="notice-card">
             <ShieldCheck size={22} />
-            <span>OCR يعمل مبدئيًا على الصور الإنجليزية الواضحة وعلى PDF المصوّر محدود الصفحات. النتائج تبقى للمراجعة البشرية قبل التصدير.</span>
+            <span>OCR يعمل مبدئيًا على الصور الإنجليزية الواضحة وعلى PDF المصوّر محدود الصفحات. وعند رفع PDF تُنشأ لقطات تخطيط للمراجعة البشرية.</span>
           </div>
         )}
+      {layoutAssets.length > 0 ? (
+          <div className="notice-card success-card">
+            <FileSearch size={22} />
+            <span>تم استخراج {layoutAssets.length} لقطة تخطيط من PDF لمراجعة الرسوم والجداول في خطوة الاستخراج.</span>
+          </div>
+        ) : null}
       </section>
     </div>
   );
