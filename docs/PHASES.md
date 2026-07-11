@@ -230,3 +230,16 @@ Endpoints:
 الوثيقة التفصيلية:
 
 `docs/PHASE2_E1_ANSWER_KEY_DRAFT.md`
+
+
+## Phase 2-F1: Educational Analysis Foundation
+
+أضيف تحليل تربوي تأسيسي للورقة:
+- حفظ `educational_analysis` داخل المشروع.
+- تحليل عدد الأسئلة والدرجات وأوامر السؤال.
+- عرض التنبيهات والتوصيات.
+- حذف التحليل.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_F1_EDUCATIONAL_ANALYSIS_FOUNDATION.md`

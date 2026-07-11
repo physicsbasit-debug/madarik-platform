@@ -1,6 +1,6 @@
-import { AlertTriangle, CheckCircle2, Download, FileText, KeyRound, Loader2, ShieldCheck, Trash2 } from 'lucide-react';
+import { AlertTriangle, BarChart3, CheckCircle2, Download, FileText, KeyRound, Loader2, ShieldCheck, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import type { AnswerKeyItem, GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
+import type { AnswerKeyItem, EducationalAnalysisReport, GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
 import { MetricCard } from '../../components/MetricCard';
 
 interface ExportStepProps {
@@ -8,6 +8,7 @@ interface ExportStepProps {
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   answerKey: AnswerKeyItem[];
+  educationalAnalysis: EducationalAnalysisReport | null;
   readiness: ProjectReadinessReport | null;
   canExportDocx: boolean;
   canExportPdf: boolean;
@@ -16,6 +17,8 @@ interface ExportStepProps {
   onRefreshReadiness: () => Promise<void>;
   onGenerateAnswerKey: () => Promise<void>;
   onClearAnswerKey: () => Promise<void>;
+  onGenerateEducationalAnalysis: () => Promise<void>;
+  onClearEducationalAnalysis: () => Promise<void>;
 }
 
 export function ExportStep({
@@ -23,6 +26,7 @@ export function ExportStep({
   questions,
   glossary,
   answerKey,
+  educationalAnalysis,
   readiness,
   canExportDocx,
   canExportPdf,
@@ -31,12 +35,15 @@ export function ExportStep({
   onRefreshReadiness,
   onGenerateAnswerKey,
   onClearAnswerKey,
+  onGenerateEducationalAnalysis,
+  onClearEducationalAnalysis,
 }: ExportStepProps) {
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isCheckingReadiness, setIsCheckingReadiness] = useState(false);
   const [isGeneratingAnswerKey, setIsGeneratingAnswerKey] = useState(false);
-  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF متاح مع فحص جاهزية قبل التصدير، ودعم الشعار والمرفقات ونسخ العمل JSON ومسودة نموذج إجابة للمعلم.');
+  const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
+  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF متاح مع فحص جاهزية قبل التصدير، ودعم الشعار والمرفقات ونسخ العمل JSON ومسودة نموذج إجابة وتحليل تربوي تأسيسي للمعلم.');
 
   const approvedQuestions = questions
     .filter((question) => question.status !== 'deleted')
@@ -59,6 +66,35 @@ export function ExportStep({
     }
   }
 
+
+
+  async function handleGenerateEducationalAnalysis() {
+    setIsGeneratingAnalysis(true);
+    setExportMessage('جاري توليد التحليل التربوي التأسيسي...');
+    try {
+      await onGenerateEducationalAnalysis();
+      setExportMessage('تم توليد التحليل التربوي التأسيسي. راجعه كدليل مراجعة، لا كصك غفران للاختبار.');
+    } catch (error) {
+      console.error(error);
+      setExportMessage('تعذر توليد التحليل التربوي.');
+    } finally {
+      setIsGeneratingAnalysis(false);
+    }
+  }
+
+  async function handleClearEducationalAnalysis() {
+    setIsGeneratingAnalysis(true);
+    setExportMessage('جاري حذف التحليل التربوي...');
+    try {
+      await onClearEducationalAnalysis();
+      setExportMessage('تم حذف التحليل التربوي.');
+    } catch (error) {
+      console.error(error);
+      setExportMessage('تعذر حذف التحليل التربوي.');
+    } finally {
+      setIsGeneratingAnalysis(false);
+    }
+  }
 
   async function handleGenerateAnswerKey() {
     setIsGeneratingAnswerKey(true);
@@ -133,6 +169,7 @@ export function ExportStep({
           <MetricCard label="أسئلة مترجمة" value={readiness?.translatedQuestionCount ?? 0} hint="حسب فحص Backend" />
           <MetricCard label="مصطلحات تحتاج مراجعة" value={glossaryNeedsReview} hint="للمعلم فقط" />
           <MetricCard label="مسودة الإجابة" value={answerKey.length} hint="للمعلم فقط" />
+          <MetricCard label="التحليل التربوي" value={educationalAnalysis ? 1 : 0} hint="تأسيسي" />
         </div>
 
         <div className={`readiness-card ${readiness?.ready ? 'success-card' : 'warning-card'}`}>
@@ -169,6 +206,90 @@ export function ExportStep({
         </button>
       </section>
 
+
+
+      <section className="form-card wide-card">
+        <div className="section-heading">
+          <p className="eyebrow">Phase 2-F1</p>
+          <h3>التحليل التربوي التأسيسي</h3>
+          <p>
+            يقرأ هذا التحليل اتزان الورقة من حيث عدد الأسئلة، الدرجات، أوامر السؤال، عبء المراجعة، ووجود مسودة الإجابة ولقطات التخطيط. ليس تحليلًا نفسيًا قياسيًا ولا باريتو عظيمًا بعد، فقط أساس محترم بدل الفوضى.
+          </p>
+        </div>
+
+        <div className="inline-actions">
+          <button type="button" className="primary-button" onClick={() => void handleGenerateEducationalAnalysis()} disabled={isGeneratingAnalysis || approvedQuestions.length === 0}>
+            {isGeneratingAnalysis ? <Loader2 size={18} className="spin-icon" /> : <BarChart3 size={18} />}
+            توليد التحليل التربوي
+          </button>
+          <button type="button" className="danger-button" onClick={() => void handleClearEducationalAnalysis()} disabled={isGeneratingAnalysis || !educationalAnalysis}>
+            <Trash2 size={18} />
+            حذف التحليل
+          </button>
+        </div>
+
+        {educationalAnalysis ? (
+          <div className="educational-analysis-panel">
+            <div className="analysis-summary-card">
+              <strong>الخلاصة</strong>
+              <p>{educationalAnalysis.educationalSummary}</p>
+            </div>
+
+            <div className="analysis-grid">
+              <MetricCard label="الأسئلة النشطة" value={educationalAnalysis.questionCount} hint="بعد الحذف" />
+              <MetricCard label="مجموع الدرجات" value={educationalAnalysis.totalMarks} hint="من البطاقات" />
+              <MetricCard label="متوسط الدرجة" value={educationalAnalysis.averageMarks} hint="لكل سؤال" />
+              <MetricCard label="عبء المراجعة" value={educationalAnalysis.reviewLoad} hint="مؤشر تأسيسي" />
+            </div>
+
+            <div className="analysis-columns">
+              <div>
+                <h4>توزيع أوامر السؤال</h4>
+                {Object.entries(educationalAnalysis.commandDistribution).length ? (
+                  <ul className="analysis-list">
+                    {Object.entries(educationalAnalysis.commandDistribution).map(([label, value]) => (
+                      <li key={label}><span>{label}</span><strong>{value}</strong></li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">لا يوجد توزيع متاح.</p>
+                )}
+              </div>
+
+              <div>
+                <h4>توزيع الدرجات</h4>
+                {Object.entries(educationalAnalysis.marksDistribution).length ? (
+                  <ul className="analysis-list">
+                    {Object.entries(educationalAnalysis.marksDistribution).map(([label, value]) => (
+                      <li key={label}><span>{label}</span><strong>{value}</strong></li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">لا يوجد توزيع متاح.</p>
+                )}
+              </div>
+            </div>
+
+            {educationalAnalysis.warnings.length ? (
+              <div className="analysis-note warning-card">
+                <strong>تنبيهات</strong>
+                <ul>
+                  {educationalAnalysis.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="analysis-note success-card">
+              <strong>توصيات</strong>
+              <ul>
+                {educationalAnalysis.recommendations.map((recommendation) => <li key={recommendation}>{recommendation}</li>)}
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <div className="empty-state">لم يُولّد التحليل التربوي بعد.</div>
+        )}
+      </section>
 
       <section className="form-card wide-card">
         <div className="section-heading">

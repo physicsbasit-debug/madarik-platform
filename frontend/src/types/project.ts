@@ -98,6 +98,23 @@ export interface AnswerKeyItem {
   notes: string;
 }
 
+export interface EducationalAnalysisReport {
+  id: string;
+  questionCount: number;
+  totalMarks: number;
+  averageMarks: number;
+  translatedQuestionCount: number;
+  answerKeyItemsCount: number;
+  layoutAssetsCount: number;
+  commandDistribution: Record<string, number>;
+  marksDistribution: Record<string, number>;
+  reviewLoad: string;
+  educationalSummary: string;
+  recommendations: string[];
+  warnings: string[];
+  needsReview: boolean;
+}
+
 export interface ProjectSession {
   id: string;
   ownerAccountId: string | null;
@@ -111,6 +128,7 @@ export interface ProjectSession {
   glossary: GlossaryTerm[];
   layoutAssets: PdfLayoutAssetInfo[];
   answerKey: AnswerKeyItem[];
+  educationalAnalysis: EducationalAnalysisReport | null;
   currentStep: StepKey;
 }
 

@@ -14,6 +14,7 @@ import { ReviewStep } from '../features/review/ReviewStep';
 import {
   bootstrapOwner,
   clearAnswerKey,
+  clearEducationalAnalysis,
   bulkUpdateQuestionStatus,
   createAuthAccount,
   createProject,
@@ -42,6 +43,7 @@ import {
   updateQuestion as updateQuestionOnServer,
   getTranslationProviderStatus,
   generateAnswerKeyDraft,
+  generateEducationalAnalysis,
   getAuthStatus,
   getCurrentAccount,
   getProject,
@@ -55,6 +57,7 @@ import {
 } from '../services/api';
 import type {
   AnswerKeyItem,
+  EducationalAnalysisReport,
   ApiConnectionStatus,
   AccountRole,
   AuthAccountPublic,
@@ -102,6 +105,7 @@ function applyProjectSession(
     setGlossary: (glossary: GlossaryTerm[]) => void;
     setLayoutAssets: (layoutAssets: PdfLayoutAssetInfo[]) => void;
     setAnswerKey: (answerKey: AnswerKeyItem[]) => void;
+    setEducationalAnalysis: (analysis: EducationalAnalysisReport | null) => void;
   },
 ) {
   setters.setProjectId(project.id);
@@ -113,6 +117,7 @@ function applyProjectSession(
   setters.setGlossary(project.glossary);
   setters.setLayoutAssets(project.layoutAssets);
   setters.setAnswerKey(project.answerKey);
+  setters.setEducationalAnalysis(project.educationalAnalysis);
 }
 
 export function App() {
@@ -128,6 +133,7 @@ export function App() {
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
   const [layoutAssets, setLayoutAssets] = useState<PdfLayoutAssetInfo[]>([]);
   const [answerKey, setAnswerKey] = useState<AnswerKeyItem[]>([]);
+  const [educationalAnalysis, setEducationalAnalysis] = useState<EducationalAnalysisReport | null>(null);
   const [translationProviderStatus, setTranslationProviderStatus] = useState<TranslationProviderStatus | null>(null);
   const [projectReadiness, setProjectReadiness] = useState<ProjectReadinessReport | null>(null);
   const [projectLibrary, setProjectLibrary] = useState<ProjectSession[]>([]);
@@ -158,6 +164,7 @@ export function App() {
       setGlossary,
       setLayoutAssets,
       setAnswerKey,
+      setEducationalAnalysis,
     });
   }, []);
 
@@ -365,10 +372,12 @@ export function App() {
       setExtractedText(null);
       setLayoutAssets([]);
       setAnswerKey([]);
+      setEducationalAnalysis(null);
       setQuestions(sampleQuestions);
       setGlossary(sampleGlossary);
       setLayoutAssets([]);
       setAnswerKey([]);
+      setEducationalAnalysis(null);
       setTranslationProviderStatus({ provider: 'mock', configured: false, model: '', fallback: 'mock' });
       setApiStatus('offline');
       setLastSyncNote('تعذر الاتصال بالخلفية. تعمل الواجهة ببيانات محلية مؤقتة. يا لها من بداية درامية، لكنها مقبولة في التطوير.');
@@ -875,6 +884,45 @@ export function App() {
 
 
 
+
+  async function generateProjectEducationalAnalysis() {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن توليد التحليل التربوي دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await generateEducationalAnalysis(projectId);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote('تم توليد التحليل التربوي التأسيسي للورقة.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل توليد التحليل التربوي. تأكد من وجود أسئلة نشطة.');
+    }
+  }
+
+  async function clearProjectEducationalAnalysis() {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن حذف التحليل التربوي دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await clearEducationalAnalysis(projectId);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote('تم حذف التحليل التربوي.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل حذف التحليل التربوي.');
+    }
+  }
+
   async function generateProjectAnswerKey() {
     if (!projectId || apiStatus === 'offline') {
       setLastSyncNote('لا يمكن توليد مسودة نموذج الإجابة دون اتصال Backend.');
@@ -1119,6 +1167,7 @@ export function App() {
             glossary={glossary}
             layoutAssets={layoutAssets}
             answerKey={answerKey}
+            educationalAnalysis={educationalAnalysis}
             translationProviderStatus={translationProviderStatus}
             onMetadataChange={handleMetadataChange}
             onLogoSelected={handleLogoSelected}
@@ -1140,6 +1189,8 @@ export function App() {
             onRefreshReadiness={refreshProjectReadiness}
             onGenerateAnswerKey={generateProjectAnswerKey}
             onClearAnswerKey={clearProjectAnswerKey}
+            onGenerateEducationalAnalysis={generateProjectEducationalAnalysis}
+            onClearEducationalAnalysis={clearProjectEducationalAnalysis}
             projectReadiness={projectReadiness}
             canExportDocx={Boolean(projectId && apiStatus !== 'offline')}
             canExportPdf={Boolean(projectId && apiStatus !== 'offline')}
@@ -1171,6 +1222,7 @@ interface StepContentProps {
   glossary: GlossaryTerm[];
   layoutAssets: PdfLayoutAssetInfo[];
   answerKey: AnswerKeyItem[];
+  educationalAnalysis: EducationalAnalysisReport | null;
   translationProviderStatus: TranslationProviderStatus | null;
   projectReadiness: ProjectReadinessReport | null;
   onMetadataChange: (metadata: ProjectMetadata) => void;
@@ -1193,6 +1245,8 @@ interface StepContentProps {
   onRefreshReadiness: () => Promise<void>;
   onGenerateAnswerKey: () => Promise<void>;
   onClearAnswerKey: () => Promise<void>;
+  onGenerateEducationalAnalysis: () => Promise<void>;
+  onClearEducationalAnalysis: () => Promise<void>;
   canExportDocx: boolean;
   canExportPdf: boolean;
 }
@@ -1207,6 +1261,7 @@ function StepContent({
   glossary,
   layoutAssets,
   answerKey,
+  educationalAnalysis,
   translationProviderStatus,
   projectReadiness,
   onMetadataChange,
@@ -1229,6 +1284,8 @@ function StepContent({
   onRefreshReadiness,
   onGenerateAnswerKey,
   onClearAnswerKey,
+  onGenerateEducationalAnalysis,
+  onClearEducationalAnalysis,
   canExportDocx,
   canExportPdf,
 }: StepContentProps) {
@@ -1261,6 +1318,7 @@ function StepContent({
           questions={questions}
           glossary={glossary}
           answerKey={answerKey}
+          educationalAnalysis={educationalAnalysis}
           readiness={projectReadiness}
           canExportDocx={canExportDocx}
           onExportDocx={onExportDocx}
@@ -1269,6 +1327,8 @@ function StepContent({
           onRefreshReadiness={onRefreshReadiness}
           onGenerateAnswerKey={onGenerateAnswerKey}
           onClearAnswerKey={onClearAnswerKey}
+          onGenerateEducationalAnalysis={onGenerateEducationalAnalysis}
+          onClearEducationalAnalysis={onClearEducationalAnalysis}
         />
       );
   }

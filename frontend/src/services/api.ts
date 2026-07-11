@@ -14,6 +14,7 @@ import type {
   TranslationProviderStatus,
   AccountRole,
   AnswerKeyItem,
+  EducationalAnalysisReport,
   AuthAccountPublic,
   AuthCreateAccountInput,
   AuthSessionInfo,
@@ -206,6 +207,23 @@ interface ApiAnswerKeyItem {
   notes: string;
 }
 
+interface ApiEducationalAnalysisReport {
+  id: string;
+  question_count: number;
+  total_marks: number;
+  average_marks: number;
+  translated_question_count: number;
+  answer_key_items_count: number;
+  layout_assets_count: number;
+  command_distribution: Record<string, number>;
+  marks_distribution: Record<string, number>;
+  review_load: string;
+  educational_summary: string;
+  recommendations: string[];
+  warnings: string[];
+  needs_review: boolean;
+}
+
 interface ApiProjectReadinessIssue {
   code: string;
   severity: 'error' | 'warning';
@@ -234,6 +252,7 @@ interface ApiProjectSession {
   glossary: ApiGlossaryTerm[];
   layout_assets?: ApiPdfLayoutAssetInfo[];
   answer_key?: ApiAnswerKeyItem[];
+  educational_analysis?: ApiEducationalAnalysisReport | null;
   current_step: StepKey;
 }
 
@@ -293,6 +312,26 @@ function fromApiSchoolLogo(info: ApiSchoolLogoInfo | null): SchoolLogoInfo | nul
   };
 }
 
+
+function fromApiEducationalAnalysis(analysis: ApiEducationalAnalysisReport | null | undefined): EducationalAnalysisReport | null {
+  if (!analysis) return null;
+  return {
+    id: analysis.id,
+    questionCount: analysis.question_count,
+    totalMarks: analysis.total_marks,
+    averageMarks: analysis.average_marks,
+    translatedQuestionCount: analysis.translated_question_count,
+    answerKeyItemsCount: analysis.answer_key_items_count,
+    layoutAssetsCount: analysis.layout_assets_count,
+    commandDistribution: analysis.command_distribution,
+    marksDistribution: analysis.marks_distribution,
+    reviewLoad: analysis.review_load,
+    educationalSummary: analysis.educational_summary,
+    recommendations: analysis.recommendations,
+    warnings: analysis.warnings,
+    needsReview: analysis.needs_review,
+  };
+}
 
 function fromApiAnswerKeyItem(item: ApiAnswerKeyItem): AnswerKeyItem {
   return {
@@ -385,6 +424,7 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     glossary: project.glossary.map(fromApiGlossaryTerm),
     layoutAssets: (project.layout_assets ?? []).map(fromApiPdfLayoutAsset),
     answerKey: (project.answer_key ?? []).map(fromApiAnswerKeyItem),
+    educationalAnalysis: fromApiEducationalAnalysis(project.educational_analysis),
     currentStep: project.current_step,
   };
 }
@@ -786,6 +826,22 @@ export async function generateAnswerKeyDraft(projectId: string): Promise<Project
 
 export async function clearAnswerKey(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/answer-key`, {
+    method: 'DELETE',
+  });
+  return fromApiProject(project);
+}
+
+
+
+export async function generateEducationalAnalysis(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/educational-analysis`, {
+    method: 'POST',
+  });
+  return fromApiProject(project);
+}
+
+export async function clearEducationalAnalysis(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/educational-analysis`, {
     method: 'DELETE',
   });
   return fromApiProject(project);
