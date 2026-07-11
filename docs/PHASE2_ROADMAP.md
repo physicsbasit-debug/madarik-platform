@@ -124,3 +124,17 @@
 الوثيقة التفصيلية:
 
 `docs/PHASE2_F1_EDUCATIONAL_ANALYSIS_FOUNDATION.md`
+
+
+## Phase 2-F2: Educational Quality Tools
+
+أضيفت أدوات جودة تربوية تأسيسية:
+- حفظ `quality_tools` داخل المشروع.
+- Pareto لأولويات المراجعة.
+- Radar لمحاور الجاهزية.
+- Fishbone لأسباب الضعف المحتملة.
+- عرض الإجراءات ذات الأولوية والتنبيهات.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_F2_EDUCATIONAL_QUALITY_TOOLS.md`

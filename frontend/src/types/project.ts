@@ -115,6 +115,23 @@ export interface EducationalAnalysisReport {
   needsReview: boolean;
 }
 
+export interface QualityParetoItem {
+  label: string;
+  count: number;
+  cumulativePercent: number;
+}
+
+export interface EducationalQualityToolsReport {
+  id: string;
+  paretoItems: QualityParetoItem[];
+  radarAxes: Record<string, number>;
+  fishboneCauses: Record<string, string[]>;
+  qualitySummary: string;
+  priorityActions: string[];
+  warnings: string[];
+  needsReview: boolean;
+}
+
 export interface ProjectSession {
   id: string;
   ownerAccountId: string | null;
@@ -129,6 +146,7 @@ export interface ProjectSession {
   layoutAssets: PdfLayoutAssetInfo[];
   answerKey: AnswerKeyItem[];
   educationalAnalysis: EducationalAnalysisReport | null;
+  qualityTools: EducationalQualityToolsReport | null;
   currentStep: StepKey;
 }
 

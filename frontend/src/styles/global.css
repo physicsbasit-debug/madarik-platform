@@ -1365,3 +1365,54 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+
+.quality-tools-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.quality-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.quality-card {
+  border: 1px solid rgba(15, 52, 96, 0.1);
+  border-radius: 18px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.quality-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fishbone-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fishbone-card {
+  border: 1px solid rgba(15, 52, 96, 0.08);
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.fishbone-card ul {
+  margin-bottom: 0;
+  padding-inline-start: 20px;
+}
+
+@media (max-width: 900px) {
+  .quality-columns,
+  .fishbone-grid {
+    grid-template-columns: 1fr;
+  }
+}

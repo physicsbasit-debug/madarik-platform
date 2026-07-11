@@ -1,6 +1,6 @@
-import { AlertTriangle, BarChart3, CheckCircle2, Download, FileText, KeyRound, Loader2, ShieldCheck, Trash2 } from 'lucide-react';
+import { AlertTriangle, BarChart3, CheckCircle2, Download, FileText, GitBranch, KeyRound, Loader2, Radar, ShieldCheck, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import type { AnswerKeyItem, EducationalAnalysisReport, GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
+import type { AnswerKeyItem, EducationalAnalysisReport, EducationalQualityToolsReport, GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
 import { MetricCard } from '../../components/MetricCard';
 
 interface ExportStepProps {
@@ -9,6 +9,7 @@ interface ExportStepProps {
   glossary: GlossaryTerm[];
   answerKey: AnswerKeyItem[];
   educationalAnalysis: EducationalAnalysisReport | null;
+  qualityTools: EducationalQualityToolsReport | null;
   readiness: ProjectReadinessReport | null;
   canExportDocx: boolean;
   canExportPdf: boolean;
@@ -19,6 +20,8 @@ interface ExportStepProps {
   onClearAnswerKey: () => Promise<void>;
   onGenerateEducationalAnalysis: () => Promise<void>;
   onClearEducationalAnalysis: () => Promise<void>;
+  onGenerateQualityTools: () => Promise<void>;
+  onClearQualityTools: () => Promise<void>;
 }
 
 export function ExportStep({
@@ -27,6 +30,7 @@ export function ExportStep({
   glossary,
   answerKey,
   educationalAnalysis,
+  qualityTools,
   readiness,
   canExportDocx,
   canExportPdf,
@@ -37,13 +41,16 @@ export function ExportStep({
   onClearAnswerKey,
   onGenerateEducationalAnalysis,
   onClearEducationalAnalysis,
+  onGenerateQualityTools,
+  onClearQualityTools,
 }: ExportStepProps) {
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isCheckingReadiness, setIsCheckingReadiness] = useState(false);
   const [isGeneratingAnswerKey, setIsGeneratingAnswerKey] = useState(false);
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
-  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF متاح مع فحص جاهزية قبل التصدير، ودعم الشعار والمرفقات ونسخ العمل JSON ومسودة نموذج إجابة وتحليل تربوي تأسيسي للمعلم.');
+  const [isGeneratingQualityTools, setIsGeneratingQualityTools] = useState(false);
+  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF متاح مع فحص جاهزية قبل التصدير، ودعم الشعار والمرفقات ونسخ العمل JSON ومسودة نموذج إجابة وتحليل تربوي وأدوات جودة تأسيسية للمعلم.');
 
   const approvedQuestions = questions
     .filter((question) => question.status !== 'deleted')
@@ -67,6 +74,35 @@ export function ExportStep({
   }
 
 
+
+
+  async function handleGenerateQualityTools() {
+    setIsGeneratingQualityTools(true);
+    setExportMessage('جاري توليد أدوات الجودة...');
+    try {
+      await onGenerateQualityTools();
+      setExportMessage('تم توليد Pareto وRadar وFishbone. أدوات مفيدة، وليست عصا سحرية، للأسف.');
+    } catch (error) {
+      console.error(error);
+      setExportMessage('تعذر توليد أدوات الجودة.');
+    } finally {
+      setIsGeneratingQualityTools(false);
+    }
+  }
+
+  async function handleClearQualityTools() {
+    setIsGeneratingQualityTools(true);
+    setExportMessage('جاري حذف أدوات الجودة...');
+    try {
+      await onClearQualityTools();
+      setExportMessage('تم حذف أدوات الجودة.');
+    } catch (error) {
+      console.error(error);
+      setExportMessage('تعذر حذف أدوات الجودة.');
+    } finally {
+      setIsGeneratingQualityTools(false);
+    }
+  }
 
   async function handleGenerateEducationalAnalysis() {
     setIsGeneratingAnalysis(true);
@@ -170,6 +206,7 @@ export function ExportStep({
           <MetricCard label="مصطلحات تحتاج مراجعة" value={glossaryNeedsReview} hint="للمعلم فقط" />
           <MetricCard label="مسودة الإجابة" value={answerKey.length} hint="للمعلم فقط" />
           <MetricCard label="التحليل التربوي" value={educationalAnalysis ? 1 : 0} hint="تأسيسي" />
+          <MetricCard label="أدوات الجودة" value={qualityTools ? 1 : 0} hint="Pareto/Radar/Fishbone" />
         </div>
 
         <div className={`readiness-card ${readiness?.ready ? 'success-card' : 'warning-card'}`}>
@@ -207,6 +244,99 @@ export function ExportStep({
       </section>
 
 
+
+
+      <section className="form-card wide-card">
+        <div className="section-heading">
+          <p className="eyebrow">Phase 2-F2</p>
+          <h3>أدوات الجودة التربوية</h3>
+          <p>
+            تولّد المنصة قراءة تأسيسية باستخدام Pareto لأولويات المراجعة، وRadar لمحاور الجاهزية، وFishbone لأسباب الضعف المحتملة. لا تزال أدوات مساعدة، لا لجنة اعتماد سماوية.
+          </p>
+        </div>
+
+        <div className="inline-actions">
+          <button type="button" className="primary-button" onClick={() => void handleGenerateQualityTools()} disabled={isGeneratingQualityTools || approvedQuestions.length === 0}>
+            {isGeneratingQualityTools ? <Loader2 size={18} className="spin-icon" /> : <Radar size={18} />}
+            توليد أدوات الجودة
+          </button>
+          <button type="button" className="danger-button" onClick={() => void handleClearQualityTools()} disabled={isGeneratingQualityTools || !qualityTools}>
+            <Trash2 size={18} />
+            حذف أدوات الجودة
+          </button>
+        </div>
+
+        {qualityTools ? (
+          <div className="quality-tools-panel">
+            <div className="analysis-summary-card">
+              <strong>الخلاصة</strong>
+              <p>{qualityTools.qualitySummary}</p>
+            </div>
+
+            <div className="quality-columns">
+              <div className="quality-card">
+                <h4><BarChart3 size={18} /> Pareto أولويات المراجعة</h4>
+                {qualityTools.paretoItems.length ? (
+                  <ul className="analysis-list">
+                    {qualityTools.paretoItems.map((item) => (
+                      <li key={item.label}>
+                        <span>{item.label}</span>
+                        <strong>{item.count} · {item.cumulativePercent}%</strong>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">لا توجد بيانات Pareto كافية.</p>
+                )}
+              </div>
+
+              <div className="quality-card">
+                <h4><Radar size={18} /> Radar محاور الجاهزية</h4>
+                <ul className="analysis-list">
+                  {Object.entries(qualityTools.radarAxes).map(([label, value]) => (
+                    <li key={label}>
+                      <span>{label}</span>
+                      <strong>{value}%</strong>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="quality-card">
+              <h4><GitBranch size={18} /> Fishbone أسباب الضعف المحتملة</h4>
+              <div className="fishbone-grid">
+                {Object.entries(qualityTools.fishboneCauses).map(([category, causes]) => (
+                  <article key={category} className="fishbone-card">
+                    <strong>{category}</strong>
+                    <ul>
+                      {causes.map((cause) => <li key={cause}>{cause}</li>)}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            {qualityTools.warnings.length ? (
+              <div className="analysis-note warning-card">
+                <strong>تنبيهات</strong>
+                <ul>
+                  {qualityTools.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="analysis-note success-card">
+              <strong>إجراءات ذات أولوية</strong>
+              <ul>
+                {qualityTools.priorityActions.map((action) => <li key={action}>{action}</li>)}
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <div className="empty-state">لم تُولّد أدوات الجودة بعد.</div>
+        )}
+      </section>
 
       <section className="form-card wide-card">
         <div className="section-heading">

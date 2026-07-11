@@ -15,6 +15,7 @@ import type {
   AccountRole,
   AnswerKeyItem,
   EducationalAnalysisReport,
+  EducationalQualityToolsReport,
   AuthAccountPublic,
   AuthCreateAccountInput,
   AuthSessionInfo,
@@ -224,6 +225,23 @@ interface ApiEducationalAnalysisReport {
   needs_review: boolean;
 }
 
+interface ApiQualityParetoItem {
+  label: string;
+  count: number;
+  cumulative_percent: number;
+}
+
+interface ApiEducationalQualityToolsReport {
+  id: string;
+  pareto_items: ApiQualityParetoItem[];
+  radar_axes: Record<string, number>;
+  fishbone_causes: Record<string, string[]>;
+  quality_summary: string;
+  priority_actions: string[];
+  warnings: string[];
+  needs_review: boolean;
+}
+
 interface ApiProjectReadinessIssue {
   code: string;
   severity: 'error' | 'warning';
@@ -253,6 +271,7 @@ interface ApiProjectSession {
   layout_assets?: ApiPdfLayoutAssetInfo[];
   answer_key?: ApiAnswerKeyItem[];
   educational_analysis?: ApiEducationalAnalysisReport | null;
+  quality_tools?: ApiEducationalQualityToolsReport | null;
   current_step: StepKey;
 }
 
@@ -312,6 +331,24 @@ function fromApiSchoolLogo(info: ApiSchoolLogoInfo | null): SchoolLogoInfo | nul
   };
 }
 
+
+function fromApiQualityTools(report: ApiEducationalQualityToolsReport | null | undefined): EducationalQualityToolsReport | null {
+  if (!report) return null;
+  return {
+    id: report.id,
+    paretoItems: report.pareto_items.map((item) => ({
+      label: item.label,
+      count: item.count,
+      cumulativePercent: item.cumulative_percent,
+    })),
+    radarAxes: report.radar_axes,
+    fishboneCauses: report.fishbone_causes,
+    qualitySummary: report.quality_summary,
+    priorityActions: report.priority_actions,
+    warnings: report.warnings,
+    needsReview: report.needs_review,
+  };
+}
 
 function fromApiEducationalAnalysis(analysis: ApiEducationalAnalysisReport | null | undefined): EducationalAnalysisReport | null {
   if (!analysis) return null;
@@ -425,6 +462,7 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     layoutAssets: (project.layout_assets ?? []).map(fromApiPdfLayoutAsset),
     answerKey: (project.answer_key ?? []).map(fromApiAnswerKeyItem),
     educationalAnalysis: fromApiEducationalAnalysis(project.educational_analysis),
+    qualityTools: fromApiQualityTools(project.quality_tools),
     currentStep: project.current_step,
   };
 }
@@ -842,6 +880,22 @@ export async function generateEducationalAnalysis(projectId: string): Promise<Pr
 
 export async function clearEducationalAnalysis(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/educational-analysis`, {
+    method: 'DELETE',
+  });
+  return fromApiProject(project);
+}
+
+
+
+export async function generateQualityTools(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/quality-tools`, {
+    method: 'POST',
+  });
+  return fromApiProject(project);
+}
+
+export async function clearQualityTools(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/quality-tools`, {
     method: 'DELETE',
   });
   return fromApiProject(project);
