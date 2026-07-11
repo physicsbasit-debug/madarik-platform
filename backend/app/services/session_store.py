@@ -4,6 +4,7 @@ from uuid import uuid4
 from app.models.project import (
     AnswerKeyItem,
     EducationalAnalysisReport,
+    EducationalQualityToolsReport,
     GlossaryTermPatch,
     StepKey,
     ProjectMetadata,
@@ -313,6 +314,22 @@ class InMemoryProjectStore:
         if project is None:
             return None
         project.educational_analysis = None
+        project.current_step = StepKey.export
+        return self.touch(project_id)
+
+    def set_quality_tools(self, project_id: str, quality_tools: EducationalQualityToolsReport) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.quality_tools = quality_tools
+        project.current_step = StepKey.export
+        return self.touch(project_id)
+
+    def clear_quality_tools(self, project_id: str) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.quality_tools = None
         project.current_step = StepKey.export
         return self.touch(project_id)
 

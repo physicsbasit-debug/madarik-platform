@@ -153,6 +153,18 @@ class EducationalAnalysisReport(BaseModel):
     needs_review: bool = True
 
 
+
+class EducationalQualityToolsReport(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    pareto_items: list[dict[str, float | int | str]] = Field(default_factory=list)
+    radar_axes: dict[str, float] = Field(default_factory=dict)
+    fishbone_causes: dict[str, list[str]] = Field(default_factory=dict)
+    quality_summary: str = ""
+    priority_actions: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    needs_review: bool = True
+
+
 class ProjectSession(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     owner_account_id: str | None = None
@@ -165,6 +177,7 @@ class ProjectSession(BaseModel):
     layout_assets: list[PdfLayoutAssetInfo] = Field(default_factory=list)
     answer_key: list[AnswerKeyItem] = Field(default_factory=list)
     educational_analysis: EducationalAnalysisReport | None = None
+    quality_tools: EducationalQualityToolsReport | None = None
     current_step: StepKey = StepKey.setup
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

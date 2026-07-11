@@ -30,6 +30,7 @@ from app.services.readiness import build_project_readiness_report
 from app.services.ai_provider import get_ai_provider_status
 from app.services.answer_key import build_answer_key_draft
 from app.services.educational_analysis import build_educational_analysis
+from app.services.quality_tools import build_quality_tools_report
 from app.services.export import (
     DOCX_MIME_TYPE,
     PDF_MIME_TYPE,
@@ -482,6 +483,29 @@ def clear_educational_analysis(project_id: str, account: AuthAccountPublic | Non
 
     _get_or_404(project_id, account)
     project = project_store.clear_educational_analysis(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+@router.post("/{project_id}/quality-tools")
+def generate_quality_tools(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
+    """Generate foundational quality tools for Phase 2-F2."""
+
+    project = _get_or_404(project_id, account)
+    quality_tools = build_quality_tools_report(project)
+    updated_project = project_store.set_quality_tools(project_id, quality_tools)
+    if updated_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return updated_project
+
+
+@router.delete("/{project_id}/quality-tools")
+def clear_quality_tools(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
+    """Clear the generated quality tools report."""
+
+    _get_or_404(project_id, account)
+    project = project_store.clear_quality_tools(project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
