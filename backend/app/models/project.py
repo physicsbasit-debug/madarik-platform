@@ -135,6 +135,24 @@ class AnswerKeyItem(BaseModel):
     notes: str = "مسودة نموذج إجابة آلية تحتاج مراجعة المعلم."
 
 
+
+class EducationalAnalysisReport(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    question_count: int = Field(default=0, ge=0)
+    total_marks: int = Field(default=0, ge=0)
+    average_marks: float = Field(default=0, ge=0)
+    translated_question_count: int = Field(default=0, ge=0)
+    answer_key_items_count: int = Field(default=0, ge=0)
+    layout_assets_count: int = Field(default=0, ge=0)
+    command_distribution: dict[str, int] = Field(default_factory=dict)
+    marks_distribution: dict[str, int] = Field(default_factory=dict)
+    review_load: str = "low"
+    educational_summary: str = ""
+    recommendations: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    needs_review: bool = True
+
+
 class ProjectSession(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     owner_account_id: str | None = None
@@ -146,6 +164,7 @@ class ProjectSession(BaseModel):
     glossary: list[GlossaryTerm] = Field(default_factory=list)
     layout_assets: list[PdfLayoutAssetInfo] = Field(default_factory=list)
     answer_key: list[AnswerKeyItem] = Field(default_factory=list)
+    educational_analysis: EducationalAnalysisReport | None = None
     current_step: StepKey = StepKey.setup
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

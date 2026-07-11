@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from app.models.project import (
     AnswerKeyItem,
+    EducationalAnalysisReport,
     GlossaryTermPatch,
     StepKey,
     ProjectMetadata,
@@ -296,6 +297,22 @@ class InMemoryProjectStore:
         if project is None:
             return None
         project.answer_key = []
+        project.current_step = StepKey.export
+        return self.touch(project_id)
+
+    def set_educational_analysis(self, project_id: str, analysis: EducationalAnalysisReport) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.educational_analysis = analysis
+        project.current_step = StepKey.export
+        return self.touch(project_id)
+
+    def clear_educational_analysis(self, project_id: str) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.educational_analysis = None
         project.current_step = StepKey.export
         return self.touch(project_id)
 

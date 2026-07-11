@@ -29,6 +29,7 @@ from app.services.translation import translate_questions_with_glossary
 from app.services.readiness import build_project_readiness_report
 from app.services.ai_provider import get_ai_provider_status
 from app.services.answer_key import build_answer_key_draft
+from app.services.educational_analysis import build_educational_analysis
 from app.services.export import (
     DOCX_MIME_TYPE,
     PDF_MIME_TYPE,
@@ -458,6 +459,29 @@ def clear_answer_key(project_id: str, account: AuthAccountPublic | None = Depend
 
     _get_or_404(project_id, account)
     project = project_store.clear_answer_key(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+@router.post("/{project_id}/educational-analysis")
+def generate_educational_analysis(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
+    """Generate a foundational educational analysis for Phase 2-F1."""
+
+    project = _get_or_404(project_id, account)
+    analysis = build_educational_analysis(project)
+    updated_project = project_store.set_educational_analysis(project_id, analysis)
+    if updated_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return updated_project
+
+
+@router.delete("/{project_id}/educational-analysis")
+def clear_educational_analysis(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
+    """Clear the generated educational analysis."""
+
+    _get_or_404(project_id, account)
+    project = project_store.clear_educational_analysis(project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
