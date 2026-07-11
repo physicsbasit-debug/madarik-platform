@@ -6,6 +6,7 @@ from app.models.project import (
     StepKey,
     ProjectMetadata,
     ProjectSession,
+    PdfLayoutAssetInfo,
     QuestionPatch,
     ExtractedTextInfo,
     UploadedFileInfo,
@@ -147,6 +148,25 @@ class InMemoryProjectStore:
             return None
         project.glossary = glossary
         project.current_step = StepKey.glossary
+        return self.touch(project_id)
+
+    def set_layout_assets(self, project_id: str, layout_assets: list[PdfLayoutAssetInfo]) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.layout_assets = layout_assets
+        project.current_step = StepKey.extract
+        return self.touch(project_id)
+
+    def remove_layout_asset(self, project_id: str, asset_id: str) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        remaining_assets = [asset for asset in project.layout_assets if asset.id != asset_id]
+        if len(remaining_assets) == len(project.layout_assets):
+            return None
+        project.layout_assets = remaining_assets
+        project.current_step = StepKey.extract
         return self.touch(project_id)
 
     def set_translated_questions(self, project_id: str, questions: list[QuestionItem]) -> ProjectSession | None:

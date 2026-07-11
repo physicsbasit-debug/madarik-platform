@@ -24,6 +24,7 @@ from app.services.question_parser import parse_questions_from_text
 from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
 from app.services.ocr import OcrExtractionError, extract_text_from_image_bytes
 from app.services.pdf_ocr import PdfOcrExtractionError, extract_text_from_scanned_pdf_bytes
+from app.services.pdf_layout_assets import PdfLayoutAssetExtractionError, extract_pdf_layout_assets_from_bytes
 from app.services.translation import translate_questions_with_glossary
 from app.services.readiness import build_project_readiness_report
 from app.services.ai_provider import get_ai_provider_status
@@ -335,6 +336,43 @@ async def upload_image_and_extract_text(project_id: str, file: UploadFile = File
     project = project_store.set_extracted_text(project_id, uploaded_file, extracted_text)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+@router.post("/{project_id}/layout-assets/pdf")
+async def extract_pdf_layout_assets(project_id: str, file: UploadFile = File(...), account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
+    """Extract low-resolution PDF page layout snapshots for Phase 2-D1."""
+
+    _get_or_404(project_id, account)
+
+    filename = file.filename or "uploaded.pdf"
+    if not filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="يدعم استخراج التخطيط ملفات PDF فقط.")
+
+    file_bytes = await file.read()
+    max_size = 8_000_000
+    if len(file_bytes) > max_size:
+        raise HTTPException(status_code=400, detail="حجم PDF كبير. الحد الأقصى المؤقت لاستخراج التخطيط هو 8MB.")
+
+    try:
+        result = extract_pdf_layout_assets_from_bytes(file_bytes)
+    except PdfLayoutAssetExtractionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    project = project_store.set_layout_assets(project_id, result.assets)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+@router.delete("/{project_id}/layout-assets/{asset_id}")
+def delete_pdf_layout_asset(project_id: str, asset_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
+    """Remove one PDF layout asset from the project."""
+
+    _get_or_404(project_id, account)
+    project = project_store.remove_layout_asset(project_id, asset_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project or layout asset not found")
     return project
 
 

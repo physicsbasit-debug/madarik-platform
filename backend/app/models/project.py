@@ -77,6 +77,18 @@ class QuestionAssetInfo(BaseModel):
     data_base64: str
 
 
+
+class PdfLayoutAssetInfo(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    size: int = Field(ge=0)
+    type: str = "image/png"
+    data_base64: str
+    page_number: int = Field(ge=1)
+    source: str = "page_snapshot"
+    note: str = ""
+
+
 class ExtractedTextInfo(BaseModel):
     text: str = ""
     preview: str = ""
@@ -119,6 +131,7 @@ class ProjectSession(BaseModel):
     extracted_text: ExtractedTextInfo | None = None
     questions: list[QuestionItem] = Field(default_factory=list)
     glossary: list[GlossaryTerm] = Field(default_factory=list)
+    layout_assets: list[PdfLayoutAssetInfo] = Field(default_factory=list)
     current_step: StepKey = StepKey.setup
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
