@@ -122,6 +122,19 @@ class GlossaryTerm(BaseModel):
     notes: str | None = None
 
 
+
+class AnswerKeyItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    question_id: str
+    question_number: str
+    draft_answer: str
+    marks: int | None = None
+    confidence: str = "low"
+    source: str = "draft"
+    needs_review: bool = True
+    notes: str = "مسودة نموذج إجابة آلية تحتاج مراجعة المعلم."
+
+
 class ProjectSession(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     owner_account_id: str | None = None
@@ -132,6 +145,7 @@ class ProjectSession(BaseModel):
     questions: list[QuestionItem] = Field(default_factory=list)
     glossary: list[GlossaryTerm] = Field(default_factory=list)
     layout_assets: list[PdfLayoutAssetInfo] = Field(default_factory=list)
+    answer_key: list[AnswerKeyItem] = Field(default_factory=list)
     current_step: StepKey = StepKey.setup
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

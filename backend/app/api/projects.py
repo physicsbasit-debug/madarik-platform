@@ -28,6 +28,7 @@ from app.services.pdf_layout_assets import PdfLayoutAssetExtractionError, extrac
 from app.services.translation import translate_questions_with_glossary
 from app.services.readiness import build_project_readiness_report
 from app.services.ai_provider import get_ai_provider_status
+from app.services.answer_key import build_answer_key_draft
 from app.services.export import (
     DOCX_MIME_TYPE,
     PDF_MIME_TYPE,
@@ -433,6 +434,33 @@ def translate_project_questions(project_id: str, account: AuthAccountPublic | No
     return updated_project
 
 
+
+
+@router.post("/{project_id}/answer-key/draft")
+def generate_answer_key_draft(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
+    """Generate a teacher-review draft answer key for Phase 2-E1."""
+
+    project = _get_or_404(project_id, account)
+    if not project.questions:
+        raise HTTPException(status_code=400, detail="لا توجد أسئلة لبناء مسودة نموذج إجابة.")
+    answer_key = build_answer_key_draft(project.questions)
+    if not answer_key:
+        raise HTTPException(status_code=400, detail="لا توجد أسئلة نشطة لبناء نموذج إجابة.")
+    updated_project = project_store.set_answer_key(project_id, answer_key)
+    if updated_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return updated_project
+
+
+@router.delete("/{project_id}/answer-key")
+def clear_answer_key(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
+    """Clear the draft answer key."""
+
+    _get_or_404(project_id, account)
+    project = project_store.clear_answer_key(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
 
 
 @router.get("/{project_id}/readiness")

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.models.project import (
+    AnswerKeyItem,
     GlossaryTermPatch,
     StepKey,
     ProjectMetadata,
@@ -281,6 +282,22 @@ class InMemoryProjectStore:
                 project.current_step = StepKey.glossary
                 return self.touch(project_id)
         return None
+
+    def set_answer_key(self, project_id: str, answer_key: list[AnswerKeyItem]) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.answer_key = answer_key
+        project.current_step = StepKey.export
+        return self.touch(project_id)
+
+    def clear_answer_key(self, project_id: str) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.answer_key = []
+        project.current_step = StepKey.export
+        return self.touch(project_id)
 
     def list_recent(self, limit: int = 50, account_id: str | None = None, include_all: bool = True) -> list[ProjectSession]:
         projects = self._repository.list_recent(limit, account_id=account_id, include_all=include_all)
