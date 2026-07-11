@@ -40,3 +40,4 @@ backend/generated/
 # SQLite database files
 backend/data/*.sqlite3
 backend/data/*.sqlite3-*
+.venv/
