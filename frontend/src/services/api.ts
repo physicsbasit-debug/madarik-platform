@@ -13,6 +13,7 @@ import type {
   UploadedFileInfo,
   TranslationProviderStatus,
   AccountRole,
+  AnswerKeyItem,
   AuthAccountPublic,
   AuthCreateAccountInput,
   AuthSessionInfo,
@@ -193,6 +194,18 @@ interface ApiGlossaryTerm {
 }
 
 
+interface ApiAnswerKeyItem {
+  id: string;
+  question_id: string;
+  question_number: string;
+  draft_answer: string;
+  marks: number | null;
+  confidence: string;
+  source: string;
+  needs_review: boolean;
+  notes: string;
+}
+
 interface ApiProjectReadinessIssue {
   code: string;
   severity: 'error' | 'warning';
@@ -220,6 +233,7 @@ interface ApiProjectSession {
   questions: ApiQuestionItem[];
   glossary: ApiGlossaryTerm[];
   layout_assets?: ApiPdfLayoutAssetInfo[];
+  answer_key?: ApiAnswerKeyItem[];
   current_step: StepKey;
 }
 
@@ -279,6 +293,20 @@ function fromApiSchoolLogo(info: ApiSchoolLogoInfo | null): SchoolLogoInfo | nul
   };
 }
 
+
+function fromApiAnswerKeyItem(item: ApiAnswerKeyItem): AnswerKeyItem {
+  return {
+    id: item.id,
+    questionId: item.question_id,
+    questionNumber: item.question_number,
+    draftAnswer: item.draft_answer,
+    marks: item.marks,
+    confidence: item.confidence,
+    source: item.source,
+    needsReview: item.needs_review,
+    notes: item.notes,
+  };
+}
 
 function fromApiPdfLayoutAsset(asset: ApiPdfLayoutAssetInfo): PdfLayoutAssetInfo {
   return {
@@ -356,6 +384,7 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     questions: project.questions.map(fromApiQuestion),
     glossary: project.glossary.map(fromApiGlossaryTerm),
     layoutAssets: (project.layout_assets ?? []).map(fromApiPdfLayoutAsset),
+    answerKey: (project.answer_key ?? []).map(fromApiAnswerKeyItem),
     currentStep: project.current_step,
   };
 }
@@ -745,6 +774,22 @@ export async function getTranslationProviderStatus(): Promise<TranslationProvide
 
 
 
+
+
+
+export async function generateAnswerKeyDraft(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/answer-key/draft`, {
+    method: 'POST',
+  });
+  return fromApiProject(project);
+}
+
+export async function clearAnswerKey(projectId: string): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/answer-key`, {
+    method: 'DELETE',
+  });
+  return fromApiProject(project);
+}
 
 export async function getProjectReadiness(projectId: string): Promise<ProjectReadinessReport> {
   const report = await requestJson<ApiProjectReadinessReport>(`/projects/${projectId}/readiness`);

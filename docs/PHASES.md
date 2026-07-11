@@ -217,3 +217,16 @@ Endpoints:
 الوثيقة التفصيلية:
 
 `docs/PHASE2_D1_PDF_LAYOUT_ASSETS.md`
+
+
+## Phase 2-E1: Answer Key Draft
+
+أضيفت مسودة نموذج إجابة للمعلم:
+- حفظ `answer_key` داخل المشروع.
+- توليد مسودة من الأسئلة النشطة.
+- عرض المسودة في خطوة التصدير.
+- حذف المسودة.
+
+الوثيقة التفصيلية:
+
+`docs/PHASE2_E1_ANSWER_KEY_DRAFT.md`

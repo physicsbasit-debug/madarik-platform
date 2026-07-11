@@ -1260,3 +1260,43 @@ button:disabled {
   color: #64748b;
   font-size: 0.9rem;
 }
+
+
+.answer-key-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.answer-key-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(15, 52, 96, 0.1);
+  border-radius: 18px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.answer-key-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.answer-key-card-header span,
+.answer-key-card small {
+  color: #64748b;
+}
+
+.answer-key-card p {
+  margin-bottom: 0;
+  color: #0f172a;
+}
+
+@media (max-width: 720px) {
+  .answer-key-card-header {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

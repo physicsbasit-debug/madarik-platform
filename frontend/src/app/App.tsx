@@ -13,6 +13,7 @@ import { ProjectLibraryPanel } from '../features/project-library/ProjectLibraryP
 import { ReviewStep } from '../features/review/ReviewStep';
 import {
   bootstrapOwner,
+  clearAnswerKey,
   bulkUpdateQuestionStatus,
   createAuthAccount,
   createProject,
@@ -40,6 +41,7 @@ import {
   updateProjectStep,
   updateQuestion as updateQuestionOnServer,
   getTranslationProviderStatus,
+  generateAnswerKeyDraft,
   getAuthStatus,
   getCurrentAccount,
   getProject,
@@ -52,6 +54,7 @@ import {
   updateAuthAccount,
 } from '../services/api';
 import type {
+  AnswerKeyItem,
   ApiConnectionStatus,
   AccountRole,
   AuthAccountPublic,
@@ -98,6 +101,7 @@ function applyProjectSession(
     setQuestions: (questions: QuestionItem[]) => void;
     setGlossary: (glossary: GlossaryTerm[]) => void;
     setLayoutAssets: (layoutAssets: PdfLayoutAssetInfo[]) => void;
+    setAnswerKey: (answerKey: AnswerKeyItem[]) => void;
   },
 ) {
   setters.setProjectId(project.id);
@@ -108,6 +112,7 @@ function applyProjectSession(
   setters.setQuestions(project.questions);
   setters.setGlossary(project.glossary);
   setters.setLayoutAssets(project.layoutAssets);
+  setters.setAnswerKey(project.answerKey);
 }
 
 export function App() {
@@ -122,6 +127,7 @@ export function App() {
   const [questions, setQuestions] = useState<QuestionItem[]>(sampleQuestions);
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
   const [layoutAssets, setLayoutAssets] = useState<PdfLayoutAssetInfo[]>([]);
+  const [answerKey, setAnswerKey] = useState<AnswerKeyItem[]>([]);
   const [translationProviderStatus, setTranslationProviderStatus] = useState<TranslationProviderStatus | null>(null);
   const [projectReadiness, setProjectReadiness] = useState<ProjectReadinessReport | null>(null);
   const [projectLibrary, setProjectLibrary] = useState<ProjectSession[]>([]);
@@ -151,6 +157,7 @@ export function App() {
       setQuestions,
       setGlossary,
       setLayoutAssets,
+      setAnswerKey,
     });
   }, []);
 
@@ -357,9 +364,11 @@ export function App() {
       setSchoolLogo(null);
       setExtractedText(null);
       setLayoutAssets([]);
+      setAnswerKey([]);
       setQuestions(sampleQuestions);
       setGlossary(sampleGlossary);
       setLayoutAssets([]);
+      setAnswerKey([]);
       setTranslationProviderStatus({ provider: 'mock', configured: false, model: '', fallback: 'mock' });
       setApiStatus('offline');
       setLastSyncNote('تعذر الاتصال بالخلفية. تعمل الواجهة ببيانات محلية مؤقتة. يا لها من بداية درامية، لكنها مقبولة في التطوير.');
@@ -865,6 +874,45 @@ export function App() {
   }
 
 
+
+  async function generateProjectAnswerKey() {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن توليد مسودة نموذج الإجابة دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await generateAnswerKeyDraft(projectId);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote(`تم توليد مسودة نموذج إجابة لعدد ${project.answerKey.length} سؤال. راجعها قبل أي استخدام، طبعًا، لأن الآلة لا تملك رخصة تدريس.`);
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل توليد مسودة نموذج الإجابة. تأكد من وجود أسئلة نشطة.');
+    }
+  }
+
+  async function clearProjectAnswerKey() {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('لا يمكن حذف مسودة نموذج الإجابة دون اتصال Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+    try {
+      const project = await clearAnswerKey(projectId);
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote('تم حذف مسودة نموذج الإجابة.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('فشل حذف مسودة نموذج الإجابة.');
+    }
+  }
+
   async function exportDocx() {
     if (!projectId || apiStatus === 'offline') {
       setLastSyncNote('لا يمكن إنشاء DOCX دون اتصال Backend. ملف Word يحتاج محرك التصدير في الخلفية.');
@@ -1070,6 +1118,7 @@ export function App() {
             questions={questions}
             glossary={glossary}
             layoutAssets={layoutAssets}
+            answerKey={answerKey}
             translationProviderStatus={translationProviderStatus}
             onMetadataChange={handleMetadataChange}
             onLogoSelected={handleLogoSelected}
@@ -1089,6 +1138,8 @@ export function App() {
             onExportDocx={exportDocx}
             onExportPdf={exportPdf}
             onRefreshReadiness={refreshProjectReadiness}
+            onGenerateAnswerKey={generateProjectAnswerKey}
+            onClearAnswerKey={clearProjectAnswerKey}
             projectReadiness={projectReadiness}
             canExportDocx={Boolean(projectId && apiStatus !== 'offline')}
             canExportPdf={Boolean(projectId && apiStatus !== 'offline')}
@@ -1119,6 +1170,7 @@ interface StepContentProps {
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   layoutAssets: PdfLayoutAssetInfo[];
+  answerKey: AnswerKeyItem[];
   translationProviderStatus: TranslationProviderStatus | null;
   projectReadiness: ProjectReadinessReport | null;
   onMetadataChange: (metadata: ProjectMetadata) => void;
@@ -1139,6 +1191,8 @@ interface StepContentProps {
   onExportDocx: () => Promise<void>;
   onExportPdf: () => Promise<void>;
   onRefreshReadiness: () => Promise<void>;
+  onGenerateAnswerKey: () => Promise<void>;
+  onClearAnswerKey: () => Promise<void>;
   canExportDocx: boolean;
   canExportPdf: boolean;
 }
@@ -1152,6 +1206,7 @@ function StepContent({
   questions,
   glossary,
   layoutAssets,
+  answerKey,
   translationProviderStatus,
   projectReadiness,
   onMetadataChange,
@@ -1172,6 +1227,8 @@ function StepContent({
   onExportDocx,
   onExportPdf,
   onRefreshReadiness,
+  onGenerateAnswerKey,
+  onClearAnswerKey,
   canExportDocx,
   canExportPdf,
 }: StepContentProps) {
@@ -1203,12 +1260,15 @@ function StepContent({
           metadata={metadata}
           questions={questions}
           glossary={glossary}
+          answerKey={answerKey}
           readiness={projectReadiness}
           canExportDocx={canExportDocx}
           onExportDocx={onExportDocx}
           onExportPdf={onExportPdf}
           canExportPdf={canExportPdf}
           onRefreshReadiness={onRefreshReadiness}
+          onGenerateAnswerKey={onGenerateAnswerKey}
+          onClearAnswerKey={onClearAnswerKey}
         />
       );
   }

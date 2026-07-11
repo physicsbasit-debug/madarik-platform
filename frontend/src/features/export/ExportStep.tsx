@@ -1,35 +1,42 @@
-import { AlertTriangle, CheckCircle2, Download, FileText, Loader2, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, FileText, KeyRound, Loader2, ShieldCheck, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import type { GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
+import type { AnswerKeyItem, GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
 import { MetricCard } from '../../components/MetricCard';
 
 interface ExportStepProps {
   metadata: ProjectMetadata;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
+  answerKey: AnswerKeyItem[];
   readiness: ProjectReadinessReport | null;
   canExportDocx: boolean;
   canExportPdf: boolean;
   onExportDocx: () => Promise<void>;
   onExportPdf: () => Promise<void>;
   onRefreshReadiness: () => Promise<void>;
+  onGenerateAnswerKey: () => Promise<void>;
+  onClearAnswerKey: () => Promise<void>;
 }
 
 export function ExportStep({
   metadata,
   questions,
   glossary,
+  answerKey,
   readiness,
   canExportDocx,
   canExportPdf,
   onExportDocx,
   onExportPdf,
   onRefreshReadiness,
+  onGenerateAnswerKey,
+  onClearAnswerKey,
 }: ExportStepProps) {
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isCheckingReadiness, setIsCheckingReadiness] = useState(false);
-  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF متاح مع فحص جاهزية قبل التصدير، ودعم الشعار والمرفقات ونسخ العمل JSON.');
+  const [isGeneratingAnswerKey, setIsGeneratingAnswerKey] = useState(false);
+  const [exportMessage, setExportMessage] = useState('تصدير DOCX وPDF متاح مع فحص جاهزية قبل التصدير، ودعم الشعار والمرفقات ونسخ العمل JSON ومسودة نموذج إجابة للمعلم.');
 
   const approvedQuestions = questions
     .filter((question) => question.status !== 'deleted')
@@ -49,6 +56,35 @@ export function ExportStep({
       setExportMessage('تعذر تحديث فحص الجاهزية. تأكد من اتصال Backend.');
     } finally {
       setIsCheckingReadiness(false);
+    }
+  }
+
+
+  async function handleGenerateAnswerKey() {
+    setIsGeneratingAnswerKey(true);
+    setExportMessage('جاري توليد مسودة نموذج الإجابة...');
+    try {
+      await onGenerateAnswerKey();
+      setExportMessage('تم توليد مسودة نموذج الإجابة. راجعها قبل اعتمادها، لأن الثقة العمياء بالآلة نشاط خطير.');
+    } catch (error) {
+      console.error(error);
+      setExportMessage('تعذر توليد مسودة نموذج الإجابة.');
+    } finally {
+      setIsGeneratingAnswerKey(false);
+    }
+  }
+
+  async function handleClearAnswerKey() {
+    setIsGeneratingAnswerKey(true);
+    setExportMessage('جاري حذف مسودة نموذج الإجابة...');
+    try {
+      await onClearAnswerKey();
+      setExportMessage('تم حذف مسودة نموذج الإجابة.');
+    } catch (error) {
+      console.error(error);
+      setExportMessage('تعذر حذف مسودة نموذج الإجابة.');
+    } finally {
+      setIsGeneratingAnswerKey(false);
     }
   }
 
@@ -96,6 +132,7 @@ export function ExportStep({
           <MetricCard label="مجموع الدرجات" value={totalMarks} hint="محسوب تلقائيًا" />
           <MetricCard label="أسئلة مترجمة" value={readiness?.translatedQuestionCount ?? 0} hint="حسب فحص Backend" />
           <MetricCard label="مصطلحات تحتاج مراجعة" value={glossaryNeedsReview} hint="للمعلم فقط" />
+          <MetricCard label="مسودة الإجابة" value={answerKey.length} hint="للمعلم فقط" />
         </div>
 
         <div className={`readiness-card ${readiness?.ready ? 'success-card' : 'warning-card'}`}>
@@ -130,6 +167,45 @@ export function ExportStep({
           {isCheckingReadiness ? <Loader2 size={18} className="spin-icon" /> : <ShieldCheck size={18} />}
           تحديث فحص الجاهزية
         </button>
+      </section>
+
+
+      <section className="form-card wide-card">
+        <div className="section-heading">
+          <p className="eyebrow">Phase 2-E1</p>
+          <h3>مسودة نموذج الإجابة</h3>
+          <p>
+            تولّد المنصة مسودة أولية للإجابات من الأسئلة النشطة. هذه أداة مساعدة للمعلم فقط، وليست نموذجًا معتمدًا ولا تظهر في ورقة الطالب.
+          </p>
+        </div>
+
+        <div className="inline-actions">
+          <button type="button" className="primary-button" onClick={() => void handleGenerateAnswerKey()} disabled={isGeneratingAnswerKey || approvedQuestions.length === 0}>
+            {isGeneratingAnswerKey ? <Loader2 size={18} className="spin-icon" /> : <KeyRound size={18} />}
+            توليد مسودة نموذج الإجابة
+          </button>
+          <button type="button" className="danger-button" onClick={() => void handleClearAnswerKey()} disabled={isGeneratingAnswerKey || answerKey.length === 0}>
+            <Trash2 size={18} />
+            حذف المسودة
+          </button>
+        </div>
+
+        {answerKey.length > 0 ? (
+          <div className="answer-key-list">
+            {answerKey.map((item) => (
+              <article key={item.id} className="answer-key-card">
+                <div className="answer-key-card-header">
+                  <strong>السؤال {item.questionNumber}</strong>
+                  <span>{item.marks ?? '—'} درجات · الثقة: {item.confidence}</span>
+                </div>
+                <p>{item.draftAnswer}</p>
+                <small>{item.notes}</small>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">لم تُولّد مسودة نموذج إجابة بعد.</div>
+        )}
       </section>
 
       <section className="form-card">

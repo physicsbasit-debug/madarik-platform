@@ -86,6 +86,18 @@ export interface GlossaryTerm {
   notes?: string | null;
 }
 
+export interface AnswerKeyItem {
+  id: string;
+  questionId: string;
+  questionNumber: string;
+  draftAnswer: string;
+  marks: number | null;
+  confidence: string;
+  source: string;
+  needsReview: boolean;
+  notes: string;
+}
+
 export interface ProjectSession {
   id: string;
   ownerAccountId: string | null;
@@ -98,6 +110,7 @@ export interface ProjectSession {
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   layoutAssets: PdfLayoutAssetInfo[];
+  answerKey: AnswerKeyItem[];
   currentStep: StepKey;
 }
 
