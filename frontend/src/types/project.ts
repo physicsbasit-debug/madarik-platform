@@ -62,10 +62,16 @@ export interface QuestionAssetInfo {
   dataBase64: string;
 }
 
+export interface QuestionOption {
+  label: string;
+  text: string;
+}
+
 export interface QuestionItem {
   id: string;
   originalNumber: string;
   originalText: string;
+  rawText?: string | null;
   translatedText: string;
   marks: number | null;
   detectedMarks: number | null;
@@ -73,6 +79,7 @@ export interface QuestionItem {
   orderIndex: number;
   attachmentNote?: string | null;
   attachments: QuestionAssetInfo[];
+  options?: QuestionOption[];
   reviewNotes?: string | null;
 }
 

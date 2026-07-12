@@ -165,13 +165,16 @@ def parse_questions_from_text(text: str) -> list[QuestionItem]:
         nonlocal current_number, current_lines
         if current_number is None or not current_lines:
             return
-        original_text = "\n".join(current_lines).strip()
-        if original_text:
+        raw_text = "\n".join(current_lines).strip()
+        if raw_text:
+            original_text, options = _split_mcq_structure(raw_text)
             drafts.append(
                 ParsedQuestionDraft(
                     original_number=current_number,
                     original_text=original_text,
-                    detected_marks=_extract_marks(original_text),
+                    raw_text=raw_text,
+                    detected_marks=_extract_marks(raw_text),
+                    options=options,
                 )
             )
         current_number = None
@@ -191,12 +194,15 @@ def parse_questions_from_text(text: str) -> list[QuestionItem]:
 
     if not drafts:
         fallback_text = "\n".join(lines).strip()
+        original_text, options = _split_mcq_structure(fallback_text)
         detected_marks = _extract_marks(fallback_text)
         drafts = [
             ParsedQuestionDraft(
                 original_number="1",
-                original_text=fallback_text,
+                original_text=original_text,
+                raw_text=fallback_text,
                 detected_marks=detected_marks,
+                options=options,
             )
         ]
 
@@ -207,12 +213,14 @@ def parse_questions_from_text(text: str) -> list[QuestionItem]:
                 id=f"parsed-q-{index}",
                 original_number=draft.original_number,
                 original_text=draft.original_text,
+                raw_text=draft.raw_text,
                 translated_text="ترجمة مؤجلة إلى Phase 1-E.",
                 marks=draft.detected_marks,
                 detected_marks=draft.detected_marks,
                 status=QuestionStatus.needs_review,
                 order_index=index,
                 attachment_note="لم يتم ربط الصور والجداول بعد. هذه الوظيفة مؤجلة.",
+                options=list(draft.options),
                 review_notes="تم تقسيم هذا السؤال آليًا بقواعد Phase 1-D ويحتاج مراجعة بشرية قبل التصدير.",
             )
         )
