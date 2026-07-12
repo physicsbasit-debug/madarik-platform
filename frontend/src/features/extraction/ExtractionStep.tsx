@@ -12,7 +12,14 @@ interface ExtractionStepProps {
 }
 
 export function ExtractionStep({ questions, extractedText, layoutAssets, onDeleteLayoutAsset, onReloadDemo, onParseQuestions }: ExtractionStepProps) {
-  const totalMarks = questions.reduce((sum, question) => sum + (question.marks ?? 0), 0);
+  const totalMarks = questions.reduce(
+    (sum, question) => sum + (question.marks ?? 0),
+    0,
+  );
+  const hasCompleteMarks =
+    questions.length > 0 &&
+    questions.every((question) => question.marks != null);
+
   const needsReview = questions.filter((question) => question.status === 'needs_review').length;
   const hasTextToParse = Boolean(extractedText?.isTextBased && extractedText.text.trim().length > 0);
 
@@ -29,7 +36,11 @@ export function ExtractionStep({ questions, extractedText, layoutAssets, onDelet
 
         <div className="metrics-row">
           <MetricCard label="بطاقات الأسئلة" value={questions.length} hint="من Backend أو بيانات تجريبية" />
-          <MetricCard label="مجموع الدرجات" value={totalMarks} hint="محسوب من البطاقات" />
+          <MetricCard
+            label="مجموع الدرجات"
+            value={hasCompleteMarks ? totalMarks : 'غير محد'}
+            hint={hasCompleteMarks ? 'محسوب من البطاقات' : 'لم تذكر درجات كاملة'}
+          />
           <MetricCard label="تحتاج مراجعة" value={needsReview} hint="تقسيم آلي أولي" />
           <MetricCard label="أحرف النص" value={extractedText?.characterCount ?? 0} hint="من PDF أو OCR" />
           <MetricCard label="لقطات التخطيط" value={layoutAssets.length} hint="من صفحات PDF" />
@@ -94,13 +105,35 @@ export function ExtractionStep({ questions, extractedText, layoutAssets, onDelet
           <article key={question.id} className="mini-question-card">
             <div>
               <span className="status-pill">السؤال {index + 1} | الأصلي {question.originalNumber}</span>
-              <h4>{question.originalText}</h4>
+              <h4 dir="ltr" lang="en" style={{ textAlign: 'left' }}>{question.originalText}</h4>
+
+              {question.options?.length ? (
+                <ol
+                  style={{
+                    direction: 'ltr',
+                    textAlign: 'left',
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: '0.75rem 0',
+                    display: 'grid',
+                    gap: '0.45rem',
+                  }}
+                >
+                  {question.options.map((option) => (
+                    <li key={`${question.id}-${option.label}`}>
+                      <strong>{option.label}.</strong> {option.text}
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
               <p>{question.translatedText}</p>
             </div>
             <div className="mini-meta">
               <span>
                 <ClipboardList size={16} />
-                {question.marks ?? '—'} درجات
+                {question.marks == null
+                  ? 'الدرجة غير محددة'
+                  : `${question.marks} درجات`}
               </span>
               <span>
                 <ImageIcon size={16} />

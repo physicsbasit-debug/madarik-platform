@@ -171,10 +171,16 @@ interface ApiQuestionAssetInfo {
   data_base64: string;
 }
 
+interface ApiQuestionOption {
+  label: string;
+  text: string;
+}
+
 interface ApiQuestionItem {
   id: string;
   original_number: string;
   original_text: string;
+  raw_text?: string | null;
   translated_text: string;
   marks: number | null;
   detected_marks: number | null;
@@ -182,6 +188,7 @@ interface ApiQuestionItem {
   order_index: number;
   attachment_note?: string | null;
   attachments: ApiQuestionAssetInfo[];
+  options?: ApiQuestionOption[];
   review_notes?: string | null;
 }
 
@@ -407,11 +414,19 @@ function fromApiQuestionAsset(asset: ApiQuestionAssetInfo): QuestionAssetInfo {
   };
 }
 
+function fromApiQuestionOption(option: ApiQuestionOption) {
+  return {
+    label: option.label,
+    text: option.text,
+  };
+}
+
 function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
   return {
     id: question.id,
     originalNumber: question.original_number,
     originalText: question.original_text,
+    rawText: question.raw_text,
     translatedText: question.translated_text,
     marks: question.marks,
     detectedMarks: question.detected_marks,
@@ -419,6 +434,7 @@ function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
     orderIndex: question.order_index,
     attachmentNote: question.attachment_note,
     attachments: (question.attachments ?? []).map(fromApiQuestionAsset),
+    options: (question.options ?? []).map(fromApiQuestionOption),
     reviewNotes: question.review_notes,
   };
 }
