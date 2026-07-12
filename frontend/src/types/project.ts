@@ -79,6 +79,7 @@ export interface QuestionItem {
   orderIndex: number;
   attachmentNote?: string | null;
   attachments: QuestionAssetInfo[];
+  linkedLayoutAssetIds?: string[];
   options?: QuestionOption[];
   reviewNotes?: string | null;
 }
