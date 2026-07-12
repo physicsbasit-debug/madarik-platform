@@ -98,17 +98,24 @@ class ExtractedTextInfo(BaseModel):
     message: str = ""
 
 
+class QuestionOption(BaseModel):
+    label: str
+    text: str
+
+
 class QuestionItem(BaseModel):
     id: str
     original_number: str
     original_text: str
     translated_text: str
+    raw_text: str | None = None
     marks: int | None = None
     detected_marks: int | None = None
     status: QuestionStatus = QuestionStatus.approved
     order_index: int
     attachment_note: str | None = None
     attachments: list[QuestionAssetInfo] = Field(default_factory=list)
+    options: list[QuestionOption] = Field(default_factory=list)
     review_notes: str | None = None
 
 
