@@ -105,7 +105,7 @@ export function ExtractionStep({ questions, extractedText, layoutAssets, onDelet
           <article key={question.id} className="mini-question-card">
             <div>
               <span className="status-pill">السؤال {index + 1} | الأصلي {question.originalNumber}</span>
-              <h4>{question.originalText}</h4>
+              <h4 dir="ltr" lang="en" style={{ textAlign: 'left' }}>{question.originalText}</h4>
 
               {question.options?.length ? (
                 <ol
