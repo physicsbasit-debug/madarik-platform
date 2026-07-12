@@ -188,6 +188,7 @@ interface ApiQuestionItem {
   order_index: number;
   attachment_note?: string | null;
   attachments: ApiQuestionAssetInfo[];
+  linked_layout_asset_ids?: string[];
   options?: ApiQuestionOption[];
   review_notes?: string | null;
 }
@@ -434,6 +435,7 @@ function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
     orderIndex: question.order_index,
     attachmentNote: question.attachment_note,
     attachments: (question.attachments ?? []).map(fromApiQuestionAsset),
+    linkedLayoutAssetIds: question.linked_layout_asset_ids ?? [],
     options: (question.options ?? []).map(fromApiQuestionOption),
     reviewNotes: question.review_notes,
   };
@@ -727,6 +729,33 @@ export async function deletePdfLayoutAsset(projectId: string, assetId: string): 
   });
   return fromApiProject(project);
 }
+
+export async function linkQuestionLayoutAsset(
+  projectId: string,
+  questionId: string,
+  assetId: string,
+): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(
+    `/projects/${projectId}/questions/${questionId}/layout-assets/${assetId}`,
+    { method: 'POST' },
+  );
+
+  return fromApiProject(project);
+}
+
+export async function unlinkQuestionLayoutAsset(
+  projectId: string,
+  questionId: string,
+  assetId: string,
+): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(
+    `/projects/${projectId}/questions/${questionId}/layout-assets/${assetId}`,
+    { method: 'DELETE' },
+  );
+
+  return fromApiProject(project);
+}
+
 
 export async function parseExtractedQuestions(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/parse-questions`, { method: 'POST' });

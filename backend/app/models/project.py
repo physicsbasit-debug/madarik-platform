@@ -115,6 +115,7 @@ class QuestionItem(BaseModel):
     order_index: int
     attachment_note: str | None = None
     attachments: list[QuestionAssetInfo] = Field(default_factory=list)
+    linked_layout_asset_ids: list[str] = Field(default_factory=list)
     options: list[QuestionOption] = Field(default_factory=list)
     review_notes: str | None = None
 

@@ -379,6 +379,56 @@ def delete_pdf_layout_asset(project_id: str, asset_id: str, account: AuthAccount
     return project
 
 
+@router.post(
+    "/{project_id}/questions/{question_id}/layout-assets/{asset_id}"
+)
+def link_question_layout_asset(
+    project_id: str,
+    question_id: str,
+    asset_id: str,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> ProjectSession:
+    """Link an existing PDF layout snapshot to one question."""
+
+    _get_or_404(project_id, account)
+    project = project_store.link_layout_asset_to_question(
+        project_id,
+        question_id,
+        asset_id,
+    )
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project, question, or layout asset not found",
+        )
+    return project
+
+
+@router.delete(
+    "/{project_id}/questions/{question_id}/layout-assets/{asset_id}"
+)
+def unlink_question_layout_asset(
+    project_id: str,
+    question_id: str,
+    asset_id: str,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> ProjectSession:
+    """Remove the link between one question and one layout snapshot."""
+
+    _get_or_404(project_id, account)
+    project = project_store.unlink_layout_asset_from_question(
+        project_id,
+        question_id,
+        asset_id,
+    )
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project, question, or linked layout asset not found",
+        )
+    return project
+
+
 @router.post("/{project_id}/parse-questions")
 def parse_extracted_questions(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
     """Convert extracted text into reviewable question cards for Phase 1-D."""

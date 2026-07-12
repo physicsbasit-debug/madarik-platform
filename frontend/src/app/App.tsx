@@ -27,6 +27,8 @@ import {
   deleteProject,
   deletePdfLayoutAsset,
   deleteQuestionAsset,
+  linkQuestionLayoutAsset,
+  unlinkQuestionLayoutAsset,
   deleteSchoolLogo,
   loadDemoContent,
   parseExtractedQuestions,
@@ -719,6 +721,62 @@ export function App() {
   }
 
 
+  async function handleQuestionLayoutAssetLink(
+    questionId: string,
+    assetId: string,
+  ) {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('\u0644\u0627 \u064a\u0645\u0643\u0646 \u0631\u0628\u0637 \u0644\u0642\u0637\u0629 PDF \u062f\u0648\u0646 \u0627\u062a\u0635\u0627\u0644 Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+
+    try {
+      const project = await linkQuestionLayoutAsset(
+        projectId,
+        questionId,
+        assetId,
+      );
+
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote('\u062a\u0645 \u0631\u0628\u0637 \u0644\u0642\u0637\u0629 PDF \u0628\u0627\u0644\u0633\u0624\u0627\u0644.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('\u0641\u0634\u0644 \u0631\u0628\u0637 \u0644\u0642\u0637\u0629 PDF \u0628\u0627\u0644\u0633\u0624\u0627\u0644.');
+    }
+  }
+
+  async function handleQuestionLayoutAssetUnlink(
+    questionId: string,
+    assetId: string,
+  ) {
+    if (!projectId || apiStatus === 'offline') {
+      setLastSyncNote('\u0644\u0627 \u064a\u0645\u0643\u0646 \u0641\u0643 \u0631\u0628\u0637 \u0644\u0642\u0637\u0629 PDF \u062f\u0648\u0646 \u0627\u062a\u0635\u0627\u0644 Backend.');
+      return;
+    }
+
+    setApiStatus('syncing');
+
+    try {
+      const project = await unlinkQuestionLayoutAsset(
+        projectId,
+        questionId,
+        assetId,
+      );
+
+      applyProject(project);
+      setApiStatus('connected');
+      setLastSyncNote('\u062a\u0645 \u0641\u0643 \u0631\u0628\u0637 \u0644\u0642\u0637\u0629 PDF \u0639\u0646 \u0627\u0644\u0633\u0624\u0627\u0644.');
+    } catch (error) {
+      console.error(error);
+      setApiStatus('connected');
+      setLastSyncNote('\u0641\u0634\u0644 \u0641\u0643 \u0631\u0628\u0637 \u0644\u0642\u0637\u0629 PDF \u0639\u0646 \u0627\u0644\u0633\u0624\u0627\u0644.');
+    }
+  }
+
   function updateQuestion(questionId: string, updates: Partial<QuestionItem>) {
     setQuestions((currentQuestions) =>
       currentQuestions.map((question) => (question.id === questionId ? { ...question, ...updates } : question)),
@@ -1230,6 +1288,8 @@ export function App() {
             onBulkUpdateStatus={bulkUpdateReviewStatus}
             onUploadQuestionAsset={handleQuestionAssetUpload}
             onDeleteQuestionAsset={handleQuestionAssetDelete}
+            onLinkQuestionLayoutAsset={handleQuestionLayoutAssetLink}
+            onUnlinkQuestionLayoutAsset={handleQuestionLayoutAssetUnlink}
             onDeleteLayoutAsset={handleLayoutAssetDelete}
             onReloadDemo={reloadDemoFromBackend}
             onParseQuestions={parseQuestionsFromExtractedText}
@@ -1289,6 +1349,8 @@ interface StepContentProps {
   onBulkUpdateStatus: (status: QuestionStatus, includeDeleted?: boolean) => void;
   onUploadQuestionAsset: (questionId: string, file: File) => void;
   onDeleteQuestionAsset: (questionId: string, assetId: string) => void;
+  onLinkQuestionLayoutAsset: (questionId: string, assetId: string) => void;
+  onUnlinkQuestionLayoutAsset: (questionId: string, assetId: string) => void;
   onDeleteLayoutAsset: (assetId: string) => void;
   onReloadDemo: () => void;
   onParseQuestions: () => void;
@@ -1331,6 +1393,8 @@ function StepContent({
   onBulkUpdateStatus,
   onUploadQuestionAsset,
   onDeleteQuestionAsset,
+  onLinkQuestionLayoutAsset,
+  onUnlinkQuestionLayoutAsset,
   onDeleteLayoutAsset,
   onReloadDemo,
   onParseQuestions,
@@ -1359,12 +1423,15 @@ function StepContent({
       return (
         <ReviewStep
           questions={questions}
+          layoutAssets={layoutAssets}
           onUpdateQuestion={onUpdateQuestion}
           onMoveQuestion={onMoveQuestion}
           onTranslateQuestions={onTranslateQuestions}
           onBulkUpdateStatus={onBulkUpdateStatus}
           onUploadQuestionAsset={onUploadQuestionAsset}
           onDeleteQuestionAsset={onDeleteQuestionAsset}
+          onLinkLayoutAsset={onLinkQuestionLayoutAsset}
+          onUnlinkLayoutAsset={onUnlinkQuestionLayoutAsset}
           translationProviderStatus={translationProviderStatus}
         />
       );

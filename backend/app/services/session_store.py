@@ -157,7 +157,21 @@ class InMemoryProjectStore:
         project = self.get(project_id)
         if project is None:
             return None
+
+        valid_asset_ids = {asset.id for asset in layout_assets}
         project.layout_assets = layout_assets
+        project.questions = [
+            question.model_copy(
+                update={
+                    "linked_layout_asset_ids": [
+                        asset_id
+                        for asset_id in question.linked_layout_asset_ids
+                        if asset_id in valid_asset_ids
+                    ]
+                }
+            )
+            for question in project.questions
+        ]
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
@@ -165,12 +179,93 @@ class InMemoryProjectStore:
         project = self.get(project_id)
         if project is None:
             return None
-        remaining_assets = [asset for asset in project.layout_assets if asset.id != asset_id]
+
+        remaining_assets = [
+            asset for asset in project.layout_assets
+            if asset.id != asset_id
+        ]
         if len(remaining_assets) == len(project.layout_assets):
             return None
+
         project.layout_assets = remaining_assets
+        project.questions = [
+            question.model_copy(
+                update={
+                    "linked_layout_asset_ids": [
+                        linked_id
+                        for linked_id in question.linked_layout_asset_ids
+                        if linked_id != asset_id
+                    ]
+                }
+            )
+            for question in project.questions
+        ]
         project.current_step = StepKey.extract
         return self.touch(project_id)
+
+    def link_layout_asset_to_question(
+        self,
+        project_id: str,
+        question_id: str,
+        asset_id: str,
+    ) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+
+        if asset_id not in {asset.id for asset in project.layout_assets}:
+            return None
+
+        for index, question in enumerate(project.questions):
+            if question.id != question_id:
+                continue
+
+            if asset_id in question.linked_layout_asset_ids:
+                return project
+
+            project.questions[index] = question.model_copy(
+                update={
+                    "linked_layout_asset_ids": [
+                        *question.linked_layout_asset_ids,
+                        asset_id,
+                    ]
+                }
+            )
+            project.current_step = StepKey.review
+            return self.touch(project_id)
+
+        return None
+
+    def unlink_layout_asset_from_question(
+        self,
+        project_id: str,
+        question_id: str,
+        asset_id: str,
+    ) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+
+        for index, question in enumerate(project.questions):
+            if question.id != question_id:
+                continue
+
+            if asset_id not in question.linked_layout_asset_ids:
+                return None
+
+            project.questions[index] = question.model_copy(
+                update={
+                    "linked_layout_asset_ids": [
+                        linked_id
+                        for linked_id in question.linked_layout_asset_ids
+                        if linked_id != asset_id
+                    ]
+                }
+            )
+            project.current_step = StepKey.review
+            return self.touch(project_id)
+
+        return None
 
     def set_translated_questions(self, project_id: str, questions: list[QuestionItem]) -> ProjectSession | None:
         project = self.get(project_id)
