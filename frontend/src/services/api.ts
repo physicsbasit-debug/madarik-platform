@@ -8,6 +8,7 @@ import type {
   SchoolLogoInfo,
   QuestionItem,
   QuestionAssetInfo,
+  QuestionPart,
   QuestionStatus,
   StepKey,
   UploadedFileInfo,
@@ -176,6 +177,15 @@ interface ApiQuestionOption {
   text: string;
 }
 
+interface ApiQuestionPart {
+  id: string;
+  label: string;
+  original_text: string;
+  translated_text: string;
+  marks: number | null;
+  order_index: number;
+}
+
 interface ApiQuestionItem {
   id: string;
   original_number: string;
@@ -190,6 +200,7 @@ interface ApiQuestionItem {
   attachments: ApiQuestionAssetInfo[];
   linked_layout_asset_ids?: string[];
   options?: ApiQuestionOption[];
+  parts?: ApiQuestionPart[];
   review_notes?: string | null;
 }
 
@@ -422,6 +433,28 @@ function fromApiQuestionOption(option: ApiQuestionOption) {
   };
 }
 
+function fromApiQuestionPart(part: ApiQuestionPart): QuestionPart {
+  return {
+    id: part.id,
+    label: part.label,
+    originalText: part.original_text,
+    translatedText: part.translated_text,
+    marks: part.marks,
+    orderIndex: part.order_index,
+  };
+}
+
+function toApiQuestionPart(part: QuestionPart): ApiQuestionPart {
+  return {
+    id: part.id,
+    label: part.label,
+    original_text: part.originalText,
+    translated_text: part.translatedText,
+    marks: part.marks,
+    order_index: part.orderIndex,
+  };
+}
+
 function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
   return {
     id: question.id,
@@ -437,6 +470,7 @@ function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
     attachments: (question.attachments ?? []).map(fromApiQuestionAsset),
     linkedLayoutAssetIds: question.linked_layout_asset_ids ?? [],
     options: (question.options ?? []).map(fromApiQuestionOption),
+    parts: (question.parts ?? []).map(fromApiQuestionPart),
     reviewNotes: question.review_notes,
   };
 }
@@ -800,7 +834,7 @@ export async function loadDemoContent(projectId: string): Promise<ProjectSession
 export async function updateQuestion(
   projectId: string,
   questionId: string,
-  updates: Partial<Pick<QuestionItem, 'translatedText' | 'marks' | 'status' | 'reviewNotes'>>,
+  updates: Partial<Pick<QuestionItem, 'translatedText' | 'marks' | 'status' | 'parts' | 'reviewNotes'>>,
 ): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/questions/${questionId}`, {
     method: 'PATCH',
@@ -808,6 +842,7 @@ export async function updateQuestion(
       translated_text: updates.translatedText,
       marks: updates.marks,
       status: updates.status,
+      parts: updates.parts?.map(toApiQuestionPart),
       review_notes: updates.reviewNotes,
     }),
   });

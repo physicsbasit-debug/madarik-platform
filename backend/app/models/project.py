@@ -211,6 +211,7 @@ class QuestionPatch(BaseModel):
     translated_text: str | None = None
     marks: int | None = None
     status: QuestionStatus | None = None
+    parts: list[QuestionPart] | None = None
     review_notes: str | None = None
 
 
