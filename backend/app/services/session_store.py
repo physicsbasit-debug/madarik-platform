@@ -283,6 +283,8 @@ class InMemoryProjectStore:
         for index, question in enumerate(project.questions):
             if question.id == question_id:
                 update_data = patch.model_dump(exclude_unset=True)
+                if "parts" in patch.model_fields_set:
+                    update_data["parts"] = patch.parts or []
                 project.questions[index] = question.model_copy(update=update_data)
                 project.current_step = StepKey.review
                 return self.touch(project_id)

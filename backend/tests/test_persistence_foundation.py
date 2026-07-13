@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from app.models.project import ProjectMetadata, QuestionPatch, QuestionStatus
+from app.models.project import (
+    ProjectMetadata,
+    QuestionPart,
+    QuestionPatch,
+    QuestionStatus,
+)
 from app.services.project_repository import ProjectRepository
 from app.services.session_store import InMemoryProjectStore
 
@@ -44,6 +49,65 @@ def test_project_repository_persists_question_updates(tmp_path: Path) -> None:
 
     assert updated_question.status == QuestionStatus.approved
     assert updated_question.translated_text == "ترجمة محفوظة"
+
+
+def test_project_repository_persists_question_parts_updates(tmp_path: Path) -> None:
+    repository = ProjectRepository(tmp_path / "madarik-test.sqlite3")
+    store = InMemoryProjectStore(repository)
+
+    created = store.create()
+    store.load_demo_content(created.id)
+    project = store.get(created.id)
+    assert project is not None
+    question_id = project.questions[0].id
+
+    updated_parts = [
+        QuestionPart(
+            id="part-a",
+            label="(a)",
+            original_text="State the unit of force.",
+            translated_text="اذكر وحدة القوة.",
+            marks=1,
+            order_index=1,
+        ),
+        QuestionPart(
+            id="part-b",
+            label="(b)",
+            original_text="Calculate the resultant force.",
+            translated_text="احسب القوة المحصلة.",
+            marks=2,
+            order_index=2,
+        ),
+    ]
+
+    updated_project = store.update_question(
+        created.id,
+        question_id,
+        QuestionPatch(parts=updated_parts),
+    )
+
+    assert updated_project is not None
+    immediate_question = next(
+        question
+        for question in updated_project.questions
+        if question.id == question_id
+    )
+    assert isinstance(immediate_question.parts[0], QuestionPart)
+
+    fresh_store = InMemoryProjectStore(repository)
+    loaded = fresh_store.get(created.id)
+    assert loaded is not None
+    updated_question = next(
+        question
+        for question in loaded.questions
+        if question.id == question_id
+    )
+
+    assert [part.id for part in updated_question.parts] == ["part-a", "part-b"]
+    assert [part.label for part in updated_question.parts] == ["(a)", "(b)"]
+    assert updated_question.parts[0].translated_text == "اذكر وحدة القوة."
+    assert updated_question.parts[1].marks == 2
+    assert [part.order_index for part in updated_question.parts] == [1, 2]
 
 
 def test_project_repository_deletes_persisted_project(tmp_path: Path) -> None:

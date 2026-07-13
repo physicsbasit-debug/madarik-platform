@@ -9,6 +9,7 @@ import {
   ImagePlus,
   Languages,
   Link2,
+  Plus,
   RotateCcw,
   Trash2,
   Unlink,
@@ -18,6 +19,7 @@ import type { ChangeEvent } from "react";
 import type {
   PdfLayoutAssetInfo,
   QuestionItem,
+  QuestionPart,
   QuestionStatus,
   TranslationProviderStatus,
 } from "../../types/project";
@@ -57,6 +59,30 @@ function formatFileSize(size: number) {
   if (size < 1024) return `${size} بايت`;
   if (size < 1024 * 1024) return `${Math.round(size / 1024)} ك.ب`;
   return `${(size / (1024 * 1024)).toFixed(1)} م.ب`;
+}
+
+function sortQuestionParts(parts: QuestionPart[] | undefined) {
+  return [...(parts ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
+}
+
+function reindexQuestionParts(parts: QuestionPart[]) {
+  return parts.map((part, index) => ({
+    ...part,
+    orderIndex: index + 1,
+  }));
+}
+
+function createQuestionPart(orderIndex: number): QuestionPart {
+  return {
+    id:
+      globalThis.crypto?.randomUUID?.() ??
+      `question-part-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    label: "(جديد)",
+    originalText: "",
+    translatedText: "",
+    marks: null,
+    orderIndex,
+  };
 }
 
 export function ReviewStep({
@@ -127,6 +153,63 @@ export function ReviewStep({
     event.target.value = "";
     if (!file) return;
     onUploadQuestionAsset(questionId, file);
+  }
+
+  function saveQuestionParts(question: QuestionItem, parts: QuestionPart[]) {
+    onUpdateQuestion(question.id, {
+      parts: reindexQuestionParts(parts),
+    });
+  }
+
+  function updateQuestionPart(
+    question: QuestionItem,
+    partId: string,
+    updates: Partial<QuestionPart>,
+  ) {
+    const nextParts = sortQuestionParts(question.parts).map((part) =>
+      part.id === partId ? { ...part, ...updates } : part,
+    );
+    saveQuestionParts(question, nextParts);
+  }
+
+  function addQuestionPart(question: QuestionItem) {
+    const currentParts = sortQuestionParts(question.parts);
+    saveQuestionParts(question, [
+      ...currentParts,
+      createQuestionPart(currentParts.length + 1),
+    ]);
+  }
+
+  function deleteQuestionPart(question: QuestionItem, partId: string) {
+    const nextParts = sortQuestionParts(question.parts).filter(
+      (part) => part.id !== partId,
+    );
+    saveQuestionParts(question, nextParts);
+  }
+
+  function moveQuestionPart(
+    question: QuestionItem,
+    partId: string,
+    direction: "up" | "down",
+  ) {
+    const currentParts = sortQuestionParts(question.parts);
+    const currentIndex = currentParts.findIndex((part) => part.id === partId);
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+    if (
+      currentIndex < 0 ||
+      targetIndex < 0 ||
+      targetIndex >= currentParts.length
+    ) {
+      return;
+    }
+
+    const nextParts = [...currentParts];
+    [nextParts[currentIndex], nextParts[targetIndex]] = [
+      nextParts[targetIndex],
+      nextParts[currentIndex],
+    ];
+    saveQuestionParts(question, nextParts);
   }
 
   return (
@@ -211,6 +294,7 @@ export function ReviewStep({
           const availableLayoutAssets = layoutAssets.filter(
             (asset) => !linkedAssetIds.includes(asset.id),
           );
+          const questionParts = sortQuestionParts(question.parts);
 
           return (
             <article
@@ -256,6 +340,150 @@ export function ReviewStep({
                   }
                 />
               </label>
+
+              <section className="question-parts-panel">
+                <div className="question-parts-header">
+                  <div>
+                    <strong>أجزاء السؤال</strong>
+                    <span>
+                      {questionParts.length > 0
+                        ? `${questionParts.length} جزء محفوظ ومرتب`
+                        : "لا توجد أجزاء منظمة لهذا السؤال"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-button compact"
+                    onClick={() => addQuestionPart(question)}
+                    disabled={question.status === "deleted"}
+                  >
+                    <Plus size={16} />
+                    إضافة جزء
+                  </button>
+                </div>
+
+                {questionParts.length > 0 ? (
+                  <div className="question-parts-list">
+                    {questionParts.map((part, partIndex) => (
+                      <article key={part.id} className="question-part-card">
+                        <header className="question-part-card-header">
+                          <div>
+                            <span>الجزء {partIndex + 1}</span>
+                            <strong>{part.label.trim() || "بدون وسم"}</strong>
+                          </div>
+                          <div className="question-part-actions">
+                            <button
+                              type="button"
+                              className="secondary-button compact"
+                              onClick={() =>
+                                moveQuestionPart(question, part.id, "up")
+                              }
+                              disabled={
+                                question.status === "deleted" || partIndex === 0
+                              }
+                            >
+                              <ArrowUp size={15} />
+                              رفع
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary-button compact"
+                              onClick={() =>
+                                moveQuestionPart(question, part.id, "down")
+                              }
+                              disabled={
+                                question.status === "deleted" ||
+                                partIndex === questionParts.length - 1
+                              }
+                            >
+                              <ArrowDown size={15} />
+                              إنزال
+                            </button>
+                            <button
+                              type="button"
+                              className="danger-button compact"
+                              onClick={() =>
+                                deleteQuestionPart(question, part.id)
+                              }
+                              disabled={question.status === "deleted"}
+                            >
+                              <Trash2 size={15} />
+                              حذف الجزء
+                            </button>
+                          </div>
+                        </header>
+
+                        <div className="question-part-fields">
+                          <label>
+                            وسم الجزء
+                            <input
+                              value={part.label}
+                              dir="ltr"
+                              onChange={(event) =>
+                                updateQuestionPart(question, part.id, {
+                                  label: event.target.value,
+                                })
+                              }
+                              disabled={question.status === "deleted"}
+                              placeholder="مثل (a) أو (i)"
+                            />
+                          </label>
+
+                          <label>
+                            الدرجة
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={part.marks ?? ""}
+                              onChange={(event) => {
+                                const rawValue = event.target.value;
+                                updateQuestionPart(question, part.id, {
+                                  marks:
+                                    rawValue === "" ? null : Number(rawValue),
+                                });
+                              }}
+                              disabled={question.status === "deleted"}
+                            />
+                          </label>
+
+                          <label className="question-part-field-wide">
+                            النص الأصلي
+                            <textarea
+                              value={part.originalText}
+                              dir="ltr"
+                              onChange={(event) =>
+                                updateQuestionPart(question, part.id, {
+                                  originalText: event.target.value,
+                                })
+                              }
+                              disabled={question.status === "deleted"}
+                            />
+                          </label>
+
+                          <label className="question-part-field-wide">
+                            الترجمة العربية
+                            <textarea
+                              value={part.translatedText}
+                              onChange={(event) =>
+                                updateQuestionPart(question, part.id, {
+                                  translatedText: event.target.value,
+                                })
+                              }
+                              disabled={question.status === "deleted"}
+                            />
+                          </label>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="question-parts-empty">
+                    أضف الأجزاء يدويًا عند الحاجة، أو اترك السؤال دون أجزاء إذا
+                    كان سؤالًا مستقلًا أو اختيارًا من متعدد.
+                  </div>
+                )}
+              </section>
 
               <div className="question-tools-grid">
                 <label>

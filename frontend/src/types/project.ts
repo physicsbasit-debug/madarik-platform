@@ -76,6 +76,15 @@ export interface QuestionOption {
   text: string;
 }
 
+export interface QuestionPart {
+  id: string;
+  label: string;
+  originalText: string;
+  translatedText: string;
+  marks: number | null;
+  orderIndex: number;
+}
+
 export interface QuestionItem {
   id: string;
   originalNumber: string;
@@ -90,6 +99,7 @@ export interface QuestionItem {
   attachments: QuestionAssetInfo[];
   linkedLayoutAssetIds?: string[];
   options?: QuestionOption[];
+  parts?: QuestionPart[];
   reviewNotes?: string | null;
 }
 

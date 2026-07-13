@@ -1649,3 +1649,129 @@ button:disabled {
     width: 100%;
   }
 }
+
+/* Phase 3-A3b: question parts review UI */
+.question-parts-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #d8e1ea;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.question-parts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.question-parts-header > div {
+  display: grid;
+  gap: 4px;
+}
+
+.question-parts-header strong {
+  color: #17324d;
+}
+
+.question-parts-header span {
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.question-parts-list {
+  display: grid;
+  gap: 12px;
+}
+
+.question-part-card {
+  display: grid;
+  gap: 14px;
+  padding: 15px;
+  border: 1px solid #d6dee8;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.question-part-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.question-part-card-header > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.question-part-card-header span {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.question-part-card-header strong {
+  color: #0f766e;
+  direction: ltr;
+  text-align: left;
+}
+
+.question-part-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.question-part-fields {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.45fr) minmax(120px, 0.25fr);
+  gap: 12px;
+}
+
+.question-part-field-wide {
+  grid-column: 1 / -1;
+}
+
+.question-part-fields textarea {
+  min-height: 96px;
+}
+
+.question-parts-empty {
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #64748b;
+  line-height: 1.8;
+}
+
+@media (max-width: 720px) {
+  .question-parts-header,
+  .question-part-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .question-parts-header button {
+    width: 100%;
+  }
+
+  .question-part-actions {
+    justify-content: stretch;
+  }
+
+  .question-part-actions button {
+    flex: 1 1 120px;
+  }
+
+  .question-part-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .question-part-field-wide {
+    grid-column: auto;
+  }
+}
