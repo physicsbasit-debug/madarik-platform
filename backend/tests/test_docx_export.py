@@ -1,10 +1,19 @@
 from io import BytesIO
 
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.project import OutputMode, ProjectMetadata, ProjectSession, QuestionItem, QuestionStatus
+from app.models.project import (
+    OutputMode,
+    ProjectMetadata,
+    ProjectSession,
+    QuestionItem,
+    QuestionPart,
+    QuestionStatus,
+)
 from app.services.export import build_project_docx_bytes
 
 client = TestClient(app)
@@ -102,6 +111,112 @@ def test_build_project_docx_bilingual_export_includes_original_and_translation()
     assert "اذكر وظيفة غشاء الخلية" in text
     assert "ثنائية اللغة" in text
 
+
+def test_build_project_docx_exports_question_parts_as_structured_blocks():
+    project = ProjectSession(
+        metadata=ProjectMetadata(
+            paper_title="Multipart practice",
+            subject="الفيزياء",
+            output_mode=OutputMode.bilingual,
+        ),
+        questions=[
+            QuestionItem(
+                id="q-parts",
+                original_number="4",
+                original_text="RAW MULTIPART TEXT MUST NOT BE DUPLICATED",
+                translated_text="ترجمة مجمعة لا ينبغي تكرارها",
+                marks=None,
+                detected_marks=None,
+                order_index=1,
+                parts=[
+                    QuestionPart(
+                        id="part-b",
+                        label="(b)",
+                        original_text="Calculate the resultant force.",
+                        translated_text="احسب القوة المحصلة.",
+                        marks=2,
+                        order_index=2,
+                    ),
+                    QuestionPart(
+                        id="part-a",
+                        label="(a)",
+                        original_text="State the unit of force.",
+                        translated_text="اذكر وحدة القوة.",
+                        marks=1,
+                        order_index=1,
+                    ),
+                ],
+            )
+        ],
+    )
+
+    text = _read_docx_text(build_project_docx_bytes(project))
+
+    assert "السؤال 1 [3]" in text
+    assert "(a) [1]" in text
+    assert "(b) [2]" in text
+    assert text.index("(a) [1]") < text.index("(b) [2]")
+    assert "State the unit of force." in text
+    assert "اذكر وحدة القوة." in text
+    assert "Calculate the resultant force." in text
+    assert "احسب القوة المحصلة." in text
+    assert "RAW MULTIPART TEXT MUST NOT BE DUPLICATED" not in text
+    assert "ترجمة مجمعة لا ينبغي تكرارها" not in text
+    assert "مجموع الدرجات: 3" in text
+
+
+
+def test_docx_mixed_direction_headings_keep_stable_alignment():
+    project = ProjectSession(
+        metadata=ProjectMetadata(
+            paper_title="تدريب مترجم من ورقة اختبار دولية",
+            subject="الفيزياء",
+            output_mode=OutputMode.bilingual,
+        ),
+        questions=[
+            QuestionItem(
+                id="q-parts-direction",
+                original_number="4",
+                original_text="RAW MULTIPART TEXT",
+                translated_text="ترجمة مجمعة",
+                order_index=1,
+                parts=[
+                    QuestionPart(
+                        id="part-i",
+                        label="(i)",
+                        original_text="State the unit of force.",
+                        translated_text="اذكر وحدة القوة.",
+                        marks=1,
+                        order_index=1,
+                    )
+                ],
+            )
+        ],
+    )
+
+    document = Document(BytesIO(build_project_docx_bytes(project)))
+
+    title = next(
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph.text == "تدريب مترجم من ورقة اختبار دولية"
+    )
+    question_heading = next(
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph.text == "السؤال 1 [1]"
+    )
+    part_heading = next(
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph.text == "(i) [1]"
+    )
+
+    assert title.alignment == WD_ALIGN_PARAGRAPH.CENTER
+    assert question_heading.alignment == WD_ALIGN_PARAGRAPH.RIGHT
+    assert part_heading.alignment == WD_ALIGN_PARAGRAPH.RIGHT
+    assert question_heading._p.pPr.find(qn("w:bidi")) is None
+    assert part_heading._p.pPr.find(qn("w:bidi")) is None
 
 def test_export_docx_endpoint_returns_downloadable_word_file():
     create_response = client.post("/api/projects")

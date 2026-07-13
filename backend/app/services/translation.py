@@ -1,7 +1,7 @@
 import re
 from uuid import uuid4
 
-from app.models.project import GlossaryTerm, QuestionItem, QuestionStatus
+from app.models.project import GlossaryTerm, QuestionItem, QuestionPart, QuestionStatus
 from app.services.ai_provider import translate_with_optional_external_provider
 
 
@@ -194,6 +194,74 @@ def translate_question_text(original_text: str, glossary: list[GlossaryTerm]) ->
     return translated
 
 
+def _translate_text_with_provider(
+    original_text: str,
+    glossary: list[GlossaryTerm],
+):
+    """Translate one text block through the configured provider with fallback."""
+
+    fallback_translation = translate_question_text(original_text, glossary)
+    return translate_with_optional_external_provider(
+        original_text=original_text,
+        glossary=glossary,
+        fallback_translation=fallback_translation,
+    )
+
+
+def _translate_question_parts(
+    parts: list[QuestionPart],
+    glossary: list[GlossaryTerm],
+) -> tuple[list[QuestionPart], list[str], list[str]]:
+    """Translate multipart-question parts independently and preserve structure.
+
+    Each part is sent through the provider separately. This keeps command words,
+    units, marks, and fallback behaviour isolated per part instead of asking one
+    remote response to untangle an entire OCR-heavy multipart question.
+    """
+
+    translated_parts: list[QuestionPart] = []
+    providers: list[str] = []
+    notes: list[str] = []
+
+    for part in sorted(parts, key=lambda item: item.order_index):
+        original_text = part.original_text.strip()
+        if not original_text:
+            translated_parts.append(part)
+            continue
+
+        provider_result = _translate_text_with_provider(original_text, glossary)
+        translated_parts.append(
+            part.model_copy(
+                update={
+                    "translated_text": provider_result.translated_text,
+                }
+            )
+        )
+        providers.append(provider_result.provider)
+        if provider_result.note:
+            notes.append(provider_result.note)
+
+    return translated_parts, providers, notes
+
+
+def _build_combined_parts_translation(parts: list[QuestionPart]) -> str:
+    """Build a readable question-level translation from translated parts.
+
+    The canonical editable data remains ``QuestionItem.parts``. The combined
+    value keeps older readiness/UI paths compatible without translating the same
+    multipart question twice.
+    """
+
+    lines: list[str] = []
+    for part in sorted(parts, key=lambda item: item.order_index):
+        translated_text = part.translated_text.strip()
+        if not translated_text:
+            continue
+        label = part.label.strip()
+        lines.append(f"{label} {translated_text}".strip())
+    return "\n".join(lines)
+
+
 def translate_questions_with_glossary(questions: list[QuestionItem], glossary: list[GlossaryTerm]) -> list[QuestionItem]:
     """Translate non-deleted questions using the reviewed glossary and provider layer."""
 
@@ -203,30 +271,73 @@ def translate_questions_with_glossary(questions: list[QuestionItem], glossary: l
             translated_questions.append(question)
             continue
 
-        fallback_translation = translate_question_text(question.original_text, glossary)
-        provider_result = translate_with_optional_external_provider(
-            original_text=question.original_text,
-            glossary=glossary,
-            fallback_translation=fallback_translation,
+        translated_parts: list[QuestionPart] = []
+        provider_names: list[str] = []
+        provider_notes: list[str] = []
+
+        if question.parts:
+            translated_parts, provider_names, provider_notes = _translate_question_parts(
+                question.parts,
+                glossary,
+            )
+            translated_text = _build_combined_parts_translation(translated_parts)
+
+            # A malformed/manual empty parts list must not erase the established
+            # whole-question translation path.
+            if not translated_text:
+                provider_result = _translate_text_with_provider(
+                    question.original_text,
+                    glossary,
+                )
+                translated_text = provider_result.translated_text
+                provider_names.append(provider_result.provider)
+                if provider_result.note:
+                    provider_notes.append(provider_result.note)
+        else:
+            provider_result = _translate_text_with_provider(
+                question.original_text,
+                glossary,
+            )
+            translated_text = provider_result.translated_text
+            provider_names.append(provider_result.provider)
+            if provider_result.note:
+                provider_notes.append(provider_result.note)
+
+        providers_used = sorted(set(provider_names)) or ["mock"]
+        translated_part_count = sum(
+            1
+            for part in translated_parts
+            if part.original_text.strip() and part.translated_text.strip()
+        )
+        parts_note = (
+            " تمت ترجمة أجزاء السؤال بصورة مستقلة "
+            f"(العدد: {translated_part_count})."
+            if translated_part_count
+            else ""
         )
 
         review_note = (
             "ترجمة Phase 1-G1 عبر طبقة مزود الترجمة. "
-            f"المزود المستخدم: {provider_result.provider}. "
+            f"المزود المستخدم: {', '.join(providers_used)}."
+            f"{parts_note} "
             "راجع الترجمة قبل التصدير."
         )
-        if provider_result.note:
-            review_note = f"{review_note}\n{provider_result.note}"
+        for provider_note in dict.fromkeys(provider_notes):
+            review_note = f"{review_note}\n{provider_note}"
         if question.review_notes:
             review_note = f"{question.review_notes}\n{review_note}"
 
+        update_data: dict[str, object] = {
+            "translated_text": translated_text,
+            "status": QuestionStatus.needs_review,
+            "review_notes": review_note,
+        }
+        if question.parts:
+            update_data["parts"] = translated_parts
+
         translated_questions.append(
             question.model_copy(
-                update={
-                    "translated_text": provider_result.translated_text,
-                    "status": QuestionStatus.needs_review,
-                    "review_notes": review_note,
-                }
+                update=update_data
             )
         )
     return translated_questions

@@ -230,7 +230,7 @@ export function ReviewStep({
           disabled={activeQuestions.length === 0}
         >
           <Languages size={18} />
-          ترجمة الأسئلة
+          ترجمة الأسئلة وأجزائها
         </button>
       </div>
 
@@ -250,8 +250,9 @@ export function ReviewStep({
           !translationProviderStatus?.configured
             ? "ترجمة تجريبية محلية مع fallback"
             : `مزود خارجي مفعل: ${translationProviderStatus.provider} / ${translationProviderStatus.model}`}
-          . راجع الترجمة قبل أي تصدير، فالذكاء الاصطناعي ليس موظف ضبط جودة حتى
-          الآن.
+          . تُترجم أجزاء السؤال بصورة مستقلة عند وجودها، مع fallback آمن لكل
+          جزء. راجع الترجمة قبل أي تصدير، فالذكاء الاصطناعي ليس موظف ضبط جودة
+          حتى الآن.
         </span>
       </div>
 

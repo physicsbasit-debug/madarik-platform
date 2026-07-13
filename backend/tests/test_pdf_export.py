@@ -4,7 +4,14 @@ from fastapi.testclient import TestClient
 from pypdf import PdfReader
 
 from app.main import app
-from app.models.project import OutputMode, ProjectMetadata, ProjectSession, QuestionItem, QuestionStatus
+from app.models.project import (
+    OutputMode,
+    ProjectMetadata,
+    ProjectSession,
+    QuestionItem,
+    QuestionPart,
+    QuestionStatus,
+)
 from app.services.export import build_project_pdf_bytes
 
 client = TestClient(app)
@@ -13,6 +20,11 @@ client = TestClient(app)
 def _pdf_page_count(pdf_bytes: bytes) -> int:
     reader = PdfReader(BytesIO(pdf_bytes))
     return len(reader.pages)
+
+
+def _pdf_text(pdf_bytes: bytes) -> str:
+    reader = PdfReader(BytesIO(pdf_bytes))
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
 
 
 def test_build_project_pdf_arabic_export_filters_deleted_questions():
@@ -88,6 +100,59 @@ def test_build_project_pdf_bilingual_export_builds_valid_pdf():
 
     assert pdf_bytes.startswith(b"%PDF")
     assert _pdf_page_count(pdf_bytes) == 1
+
+
+def test_build_project_pdf_exports_question_parts_as_structured_blocks():
+    project = ProjectSession(
+        metadata=ProjectMetadata(
+            paper_title="Multipart practice",
+            subject="الفيزياء",
+            output_mode=OutputMode.bilingual,
+        ),
+        questions=[
+            QuestionItem(
+                id="q-parts",
+                original_number="4",
+                original_text="RAW MULTIPART TEXT MUST NOT BE DUPLICATED",
+                translated_text="ترجمة مجمعة لا ينبغي تكرارها",
+                order_index=1,
+                parts=[
+                    QuestionPart(
+                        id="part-a",
+                        label="(a)",
+                        original_text="State the unit of force.",
+                        translated_text="اذكر وحدة القوة.",
+                        marks=1,
+                        order_index=1,
+                    ),
+                    QuestionPart(
+                        id="part-b",
+                        label="(b)",
+                        original_text="Calculate the resultant force.",
+                        translated_text="احسب القوة المحصلة.",
+                        marks=2,
+                        order_index=2,
+                    ),
+                ],
+            )
+        ],
+    )
+
+    pdf_bytes = build_project_pdf_bytes(project)
+    text = _pdf_text(pdf_bytes)
+
+    assert pdf_bytes.startswith(b"%PDF")
+    assert _pdf_page_count(pdf_bytes) >= 1
+    # pypdf may omit the leading opening parenthesis when extracting
+    # right-aligned Latin labels from an RTL-aware PDF. Matching from the
+    # label letter keeps the assertion valid for both ``(a) [1]`` and
+    # ``a) [1]`` while the later visual export check covers rendering.
+    assert "a) [1]" in text
+    assert "b) [2]" in text
+    assert text.index("a) [1]") < text.index("b) [2]")
+    assert "State the unit of force." in text
+    assert "Calculate the resultant force." in text
+    assert "RAW MULTIPART TEXT MUST NOT BE DUPLICATED" not in text
 
 
 def test_export_pdf_endpoint_returns_downloadable_pdf_file():
