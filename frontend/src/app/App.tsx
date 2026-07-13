@@ -1178,13 +1178,13 @@ export function App() {
       setApiStatus("connected");
       setActiveIndex(4);
       setLastSyncNote(
-        "تمت ترجمة الأسئلة عبر طبقة مزود Phase 1-G1 مع fallback آمن وقابل للمراجعة.",
+        "تمت ترجمة الأسئلة وأجزائها بصورة مستقلة عبر طبقة المزود مع fallback آمن وقابل للمراجعة.",
       );
     } catch (error) {
       console.error(error);
       setApiStatus("connected");
       setLastSyncNote(
-        "تعذر تشغيل ترجمة الأسئلة. تحقق من وجود أسئلة محللة ثم أعد المحاولة.",
+        "تعذر تشغيل ترجمة الأسئلة وأجزائها. تحقق من وجود أسئلة محللة ثم أعد المحاولة.",
       );
     }
   }

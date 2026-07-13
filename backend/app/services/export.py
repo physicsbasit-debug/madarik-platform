@@ -27,7 +27,13 @@ from reportlab.platypus import Image as RLImage, Paragraph, SimpleDocTemplate, S
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-from app.models.project import OutputMode, ProjectSession, QuestionItem, QuestionStatus
+from app.models.project import (
+    OutputMode,
+    ProjectSession,
+    QuestionItem,
+    QuestionPart,
+    QuestionStatus,
+)
 
 DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_MIME_TYPE = "application/pdf"
@@ -330,8 +336,10 @@ def _add_title(
     project: ProjectSession,
 ) -> None:
     title = document.add_paragraph()
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     _set_paragraph_bidi(title, rtl=True)
+    # Set centering after bidi because _set_paragraph_bidi assigns a
+    # direction-based alignment by default.
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     title_run = title.add_run(
         _clean_export_text(
@@ -344,8 +352,8 @@ def _add_title(
     _set_run_rtl(title_run, rtl=True)
 
     subtitle = document.add_paragraph()
-    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
     _set_paragraph_bidi(subtitle, rtl=True)
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     subtitle_run = subtitle.add_run("منصة مدارك")
     subtitle_run.font.size = Pt(10)
@@ -442,9 +450,34 @@ def _active_questions(project: ProjectSession) -> list[QuestionItem]:
 
 
 def _question_marks_label(question: QuestionItem) -> str:
-    if question.marks is None:
+    marks = _question_total_marks(question)
+    if marks is None:
         return ""
-    return f" [{question.marks}]"
+    return f" [{marks}]"
+
+
+def _question_total_marks(question: QuestionItem) -> int | None:
+    """Return explicit question marks or a safe sum of structured parts."""
+
+    if question.marks is not None:
+        return question.marks
+
+    part_marks = [
+        part.marks
+        for part in question.parts
+        if part.marks is not None
+    ]
+    return sum(part_marks) if part_marks else None
+
+
+def _part_heading_text(part: QuestionPart) -> str:
+    label = _clean_export_text(part.label) or "(جزء)"
+    marks = f" [{part.marks}]" if part.marks is not None else ""
+    return f"{label}{marks}"
+
+
+def _sorted_question_parts(question: QuestionItem) -> list[QuestionPart]:
+    return sorted(question.parts, key=lambda part: part.order_index)
 
 
 def _question_heading_text(
@@ -463,10 +496,14 @@ def _add_question_number(
     question: QuestionItem,
 ) -> None:
     paragraph = document.add_paragraph()
+    # The heading mixes Arabic with Latin digits/brackets. Keeping the
+    # paragraph LTR but right-aligned prevents LibreOffice/Word from
+    # moving the whole heading to the left margin or reversing [marks].
     _set_paragraph_bidi(
         paragraph,
-        rtl=True,
+        rtl=False,
     )
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
     paragraph.paragraph_format.space_before = Pt(8)
     paragraph.paragraph_format.space_after = Pt(4)
@@ -508,6 +545,46 @@ def _add_english_text(
         fallback="[Original text unavailable]",
         font_size=10.5,
     )
+
+
+def _add_docx_part_heading(
+    document: Document,
+    part: QuestionPart,
+) -> None:
+    paragraph = document.add_paragraph()
+    # Part labels such as (i) [1] are LTR tokens. Use an LTR paragraph
+    # aligned to the right so their parentheses and marks stay intact.
+    _set_paragraph_bidi(paragraph, rtl=False)
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    paragraph.paragraph_format.right_indent = Inches(0.18)
+    paragraph.paragraph_format.space_before = Pt(5)
+    paragraph.paragraph_format.space_after = Pt(2)
+
+    run = paragraph.add_run(_part_heading_text(part))
+    run.bold = True
+    run.font.size = Pt(11.5)
+    _set_run_rtl(run, rtl=False)
+
+
+def _add_docx_question_parts(
+    document: Document,
+    project: ProjectSession,
+    question: QuestionItem,
+) -> None:
+    for part in _sorted_question_parts(question):
+        _add_docx_part_heading(document, part)
+
+        if project.metadata.output_mode == OutputMode.bilingual:
+            _add_english_text(document, part.original_text)
+            _add_arabic_text(
+                document,
+                part.translated_text or "[تحتاج ترجمة]",
+            )
+        else:
+            _add_arabic_text(
+                document,
+                part.translated_text or part.original_text,
+            )
 
 
 
@@ -588,7 +665,13 @@ def _add_questions(
             question,
         )
 
-        if (
+        if question.parts:
+            _add_docx_question_parts(
+                document,
+                project,
+                question,
+            )
+        elif (
             project.metadata.output_mode
             == OutputMode.bilingual
         ):
@@ -647,7 +730,7 @@ def build_project_docx_bytes(project: ProjectSession) -> bytes:
     document = Document()
     _configure_document(document)
 
-    marks_total = sum(question.marks or 0 for question in questions)
+    marks_total = sum(_question_total_marks(question) or 0 for question in questions)
     _add_docx_logo(document, project)
     _add_title(document, project)
     _add_metadata_table(document, project, question_count=len(questions), marks_total=marks_total)
@@ -809,6 +892,18 @@ def _pdf_styles() -> dict[str, ParagraphStyle]:
             spaceBefore=10,
             spaceAfter=4,
         ),
+        "part": ParagraphStyle(
+            "MadarikQuestionPartTitle",
+            parent=base["Normal"],
+            fontName=font,
+            fontSize=10.5,
+            leading=15,
+            alignment=TA_RIGHT,
+            rightIndent=8,
+            textColor=colors.HexColor("#0f3b67"),
+            spaceBefore=5,
+            spaceAfter=2,
+        ),
         "small": ParagraphStyle(
             "MadarikSmall",
             parent=base["Normal"],
@@ -843,7 +938,7 @@ def _add_pdf_logo(story: list, project: ProjectSession) -> None:
 
 def _add_pdf_header(story: list, project: ProjectSession, questions: list[QuestionItem], styles: dict[str, ParagraphStyle]) -> None:
     metadata = project.metadata
-    marks_total = sum(question.marks or 0 for question in questions)
+    marks_total = sum(_question_total_marks(question) or 0 for question in questions)
     mode = "ثنائية اللغة" if metadata.output_mode == OutputMode.bilingual else "عربية نظيفة"
 
     story.append(_pdf_paragraph(metadata.paper_title or "ورقة تدريبية مترجمة", styles["title"], rtl=True))
@@ -905,6 +1000,46 @@ def _add_pdf_question_assets(story: list, question: QuestionItem, styles: dict[s
             story.append(_pdf_paragraph(f"تعذر إدراج المرفق: {asset.name}", styles["small"], rtl=True))
 
 
+def _add_pdf_question_parts(
+    story: list,
+    project: ProjectSession,
+    question: QuestionItem,
+    styles: dict[str, ParagraphStyle],
+) -> None:
+    for part in _sorted_question_parts(question):
+        story.append(
+            _pdf_paragraph(
+                _part_heading_text(part),
+                styles["part"],
+                rtl=False,
+            )
+        )
+
+        if project.metadata.output_mode == OutputMode.bilingual:
+            _add_pdf_text_blocks(
+                story,
+                part.original_text,
+                styles["body_en"],
+                rtl=False,
+                fallback="[Original text unavailable]",
+            )
+            _add_pdf_text_blocks(
+                story,
+                part.translated_text,
+                styles["body_ar"],
+                rtl=True,
+                fallback="[تحتاج ترجمة]",
+            )
+        else:
+            _add_pdf_text_blocks(
+                story,
+                part.translated_text or part.original_text,
+                styles["body_ar"],
+                rtl=True,
+                fallback="[تحتاج ترجمة]",
+            )
+
+
 
 
 def _add_pdf_questions(
@@ -928,7 +1063,14 @@ def _add_pdf_questions(
             )
         )
 
-        if (
+        if question.parts:
+            _add_pdf_question_parts(
+                story,
+                project,
+                question,
+                styles,
+            )
+        elif (
             project.metadata.output_mode
             == OutputMode.bilingual
         ):
