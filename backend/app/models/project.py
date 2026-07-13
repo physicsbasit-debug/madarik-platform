@@ -103,6 +103,17 @@ class QuestionOption(BaseModel):
     text: str
 
 
+class QuestionPart(BaseModel):
+    """One structured part of a multipart exam question."""
+
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    label: str
+    original_text: str
+    translated_text: str = ""
+    marks: int | None = None
+    order_index: int = Field(ge=1)
+
+
 class QuestionItem(BaseModel):
     id: str
     original_number: str
@@ -117,6 +128,7 @@ class QuestionItem(BaseModel):
     attachments: list[QuestionAssetInfo] = Field(default_factory=list)
     linked_layout_asset_ids: list[str] = Field(default_factory=list)
     options: list[QuestionOption] = Field(default_factory=list)
+    parts: list[QuestionPart] = Field(default_factory=list)
     review_notes: str | None = None
 
 

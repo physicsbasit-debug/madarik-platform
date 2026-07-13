@@ -10,7 +10,13 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from app.models.project import QuestionItem, QuestionOption, QuestionStatus
+from app.models.project import (
+    QuestionItem,
+    QuestionOption,
+    QuestionPart,
+    QuestionStatus,
+)
+from app.services.question_parts import parse_question_parts
 
 QUESTION_START_RE = re.compile(
     r"^\s*(?:question\s*)?(?P<number>\d{1,3})(?:\s*[\.)\]:-]|\s+)(?P<body>.*)$",
@@ -39,6 +45,7 @@ class ParsedQuestionDraft:
     raw_text: str
     detected_marks: int | None
     options: tuple[QuestionOption, ...] = ()
+    parts: tuple[QuestionPart, ...] = ()
 
 
 def _normalize_lines(text: str) -> list[str]:
@@ -168,6 +175,9 @@ def parse_questions_from_text(text: str) -> list[QuestionItem]:
         raw_text = "\n".join(current_lines).strip()
         if raw_text:
             original_text, options = _split_mcq_structure(raw_text)
+            parts = tuple(
+                parse_question_parts(original_text)
+            )
             drafts.append(
                 ParsedQuestionDraft(
                     original_number=current_number,
@@ -175,6 +185,7 @@ def parse_questions_from_text(text: str) -> list[QuestionItem]:
                     raw_text=raw_text,
                     detected_marks=_extract_marks(raw_text),
                     options=options,
+                    parts=parts,
                 )
             )
         current_number = None
@@ -195,6 +206,9 @@ def parse_questions_from_text(text: str) -> list[QuestionItem]:
     if not drafts:
         fallback_text = "\n".join(lines).strip()
         original_text, options = _split_mcq_structure(fallback_text)
+        fallback_parts = tuple(
+            parse_question_parts(original_text)
+        )
         detected_marks = _extract_marks(fallback_text)
         drafts = [
             ParsedQuestionDraft(
@@ -203,6 +217,7 @@ def parse_questions_from_text(text: str) -> list[QuestionItem]:
                 raw_text=fallback_text,
                 detected_marks=detected_marks,
                 options=options,
+                parts=fallback_parts,
             )
         ]
 
@@ -221,6 +236,7 @@ def parse_questions_from_text(text: str) -> list[QuestionItem]:
                 order_index=index,
                 attachment_note="لم يتم ربط الصور والجداول بعد. هذه الوظيفة مؤجلة.",
                 options=list(draft.options),
+                parts=list(draft.parts),
                 review_notes="تم تقسيم هذا السؤال آليًا بقواعد Phase 1-D ويحتاج مراجعة بشرية قبل التصدير.",
             )
         )
