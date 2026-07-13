@@ -235,3 +235,13 @@ class ProjectReadinessReport(BaseModel):
     deleted_question_count: int = Field(default=0, ge=0)
     total_marks: int = Field(default=0, ge=0)
     issues: list[ProjectReadinessIssue] = Field(default_factory=list)
+
+
+class VisualCropRequest(BaseModel):
+    """Normalized crop coordinates for one PDF layout snapshot."""
+
+    x: float = Field(ge=0, lt=1)
+    y: float = Field(ge=0, lt=1)
+    width: float = Field(gt=0, le=1)
+    height: float = Field(gt=0, le=1)
+    name: str | None = Field(default=None, max_length=120)

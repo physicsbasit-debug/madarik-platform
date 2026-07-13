@@ -3,7 +3,6 @@ import {
   ArrowRight,
   DatabaseZap,
   Download,
-  FileText,
   FolderOpen,
   RefreshCcw,
   Upload,
@@ -34,6 +33,7 @@ import {
   bulkUpdateQuestionStatus,
   createAuthAccount,
   createProject,
+  cropQuestionLayoutAsset,
   exportProjectDocx,
   exportProjectPdf,
   exportProjectSnapshot,
@@ -94,6 +94,7 @@ import type {
   StepKey,
   UploadedFileInfo,
   TranslationProviderStatus,
+  VisualCropRequest,
 } from "../types/project";
 
 function sortQuestions(questions: QuestionItem[]) {
@@ -573,7 +574,7 @@ export function App() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       const safeTitle = (metadata.paperTitle || "madarik-project").replace(
-        /[^A-Za-z0-9_\-]+/g,
+        /[^A-Za-z0-9_-]+/g,
         "_",
       );
       link.href = url;
@@ -987,6 +988,45 @@ export function App() {
     }
   }
 
+
+  async function handleQuestionLayoutAssetCrop(
+    questionId: string,
+    assetId: string,
+    crop: VisualCropRequest,
+  ) {
+    if (!projectId || apiStatus === "offline") {
+      setLastSyncNote(
+        "لا يمكن قص عنصر بصري دون اتصال Backend.",
+      );
+      throw new Error("Backend is unavailable.");
+    }
+
+    setApiStatus("syncing");
+
+    try {
+      const project = await cropQuestionLayoutAsset(
+        projectId,
+        questionId,
+        assetId,
+        crop,
+      );
+
+      applyProject(project);
+      setApiStatus("connected");
+      setLastSyncNote(
+        "تم قص العنصر البصري وحفظه داخل مرفقات السؤال.",
+      );
+    } catch (error) {
+      console.error(error);
+      setApiStatus("connected");
+      setLastSyncNote(
+        "فشل قص العنصر البصري. لم تتغير مرفقات السؤال.",
+      );
+      throw error;
+    }
+  }
+
+
   function updateQuestion(questionId: string, updates: Partial<QuestionItem>) {
     setQuestions((currentQuestions) =>
       currentQuestions.map((question) =>
@@ -1349,7 +1389,7 @@ export function App() {
       const link = document.createElement("a");
       link.href = url;
       const safeTitle = (metadata.paperTitle || "madarik-export").replace(
-        /[^A-Za-z0-9_\-]+/g,
+        /[^A-Za-z0-9_-]+/g,
         "_",
       );
       link.download = `${safeTitle || "madarik-export"}.docx`;
@@ -1393,7 +1433,7 @@ export function App() {
       const link = document.createElement("a");
       link.href = url;
       const safeTitle = (metadata.paperTitle || "madarik-export").replace(
-        /[^A-Za-z0-9_\-]+/g,
+        /[^A-Za-z0-9_-]+/g,
         "_",
       );
       link.download = `${safeTitle || "madarik-export"}.pdf`;
@@ -1599,6 +1639,7 @@ export function App() {
             onDeleteQuestionAsset={handleQuestionAssetDelete}
             onLinkQuestionLayoutAsset={handleQuestionLayoutAssetLink}
             onUnlinkQuestionLayoutAsset={handleQuestionLayoutAssetUnlink}
+            onCropQuestionLayoutAsset={handleQuestionLayoutAssetCrop}
             onDeleteLayoutAsset={handleLayoutAssetDelete}
             onReloadDemo={reloadDemoFromBackend}
             onParseQuestions={parseQuestionsFromExtractedText}
@@ -1679,6 +1720,11 @@ interface StepContentProps {
   onDeleteQuestionAsset: (questionId: string, assetId: string) => void;
   onLinkQuestionLayoutAsset: (questionId: string, assetId: string) => void;
   onUnlinkQuestionLayoutAsset: (questionId: string, assetId: string) => void;
+  onCropQuestionLayoutAsset: (
+    questionId: string,
+    assetId: string,
+    crop: VisualCropRequest,
+  ) => Promise<void>;
   onDeleteLayoutAsset: (assetId: string) => void;
   onReloadDemo: () => void;
   onParseQuestions: () => void;
@@ -1723,6 +1769,7 @@ function StepContent({
   onDeleteQuestionAsset,
   onLinkQuestionLayoutAsset,
   onUnlinkQuestionLayoutAsset,
+  onCropQuestionLayoutAsset,
   onDeleteLayoutAsset,
   onReloadDemo,
   onParseQuestions,
@@ -1790,6 +1837,7 @@ function StepContent({
           onDeleteQuestionAsset={onDeleteQuestionAsset}
           onLinkLayoutAsset={onLinkQuestionLayoutAsset}
           onUnlinkLayoutAsset={onUnlinkQuestionLayoutAsset}
+          onCropLayoutAsset={onCropQuestionLayoutAsset}
           translationProviderStatus={translationProviderStatus}
         />
       );

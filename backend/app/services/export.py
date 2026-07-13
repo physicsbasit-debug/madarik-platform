@@ -5,6 +5,7 @@ import base64
 import os
 import re
 from typing import Iterable
+from xml.sax.saxutils import escape as xml_escape
 
 from docx import Document
 from docx.enum.section import WD_SECTION_START
@@ -34,6 +35,188 @@ PDF_MIME_TYPE = "application/pdf"
 ARABIC_FONT_NAME = "MadarikArabic"
 ENGLISH_FONT_NAME = "Helvetica"
 
+_STALE_ATTACHMENT_NOTE_SNIPPETS = (
+    "لم يتم ربط الصور والجداول",
+    "هذه الوظيفة مؤجلة",
+)
+
+_SUBQUESTION_MARKER_RE = re.compile(
+    r"(?<!^)\s+"
+    r"(?=(?:"
+    r"\([a-z]\)"
+    r"|\([ivxlcdm]+\)"
+    r"|\(\d+\)"
+    r")\s*)",
+    re.IGNORECASE,
+)
+
+
+_DUPLICATE_FIGURE_REFERENCE_RE = re.compile(
+    r"("
+    r"Fig\.\s*(?P<number>\d+(?:\.\d+)*)\b"
+    r".{0,260}?[.!?]"
+    r")"
+    r"\s*"
+    r"[A-Za-z][A-Za-z \-]{1,70}?"
+    r"Fig\.\s*(?P=number)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _collapse_duplicate_figure_references(
+    value: str,
+) -> str:
+    """Remove duplicated figure captions and OCR image-label debris."""
+
+    current = value
+
+    for _ in range(3):
+        updated = _DUPLICATE_FIGURE_REFERENCE_RE.sub(
+            r"\1 ",
+            current,
+        )
+
+        if updated == current:
+            break
+
+        current = updated
+
+    return current
+
+
+def _is_xml_compatible_character(character: str) -> bool:
+    codepoint = ord(character)
+
+    return (
+        codepoint in (0x09, 0x0A, 0x0D)
+        or 0x20 <= codepoint <= 0xD7FF
+        or 0xE000 <= codepoint <= 0xFFFD
+        or 0x10000 <= codepoint <= 0x10FFFF
+    )
+
+
+
+def _clean_export_text(
+    value: object | None,
+) -> str:
+    """Clean OCR text for DOCX XML and ReportLab paragraphs."""
+
+    raw = str(value or "")
+    raw = raw.replace("\r\n", "\n").replace("\r", "\n")
+
+    cleaned = "".join(
+        character
+        if _is_xml_compatible_character(character)
+        else " "
+        for character in raw
+    )
+
+    for separator in (
+        "\u25a0",
+        "\u25aa",
+        "\u25a1",
+        "\ufffd",
+    ):
+        cleaned = cleaned.replace(separator, " ")
+
+    cleaned = cleaned.replace("\u00a0", " ")
+
+    # OCR sometimes joins two sentences as: quantity.mass
+    cleaned = re.sub(
+        r"(?<=[A-Za-z0-9])\.(?=[A-Za-z])",
+        ". ",
+        cleaned,
+    )
+
+    # OCR sometimes glues image labels to a repeated figure caption:
+    # "... ball. golf clubballFig. 2.2 The ball ..."
+    cleaned = _collapse_duplicate_figure_references(
+        cleaned,
+    )
+
+    normalized_lines: list[str] = []
+    previous_was_blank = False
+
+    for raw_line in cleaned.split("\n"):
+        line = re.sub(
+            r"[ \t]+",
+            " ",
+            raw_line,
+        ).strip()
+
+        if line:
+            normalized_lines.append(line)
+            previous_was_blank = False
+        elif normalized_lines and not previous_was_blank:
+            normalized_lines.append("")
+            previous_was_blank = True
+
+    return "\n".join(normalized_lines).strip()
+
+def _split_export_blocks(value: object | None) -> list[str]:
+    """Split OCR text into readable question-part paragraphs."""
+
+    cleaned = _clean_export_text(value)
+
+    if not cleaned:
+        return []
+
+    separated = _SUBQUESTION_MARKER_RE.sub(
+        "\n",
+        cleaned,
+    )
+
+    return [
+        block.strip()
+        for block in separated.splitlines()
+        if block.strip()
+    ]
+
+
+def _attachment_note_for_export(
+    question: QuestionItem,
+) -> str:
+    note = _clean_export_text(question.attachment_note)
+
+    if not note:
+        return ""
+
+    if question.attachments and any(
+        snippet in note
+        for snippet in _STALE_ATTACHMENT_NOTE_SNIPPETS
+    ):
+        return ""
+
+    return note
+
+
+def _add_docx_text_blocks(
+    document: Document,
+    text: object | None,
+    *,
+    rtl: bool,
+    fallback: str,
+    font_size: float,
+) -> None:
+    blocks = _split_export_blocks(text) or [fallback]
+
+    for block in blocks:
+        paragraph = document.add_paragraph()
+        _set_paragraph_bidi(paragraph, rtl=rtl)
+
+        paragraph.paragraph_format.space_after = Pt(3)
+        paragraph.paragraph_format.line_spacing = 1.15
+
+        if not rtl:
+            paragraph.paragraph_format.left_indent = Inches(0.2)
+
+        run = paragraph.add_run(
+            _clean_export_text(block),
+        )
+        run.font.size = Pt(font_size)
+        _set_run_rtl(run, rtl=rtl)
+
+
 
 def _set_paragraph_bidi(paragraph, *, rtl: bool = True) -> None:
     """Set paragraph direction for Arabic/English blocks."""
@@ -56,17 +239,34 @@ def _set_run_rtl(run, *, rtl: bool = True) -> None:
         r_pr.remove(rtl_el)
 
 
-def _set_cell_text(cell, label: str, value: str) -> None:
-    cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+
+def _set_cell_text(
+    cell,
+    label: str,
+    value: str,
+) -> None:
+    cell.vertical_alignment = (
+        WD_CELL_VERTICAL_ALIGNMENT.CENTER
+    )
+
     paragraph = cell.paragraphs[0]
     paragraph.clear()
     _set_paragraph_bidi(paragraph, rtl=True)
-    label_run = paragraph.add_run(f"{label}: ")
+
+    safe_label = _clean_export_text(label)
+    safe_value = (
+        _clean_export_text(value)
+        or "__________"
+    )
+
+    label_run = paragraph.add_run(
+        f"{safe_label}: "
+    )
     label_run.bold = True
     _set_run_rtl(label_run, rtl=True)
-    value_run = paragraph.add_run(value or "__________")
-    _set_run_rtl(value_run, rtl=True)
 
+    value_run = paragraph.add_run(safe_value)
+    _set_run_rtl(value_run, rtl=True)
 
 def _set_table_bidi(table) -> None:
     tbl_pr = table._tbl.tblPr
@@ -124,11 +324,21 @@ def _add_docx_logo(document: Document, project: ProjectSession) -> None:
         paragraph.clear()
 
 
-def _add_title(document: Document, project: ProjectSession) -> None:
+
+def _add_title(
+    document: Document,
+    project: ProjectSession,
+) -> None:
     title = document.add_paragraph()
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     _set_paragraph_bidi(title, rtl=True)
-    title_run = title.add_run(project.metadata.paper_title or "ورقة تدريبية مترجمة")
+
+    title_run = title.add_run(
+        _clean_export_text(
+            project.metadata.paper_title
+            or "ورقة تدريبية مترجمة"
+        )
+    )
     title_run.bold = True
     title_run.font.size = Pt(17)
     _set_run_rtl(title_run, rtl=True)
@@ -136,35 +346,93 @@ def _add_title(document: Document, project: ProjectSession) -> None:
     subtitle = document.add_paragraph()
     subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
     _set_paragraph_bidi(subtitle, rtl=True)
+
     subtitle_run = subtitle.add_run("منصة مدارك")
     subtitle_run.font.size = Pt(10)
     _set_run_rtl(subtitle_run, rtl=True)
 
 
-def _add_metadata_table(document: Document, project: ProjectSession, question_count: int, marks_total: int) -> None:
+def _add_metadata_table(
+    document: Document,
+    project: ProjectSession,
+    question_count: int,
+    marks_total: int,
+) -> None:
     metadata = project.metadata
-    table = document.add_table(rows=4, cols=2)
+
+    table = document.add_table(
+        rows=4,
+        cols=2,
+    )
     table.style = "Table Grid"
     _set_table_bidi(table)
 
     rows = [
-        (("اسم المدرسة", metadata.school_name), ("المادة", metadata.subject)),
-        (("الصف", metadata.grade), ("الفصل الدراسي", metadata.semester)),
-        (("الزمن", metadata.duration), ("الدرجة", metadata.total_marks or str(marks_total))),
-        (("اسم المعلم", metadata.teacher_name), ("التاريخ", metadata.date)),
+        (
+            ("اسم المدرسة", metadata.school_name),
+            ("المادة", metadata.subject),
+        ),
+        (
+            ("الصف", metadata.grade),
+            ("الفصل الدراسي", metadata.semester),
+        ),
+        (
+            ("الزمن", metadata.duration),
+            (
+                "الدرجة",
+                metadata.total_marks
+                or str(marks_total),
+            ),
+        ),
+        (
+            ("اسم المعلم", metadata.teacher_name),
+            ("التاريخ", metadata.date),
+        ),
     ]
 
-    for row, row_data in zip(table.rows, rows):
-        _set_cell_text(row.cells[0], row_data[0][0], row_data[0][1])
-        _set_cell_text(row.cells[1], row_data[1][0], row_data[1][1])
+    for row, row_data in zip(
+        table.rows,
+        rows,
+    ):
+        _set_cell_text(
+            row.cells[0],
+            row_data[0][0],
+            row_data[0][1],
+        )
+        _set_cell_text(
+            row.cells[1],
+            row_data[1][0],
+            row_data[1][1],
+        )
 
-    summary = document.add_paragraph()
-    _set_paragraph_bidi(summary, rtl=True)
-    mode = "ثنائية اللغة" if metadata.output_mode == OutputMode.bilingual else "عربية نظيفة"
-    run = summary.add_run(f"نوع النسخة: {mode} | عدد الأسئلة: {question_count} | مجموع الدرجات المحسوب: {marks_total}")
-    run.font.size = Pt(10)
-    _set_run_rtl(run, rtl=True)
+    mode = (
+        "ثنائية اللغة"
+        if metadata.output_mode == OutputMode.bilingual
+        else "عربية نظيفة"
+    )
 
+    summary_table = document.add_table(
+        rows=1,
+        cols=3,
+    )
+    summary_table.style = "Table Grid"
+    _set_table_bidi(summary_table)
+
+    summary_items = [
+        ("نوع النسخة", mode),
+        ("عدد الأسئلة", str(question_count)),
+        ("مجموع الدرجات", str(marks_total)),
+    ]
+
+    for cell, (label, value) in zip(
+        summary_table.rows[0].cells,
+        summary_items,
+    ):
+        _set_cell_text(
+            cell,
+            label,
+            value,
+        )
 
 def _active_questions(project: ProjectSession) -> list[QuestionItem]:
     return sorted(
@@ -179,81 +447,186 @@ def _question_marks_label(question: QuestionItem) -> str:
     return f" [{question.marks}]"
 
 
-def _add_question_number(document: Document, number: int, question: QuestionItem) -> None:
+def _question_heading_text(
+    number: int,
+    question: QuestionItem,
+) -> str:
+    return (
+        f"السؤال {number}"
+        f"{_question_marks_label(question)}"
+    )
+
+
+def _add_question_number(
+    document: Document,
+    number: int,
+    question: QuestionItem,
+) -> None:
     paragraph = document.add_paragraph()
-    _set_paragraph_bidi(paragraph, rtl=True)
-    run = paragraph.add_run(f"{number}. السؤال{_question_marks_label(question)}")
+    _set_paragraph_bidi(
+        paragraph,
+        rtl=True,
+    )
+
+    paragraph.paragraph_format.space_before = Pt(8)
+    paragraph.paragraph_format.space_after = Pt(4)
+
+    run = paragraph.add_run(
+        _question_heading_text(
+            number,
+            question,
+        )
+    )
     run.bold = True
     run.font.size = Pt(13)
-    _set_run_rtl(run, rtl=True)
+    _set_run_rtl(
+        run,
+        rtl=True,
+    )
+
+def _add_arabic_text(
+    document: Document,
+    text: str,
+) -> None:
+    _add_docx_text_blocks(
+        document,
+        text,
+        rtl=True,
+        fallback="[ترجمة تحتاج مراجعة]",
+        font_size=12,
+    )
 
 
-def _add_arabic_text(document: Document, text: str) -> None:
-    paragraph = document.add_paragraph()
-    _set_paragraph_bidi(paragraph, rtl=True)
-    run = paragraph.add_run(text.strip() or "[ترجمة تحتاج مراجعة]")
-    run.font.size = Pt(12)
-    _set_run_rtl(run, rtl=True)
+def _add_english_text(
+    document: Document,
+    text: str,
+) -> None:
+    _add_docx_text_blocks(
+        document,
+        text,
+        rtl=False,
+        fallback="[Original text unavailable]",
+        font_size=10.5,
+    )
 
 
-def _add_english_text(document: Document, text: str) -> None:
-    paragraph = document.add_paragraph()
-    _set_paragraph_bidi(paragraph, rtl=False)
-    paragraph.paragraph_format.left_indent = Inches(0.2)
-    run = paragraph.add_run(text.strip())
-    run.font.size = Pt(10.5)
-    _set_run_rtl(run, rtl=False)
 
-
-def _add_docx_question_assets(document: Document, question: QuestionItem) -> None:
+def _add_docx_question_assets(
+    document: Document,
+    question: QuestionItem,
+) -> None:
     if not question.attachments:
         return
 
     label = document.add_paragraph()
-    _set_paragraph_bidi(label, rtl=True)
-    label_run = label.add_run("مرفقات السؤال:")
+    _set_paragraph_bidi(
+        label,
+        rtl=True,
+    )
+
+    label.paragraph_format.space_before = Pt(5)
+    label.paragraph_format.space_after = Pt(3)
+
+    label_run = label.add_run(
+        "مرفقات السؤال:"
+    )
     label_run.bold = True
     label_run.font.size = Pt(10)
-    _set_run_rtl(label_run, rtl=True)
+    _set_run_rtl(
+        label_run,
+        rtl=True,
+    )
 
     for asset in question.attachments:
-        asset_bytes = _asset_bytes(asset.data_base64)
+        asset_bytes = _asset_bytes(
+            asset.data_base64,
+        )
+
         if not asset_bytes:
             continue
+
         paragraph = document.add_paragraph()
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph.paragraph_format.space_after = Pt(4)
+
         try:
             run = paragraph.add_run()
-            run.add_picture(BytesIO(asset_bytes), width=Inches(4.6))
+            run.add_picture(
+                BytesIO(asset_bytes),
+                width=Inches(3.8),
+            )
         except Exception:
             paragraph.clear()
-            _set_paragraph_bidi(paragraph, rtl=True)
-            broken = paragraph.add_run(f"تعذر إدراج المرفق: {asset.name}")
+            _set_paragraph_bidi(
+                paragraph,
+                rtl=True,
+            )
+
+            broken = paragraph.add_run(
+                "تعذر إدراج المرفق: "
+                + _clean_export_text(asset.name)
+            )
             broken.font.size = Pt(9)
             broken.italic = True
-            _set_run_rtl(broken, rtl=True)
+            _set_run_rtl(
+                broken,
+                rtl=True,
+            )
 
+def _add_questions(
+    document: Document,
+    project: ProjectSession,
+    questions: list[QuestionItem],
+) -> None:
+    for display_number, question in enumerate(
+        questions,
+        start=1,
+    ):
+        _add_question_number(
+            document,
+            display_number,
+            question,
+        )
 
-def _add_questions(document: Document, project: ProjectSession, questions: list[QuestionItem]) -> None:
-    for display_number, question in enumerate(questions, start=1):
-        _add_question_number(document, display_number, question)
-
-        if project.metadata.output_mode == OutputMode.bilingual:
-            _add_english_text(document, question.original_text)
-            _add_arabic_text(document, question.translated_text or "[تحتاج ترجمة]")
+        if (
+            project.metadata.output_mode
+            == OutputMode.bilingual
+        ):
+            _add_english_text(
+                document,
+                question.original_text,
+            )
+            _add_arabic_text(
+                document,
+                question.translated_text
+                or "[تحتاج ترجمة]",
+            )
         else:
-            _add_arabic_text(document, question.translated_text or question.original_text)
+            _add_arabic_text(
+                document,
+                question.translated_text
+                or question.original_text,
+            )
 
-        _add_docx_question_assets(document, question)
+        _add_docx_question_assets(
+            document,
+            question,
+        )
 
-        if question.attachment_note:
+        attachment_note = (
+            _attachment_note_for_export(question)
+        )
+
+        if attachment_note:
             note = document.add_paragraph()
             _set_paragraph_bidi(note, rtl=True)
-            note_run = note.add_run(f"ملاحظة مرفق: {question.attachment_note}")
+
+            note_run = note.add_run(
+                f"ملاحظة مرفق: {attachment_note}"
+            )
             note_run.italic = True
             note_run.font.size = Pt(10)
             _set_run_rtl(note_run, rtl=True)
-
 
 def _add_footer_note(document: Document) -> None:
     paragraph = document.add_paragraph()
@@ -337,11 +710,50 @@ def _shape_arabic(text: str) -> str:
     return get_display(reshaped)
 
 
-def _pdf_paragraph(text: str, style: ParagraphStyle, *, rtl: bool = True) -> Paragraph:
-    prepared = _shape_arabic(text) if rtl else text
-    safe = prepared.replace("\n", "<br/>")
-    return Paragraph(safe, style)
 
+def _pdf_paragraph(
+    text: str,
+    style: ParagraphStyle,
+    *,
+    rtl: bool = True,
+) -> Paragraph:
+    cleaned = _clean_export_text(text)
+
+    prepared = (
+        _shape_arabic(cleaned)
+        if rtl
+        else cleaned
+    )
+
+    safe = xml_escape(prepared).replace(
+        "\n",
+        "<br/>",
+    )
+
+    return Paragraph(
+        safe or " ",
+        style,
+    )
+
+
+def _add_pdf_text_blocks(
+    story: list,
+    text: object | None,
+    style: ParagraphStyle,
+    *,
+    rtl: bool,
+    fallback: str,
+) -> None:
+    blocks = _split_export_blocks(text) or [fallback]
+
+    for block in blocks:
+        story.append(
+            _pdf_paragraph(
+                block,
+                style,
+                rtl=rtl,
+            )
+        )
 
 def _pdf_styles() -> dict[str, ParagraphStyle]:
     font = _ensure_pdf_font()
@@ -493,21 +905,77 @@ def _add_pdf_question_assets(story: list, question: QuestionItem, styles: dict[s
             story.append(_pdf_paragraph(f"تعذر إدراج المرفق: {asset.name}", styles["small"], rtl=True))
 
 
-def _add_pdf_questions(story: list, project: ProjectSession, questions: list[QuestionItem], styles: dict[str, ParagraphStyle]) -> None:
-    for display_number, question in enumerate(questions, start=1):
-        story.append(_pdf_paragraph(f"{display_number}. السؤال{_question_marks_label(question)}", styles["question"], rtl=True))
 
-        if project.metadata.output_mode == OutputMode.bilingual:
-            story.append(_pdf_paragraph(question.original_text.strip(), styles["body_en"], rtl=False))
-            story.append(_pdf_paragraph(question.translated_text or "[تحتاج ترجمة]", styles["body_ar"], rtl=True))
+
+def _add_pdf_questions(
+    story: list,
+    project: ProjectSession,
+    questions: list[QuestionItem],
+    styles: dict[str, ParagraphStyle],
+) -> None:
+    for display_number, question in enumerate(
+        questions,
+        start=1,
+    ):
+        story.append(
+            _pdf_paragraph(
+                _question_heading_text(
+                    display_number,
+                    question,
+                ),
+                styles["question"],
+                rtl=True,
+            )
+        )
+
+        if (
+            project.metadata.output_mode
+            == OutputMode.bilingual
+        ):
+            _add_pdf_text_blocks(
+                story,
+                question.original_text,
+                styles["body_en"],
+                rtl=False,
+                fallback="[Original text unavailable]",
+            )
+            _add_pdf_text_blocks(
+                story,
+                question.translated_text,
+                styles["body_ar"],
+                rtl=True,
+                fallback="[تحتاج ترجمة]",
+            )
         else:
-            story.append(_pdf_paragraph(question.translated_text or question.original_text, styles["body_ar"], rtl=True))
+            _add_pdf_text_blocks(
+                story,
+                (
+                    question.translated_text
+                    or question.original_text
+                ),
+                styles["body_ar"],
+                rtl=True,
+                fallback="[تحتاج ترجمة]",
+            )
 
-        _add_pdf_question_assets(story, question, styles)
+        _add_pdf_question_assets(
+            story,
+            question,
+            styles,
+        )
 
-        if question.attachment_note:
-            story.append(_pdf_paragraph(f"ملاحظة مرفق: {question.attachment_note}", styles["small"], rtl=True))
+        attachment_note = (
+            _attachment_note_for_export(question)
+        )
 
+        if attachment_note:
+            story.append(
+                _pdf_paragraph(
+                    f"ملاحظة مرفق: {attachment_note}",
+                    styles["small"],
+                    rtl=True,
+                )
+            )
 
 def _draw_pdf_footer(canvas, doc) -> None:
     font = _ensure_pdf_font()

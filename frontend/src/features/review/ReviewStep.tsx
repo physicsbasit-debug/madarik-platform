@@ -1,7 +1,11 @@
+import type { VisualCropRequest } from "../../types/project";
+import { useState } from "react";
+import { VisualCropDialog } from "./VisualCropDialog";
 import {
   ArrowDown,
   ArrowUp,
   CheckCircle2,
+  Crop,
   ImagePlus,
   Languages,
   Link2,
@@ -35,6 +39,11 @@ interface ReviewStepProps {
   onDeleteQuestionAsset: (questionId: string, assetId: string) => void;
   onLinkLayoutAsset: (questionId: string, assetId: string) => void;
   onUnlinkLayoutAsset: (questionId: string, assetId: string) => void;
+  onCropLayoutAsset: (
+    questionId: string,
+    assetId: string,
+    crop: VisualCropRequest,
+  ) => Promise<void>;
   translationProviderStatus: TranslationProviderStatus | null;
 }
 
@@ -61,6 +70,7 @@ export function ReviewStep({
   onDeleteQuestionAsset,
   onLinkLayoutAsset,
   onUnlinkLayoutAsset,
+  onCropLayoutAsset,
   translationProviderStatus,
 }: ReviewStepProps) {
   const sortedQuestions = [...questions].sort(
@@ -69,6 +79,31 @@ export function ReviewStep({
   const activeQuestions = sortedQuestions.filter(
     (question) => question.status !== "deleted",
   );
+
+  const [cropTarget, setCropTarget] = useState<{
+    questionId: string;
+    asset: PdfLayoutAssetInfo;
+  } | null>(null);
+  const [cropSaving, setCropSaving] = useState(false);
+
+  async function handleSaveCrop(
+    crop: VisualCropRequest,
+  ) {
+    if (!cropTarget) return;
+
+    setCropSaving(true);
+
+    try {
+      await onCropLayoutAsset(
+        cropTarget.questionId,
+        cropTarget.asset.id,
+        crop,
+      );
+      setCropTarget(null);
+    } finally {
+      setCropSaving(false);
+    }
+  }
 
   function getCurrentNumber(questionId: string) {
     const index = activeQuestions.findIndex(
@@ -309,11 +344,11 @@ export function ReviewStep({
               <section className="layout-link-panel">
                 <div className="asset-panel-header">
                   <div>
-                    <strong>لقطات PDF المرتبطة</strong>
+                    <strong>صفحات PDF المرجعية</strong>
                     <span>
                       {linkedLayoutAssets.length > 0
-                        ? `${linkedLayoutAssets.length} لقطة مرتبطة بهذا السؤال`
-                        : "لا توجد لقطة PDF مرتبطة بهذا السؤال"}
+                        ? `${linkedLayoutAssets.length} صفحة مرجعية مرتبطة بهذا السؤال`
+                        : "لا توجد صفحة PDF مرجعية مرتبطة بهذا السؤال"}
                     </span>
                   </div>
                 </div>
@@ -332,24 +367,44 @@ export function ReviewStep({
                         <div className="question-layout-asset-body">
                           <strong>صفحة {asset.pageNumber}</strong>
                           <span>{asset.note || asset.name}</span>
-                          <button
-                            type="button"
-                            className="secondary-button compact"
-                            onClick={() =>
-                              onUnlinkLayoutAsset(question.id, asset.id)
-                            }
-                            disabled={question.status === "deleted"}
-                          >
-                            <Unlink size={15} />
-                            فك الربط
-                          </button>
+                          <div className="question-layout-asset-actions">
+                            <button
+                              type="button"
+                              className="primary-button compact"
+                              onClick={() =>
+                                setCropTarget({
+                                  questionId: question.id,
+                                  asset,
+                                })
+                              }
+                              disabled={question.status === "deleted"}
+                            >
+                              <Crop size={15} />
+                              قص الشكل
+                            </button>
+
+                            <button
+                              type="button"
+                              className="secondary-button compact"
+                              onClick={() =>
+                                onUnlinkLayoutAsset(
+                                  question.id,
+                                  asset.id,
+                                )
+                              }
+                              disabled={question.status === "deleted"}
+                            >
+                              <Unlink size={15} />
+                              فك الربط
+                            </button>
+                          </div>
                         </div>
                       </article>
                     ))}
                   </div>
                 ) : (
                   <div className="attachment-box">
-                    لم تُربط أي لقطة مستخرجة من PDF بهذا السؤال بعد.
+                    لم تُربط أي صفحة PDF مرجعية بهذا السؤال بعد.
                   </div>
                 )}
 
@@ -443,6 +498,19 @@ export function ReviewStep({
           );
         })}
       </div>
+      {cropTarget ? (
+        <VisualCropDialog
+          asset={cropTarget.asset}
+          isSaving={cropSaving}
+          onCancel={() => {
+            if (!cropSaving) {
+              setCropTarget(null);
+            }
+          }}
+          onSave={handleSaveCrop}
+        />
+      ) : null}
+
     </section>
   );
 }
