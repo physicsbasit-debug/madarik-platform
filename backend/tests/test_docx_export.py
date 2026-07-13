@@ -72,7 +72,8 @@ def test_build_project_docx_arabic_export_filters_deleted_questions():
     assert "فسّر لماذا يتسارع الجسم" in text
     assert "اذكر وحدة القوة" in text
     assert "سؤال محذوف" not in text
-    assert "السؤال [2]" in text
+    assert "السؤال 1 [2]" in text
+    assert "السؤال 2 [1]" in text
 
 
 def test_build_project_docx_bilingual_export_includes_original_and_translation():

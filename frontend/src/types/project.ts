@@ -34,6 +34,15 @@ export interface SchoolLogoInfo {
   dataBase64: string;
 }
 
+
+export interface VisualCropRequest {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  name?: string | null;
+}
+
 export interface PdfLayoutAssetInfo {
   id: string;
   name: string;

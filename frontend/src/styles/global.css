@@ -1509,3 +1509,143 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* Phase 3-A2b: manual visual crop */
+.question-layout-asset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.visual-crop-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.visual-crop-dialog {
+  width: min(980px, 100%);
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
+  border-radius: 1.25rem;
+  background: #ffffff;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.3);
+}
+
+.visual-crop-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.4rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.visual-crop-header h3 {
+  margin: 0.2rem 0 0.45rem;
+}
+
+.visual-crop-header p {
+  margin-bottom: 0;
+}
+
+.visual-crop-workspace {
+  overflow: auto;
+  padding: 1.25rem;
+  text-align: center;
+  background: #f1f5f9;
+}
+
+.visual-crop-stage {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+  cursor: crosshair;
+  user-select: none;
+  touch-action: none;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.16);
+}
+
+.visual-crop-stage img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 62vh;
+  pointer-events: none;
+}
+
+.visual-crop-selection {
+  position: absolute;
+  border: 3px solid #2563eb;
+  background: rgba(37, 99, 235, 0.15);
+  box-shadow:
+    0 0 0 9999px rgba(15, 23, 42, 0.38),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+
+.visual-crop-controls {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(220px, 0.45fr);
+  gap: 1rem;
+  padding: 1.25rem 1.4rem 0;
+}
+
+.visual-crop-selection-status {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+}
+
+.visual-crop-selection-status span {
+  color: #475569;
+}
+
+.visual-crop-error {
+  margin: 1rem 1.4rem 0;
+  padding: 0.8rem 1rem;
+  border-radius: 0.75rem;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.visual-crop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.4rem;
+}
+
+@media (max-width: 720px) {
+  .visual-crop-backdrop {
+    padding: 0.5rem;
+  }
+
+  .visual-crop-dialog {
+    max-height: calc(100vh - 1rem);
+  }
+
+  .visual-crop-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .visual-crop-actions {
+    flex-direction: column-reverse;
+  }
+
+  .visual-crop-actions button {
+    width: 100%;
+  }
+}

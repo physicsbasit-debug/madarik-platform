@@ -12,7 +12,6 @@ import type {
   StepKey,
   UploadedFileInfo,
   TranslationProviderStatus,
-  AccountRole,
   AnswerKeyItem,
   EducationalAnalysisReport,
   EducationalQualityToolsReport,
@@ -21,6 +20,7 @@ import type {
   AuthSessionInfo,
   AuthStatus,
   AuthUpdateAccountInput,
+  VisualCropRequest,
 } from '../types/project';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -756,6 +756,24 @@ export async function unlinkQuestionLayoutAsset(
   return fromApiProject(project);
 }
 
+
+
+export async function cropQuestionLayoutAsset(
+  projectId: string,
+  questionId: string,
+  assetId: string,
+  crop: VisualCropRequest,
+): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(
+    `/projects/${projectId}/questions/${questionId}/layout-assets/${assetId}/crop`,
+    {
+      method: "POST",
+      body: JSON.stringify(crop),
+    },
+  );
+
+  return fromApiProject(project);
+}
 
 export async function parseExtractedQuestions(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/parse-questions`, { method: 'POST' });

@@ -39,6 +39,9 @@ from app.services.export import (
     safe_docx_filename,
     safe_pdf_filename,
 )
+from uuid import uuid4
+from app.models.project import VisualCropRequest
+from app.services.visual_crop import VisualCropError, crop_image_base64
 
 def _extract_bearer_token(authorization: str | None) -> str | None:
     if not authorization:
@@ -427,6 +430,100 @@ def unlink_question_layout_asset(
             detail="Project, question, or linked layout asset not found",
         )
     return project
+
+
+
+@router.post(
+    "/{project_id}/questions/{question_id}/layout-assets/{asset_id}/crop"
+)
+def crop_question_layout_asset(
+    project_id: str,
+    question_id: str,
+    asset_id: str,
+    payload: VisualCropRequest,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> ProjectSession:
+    """Crop one linked PDF page snapshot and save it as a question asset."""
+
+    project = _get_or_404(project_id, account)
+
+    question = next(
+        (
+            item
+            for item in project.questions
+            if item.id == question_id
+        ),
+        None,
+    )
+    if question is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project or question not found",
+        )
+
+    source_asset = next(
+        (
+            item
+            for item in project.layout_assets
+            if item.id == asset_id
+        ),
+        None,
+    )
+    if source_asset is None:
+        raise HTTPException(
+            status_code=404,
+            detail="PDF layout asset not found",
+        )
+
+    if asset_id not in question.linked_layout_asset_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="يجب ربط لقطة PDF بالسؤال قبل قص عنصر منها.",
+        )
+
+    try:
+        crop_result = crop_image_base64(
+            source_asset.data_base64,
+            x=payload.x,
+            y=payload.y,
+            width=payload.width,
+            height=payload.height,
+        )
+    except VisualCropError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    requested_name = (payload.name or "").strip()
+    asset_name = (
+        requested_name
+        or f"pdf-crop-page-{source_asset.page_number}.png"
+    )
+
+    if not asset_name.lower().endswith(".png"):
+        asset_name = f"{asset_name}.png"
+
+    cropped_asset = QuestionAssetInfo(
+        id=f"pdf-crop-{uuid4()}",
+        name=asset_name,
+        size=crop_result.size,
+        type=crop_result.mime_type,
+        data_base64=crop_result.data_base64,
+    )
+
+    updated_project = project_store.add_question_asset(
+        project_id,
+        question_id,
+        cropped_asset,
+    )
+    if updated_project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project or question not found",
+        )
+
+    return updated_project
 
 
 @router.post("/{project_id}/parse-questions")
