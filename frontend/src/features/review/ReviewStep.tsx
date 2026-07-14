@@ -452,14 +452,15 @@ export function ReviewStep({
       <div className="notice-card translation-notice">
         <strong>مزود الترجمة:</strong>
         <span>
-          الوضع الحالي:{" "}
-          {translationProviderStatus?.provider === "mock" ||
-          !translationProviderStatus?.configured
-            ? "ترجمة تجريبية محلية مع fallback"
-            : `مزود خارجي مفعل: ${translationProviderStatus.provider} / ${translationProviderStatus.model}`}
-          . تُترجم أجزاء السؤال بصورة مستقلة عند وجودها، مع fallback آمن لكل
-          جزء. راجع الترجمة قبل أي تصدير، فالذكاء الاصطناعي ليس موظف ضبط جودة
-          حتى الآن.
+          {translationProviderStatus?.ready
+            ? `جاهز للترجمة الفعلية: ${translationProviderStatus.provider} / ${translationProviderStatus.model}`
+            : "الترجمة الخارجية غير جاهزة؛ سيُستخدم fallback المحلي"}
+          {translationProviderStatus?.ready && translationProviderStatus.apiMode
+            ? ` عبر ${translationProviderStatus.apiMode === "responses" ? "Responses API" : "Chat Completions"}`
+            : ""}
+          . تُترجم أجزاء السؤال بصورة مستقلة عند وجودها. عند استخدام OpenAI
+          الرسمي ترسل مدارك الطلب مع store=false، ومع ذلك تبقى مراجعة المعلم
+          إلزامية قبل التصدير.
         </span>
       </div>
 

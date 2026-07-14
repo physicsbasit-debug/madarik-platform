@@ -187,11 +187,14 @@ export interface TranslationProviderStatus {
   ready?: boolean;
   reason?: string;
   model: string;
+  apiMode?: string;
   baseUrlConfigured?: boolean;
   timeoutSeconds?: number;
   maxInputChars?: number;
+  maxOutputTokens?: number;
   temperature?: number;
   supportedProviders?: string[];
+  storesResponses?: boolean;
   fallback: string;
 }
 

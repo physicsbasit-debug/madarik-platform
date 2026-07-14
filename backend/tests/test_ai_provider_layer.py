@@ -1,3 +1,4 @@
+import httpx
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
@@ -5,6 +6,7 @@ from app.main import app
 from app.models.project import GlossaryTerm
 from app.services.ai_provider import (
     build_translation_messages,
+    build_translation_prompts,
     get_ai_provider_status,
     translate_with_optional_external_provider,
 )
@@ -121,3 +123,113 @@ def test_provider_falls_back_when_input_too_long(monkeypatch):
     assert result.provider == "mock"
     assert result.used_external_provider is False
     assert "أطول من الحد" in result.note
+
+
+
+def test_build_translation_prompts_preserves_scientific_constraints():
+    system_prompt, user_prompt = build_translation_prompts(
+        "Calculate V = IR when I = 2 A. [2]",
+        [],
+    )
+
+    assert "لا تحل السؤال" in system_prompt
+    assert "الرموز" in system_prompt
+    assert "V = IR" in user_prompt
+    assert "2 A" in user_prompt
+
+
+def test_openai_provider_uses_responses_api_without_storage(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "openai")
+    monkeypatch.setattr(settings, "ai_api_key", "secret")
+    monkeypatch.setattr(settings, "ai_model", "test-model")
+    monkeypatch.setattr(settings, "ai_base_url", "https://api.openai.com/v1")
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 4000)
+    monkeypatch.setattr(settings, "ai_max_output_tokens", 1200)
+
+    captured: dict[str, object] = {}
+
+    def fake_post(url, *, headers, json, timeout):
+        captured.update({"url": url, "headers": headers, "json": json, "timeout": timeout})
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {"type": "output_text", "text": "فسّر لماذا تقل شدة التيار. [2]"}
+                        ],
+                    }
+                ]
+            },
+        )
+
+    monkeypatch.setattr("app.services.ai_provider.httpx.post", fake_post)
+
+    result = translate_with_optional_external_provider(
+        original_text="Explain why the current decreases. [2]",
+        glossary=[],
+        fallback_translation="fallback",
+    )
+
+    assert result.used_external_provider is True
+    assert result.provider == "openai"
+    assert result.translated_text == "فسّر لماذا تقل شدة التيار. [2]"
+    assert captured["url"] == "https://api.openai.com/v1/responses"
+    request_json = captured["json"]
+    assert isinstance(request_json, dict)
+    assert request_json["store"] is False
+    assert request_json["max_output_tokens"] == 1200
+    assert "messages" not in request_json
+
+
+def test_openai_compatible_provider_keeps_chat_completions(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "openai-compatible")
+    monkeypatch.setattr(settings, "ai_api_key", "secret")
+    monkeypatch.setattr(settings, "ai_model", "compatible-model")
+    monkeypatch.setattr(settings, "ai_base_url", "https://provider.example/v1")
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 4000)
+    monkeypatch.setattr(settings, "ai_max_output_tokens", 900)
+
+    captured: dict[str, object] = {}
+
+    def fake_post(url, *, headers, json, timeout):
+        captured.update({"url": url, "headers": headers, "json": json, "timeout": timeout})
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={"choices": [{"message": {"content": "اذكر وحدة القوة. [1]"}}]},
+        )
+
+    monkeypatch.setattr("app.services.ai_provider.httpx.post", fake_post)
+
+    result = translate_with_optional_external_provider(
+        original_text="State the unit of force. [1]",
+        glossary=[],
+        fallback_translation="fallback",
+    )
+
+    assert result.used_external_provider is True
+    assert result.provider == "openai-compatible"
+    assert captured["url"] == "https://provider.example/v1/chat/completions"
+    request_json = captured["json"]
+    assert isinstance(request_json, dict)
+    assert request_json["max_tokens"] == 900
+    assert "messages" in request_json
+
+
+def test_provider_status_reports_api_mode_and_privacy(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "openai")
+    monkeypatch.setattr(settings, "ai_api_key", "secret")
+    monkeypatch.setattr(settings, "ai_model", "test-model")
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_output_tokens", 1200)
+
+    status = get_ai_provider_status()
+
+    assert status["api_mode"] == "responses"
+    assert status["stores_responses"] is False
+    assert status["max_output_tokens"] == 1200
