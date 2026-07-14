@@ -58,6 +58,7 @@ export function ExportStep({
   const totalMarks = readiness?.totalMarks ?? approvedQuestions.reduce((sum, question) => sum + (question.marks ?? 0), 0);
   const glossaryNeedsReview = glossary.filter((term) => term.status === 'needs_review').length;
   const readinessBlocksExport = readiness ? !readiness.ready : approvedQuestions.length === 0;
+  const readinessHasWarnings = readiness?.issues.some((issue) => issue.severity === 'warning') ?? false;
 
   async function handleRefreshReadiness() {
     setIsCheckingReadiness(true);
@@ -201,7 +202,7 @@ export function ExportStep({
 
         <div className="metrics-row">
           <MetricCard label="الأسئلة المصدّرة" value={readiness?.exportableQuestionCount ?? approvedQuestions.length} hint="بعد الحذف" />
-          <MetricCard label="مجموع الدرجات" value={totalMarks} hint="محسوب تلقائيًا" />
+          <MetricCard label="مجموع الدرجات" value={totalMarks} hint="الدرجة العامة، أو مجموع الأجزاء عند غيابها" />
           <MetricCard label="أسئلة مترجمة" value={readiness?.translatedQuestionCount ?? 0} hint="حسب فحص Backend" />
           <MetricCard label="مصطلحات تحتاج مراجعة" value={glossaryNeedsReview} hint="للمعلم فقط" />
           <MetricCard label="مسودة الإجابة" value={answerKey.length} hint="للمعلم فقط" />
@@ -212,7 +213,7 @@ export function ExportStep({
         <div className={`readiness-card ${readiness?.ready ? 'success-card' : 'warning-card'}`}>
           {readiness?.ready ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
           <div>
-            <strong>{readiness?.ready ? 'الورقة جاهزة للتصدير' : 'توجد ملاحظات قبل التصدير'}</strong>
+            <strong>{readiness?.ready ? (readinessHasWarnings ? 'الورقة قابلة للتصدير مع تنبيهات' : 'الورقة جاهزة للتصدير') : 'توجد ملاحظات قبل التصدير'}</strong>
             <p>
               {readiness
                 ? `الأسئلة القابلة للتصدير: ${readiness.exportableQuestionCount}، المحذوفة: ${readiness.deletedQuestionCount}.`

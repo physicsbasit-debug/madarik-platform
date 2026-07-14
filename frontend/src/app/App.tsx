@@ -1033,6 +1033,7 @@ export function App() {
         question.id === questionId ? { ...question, ...updates } : question,
       ),
     );
+    setProjectReadiness(null);
 
     if (!projectId || apiStatus === "offline") return;
     setApiStatus("syncing");

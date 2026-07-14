@@ -2,6 +2,7 @@ import type { VisualCropRequest } from "../../types/project";
 import { useState } from "react";
 import { VisualCropDialog } from "./VisualCropDialog";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   CheckCircle2,
@@ -148,6 +149,52 @@ function getQuestionPartSiblings(part: QuestionPart, parts: QuestionPart[]) {
   return parts.filter(
     (candidate) => (candidate.parentId ?? null) === (part.parentId ?? null),
   );
+}
+
+function getQuestionPartsTotalMarks(parts: QuestionPart[]) {
+  if (parts.length === 0) return null;
+
+  const partsById = new Map(parts.map((part) => [part.id, part]));
+  const childrenByParent = new Map<string, QuestionPart[]>();
+
+  for (const part of parts) {
+    if (!part.parentId || !partsById.has(part.parentId)) continue;
+    const children = childrenByParent.get(part.parentId) ?? [];
+    children.push(part);
+    childrenByParent.set(part.parentId, children);
+  }
+
+  const roots = parts.filter(
+    (part) => !part.parentId || !partsById.has(part.parentId),
+  );
+
+  function getBranchMarks(
+    part: QuestionPart,
+    visited: Set<string>,
+  ): number | null {
+    if (visited.has(part.id)) return part.marks;
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(part.id);
+
+    const childMarks = (childrenByParent.get(part.id) ?? [])
+      .map((child) => getBranchMarks(child, nextVisited))
+      .filter((value): value is number => value !== null);
+
+    if (childMarks.length > 0) {
+      return childMarks.reduce((sum, value) => sum + value, 0);
+    }
+
+    return part.marks;
+  }
+
+  const rootMarks = roots
+    .map((part) => getBranchMarks(part, new Set()))
+    .filter((value): value is number => value !== null);
+
+  return rootMarks.length > 0
+    ? rootMarks.reduce((sum, value) => sum + value, 0)
+    : null;
 }
 
 function canMoveQuestionPart(
@@ -458,6 +505,11 @@ export function ReviewStep({
           const questionParts = normalizeQuestionPartHierarchy(
             question.parts ?? [],
           );
+          const questionPartsTotalMarks =
+            getQuestionPartsTotalMarks(questionParts);
+          const hasQuestionMarksGuidance =
+            questionPartsTotalMarks !== null &&
+            question.marks !== questionPartsTotalMarks;
 
           return (
             <article
@@ -757,6 +809,36 @@ export function ReviewStep({
                   />
                 </label>
               </div>
+
+              {hasQuestionMarksGuidance ? (
+                <div className="question-marks-guidance">
+                  <AlertTriangle size={22} />
+                  <div>
+                    <strong>
+                      {question.marks === null
+                        ? "درجة السؤال العامة غير محددة"
+                        : "درجة السؤال لا تتطابق مع مجموع أجزائه"}
+                    </strong>
+                    <span>
+                      {question.marks === null
+                        ? `مجموع الأجزاء المحسوب هو ${questionPartsTotalMarks}. سيُستخدم هذا المجموع في التصدير عند بقاء الدرجة العامة فارغة.`
+                        : `الدرجة الحالية ${question.marks}، بينما مجموع الأجزاء المحسوب ${questionPartsTotalMarks}. التصدير متاح وسيستخدم الدرجة العامة الحالية حتى اعتماد المجموع.`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-button compact"
+                    onClick={() =>
+                      onUpdateQuestion(question.id, {
+                        marks: questionPartsTotalMarks,
+                      })
+                    }
+                    disabled={question.status === "deleted"}
+                  >
+                    اعتماد مجموع الأجزاء: {questionPartsTotalMarks}
+                  </button>
+                </div>
+              ) : null}
 
               <section className="asset-panel">
                 <div className="asset-panel-header">

@@ -1797,3 +1797,47 @@ button:disabled {
     grid-column: auto;
   }
 }
+
+/* Phase 3-A3e: marks consistency guidance */
+.question-marks-guidance {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #f3cf78;
+  border-radius: 16px;
+  background: #fffbeb;
+}
+
+.question-marks-guidance > svg {
+  color: #b45309;
+}
+
+.question-marks-guidance > div {
+  display: grid;
+  gap: 4px;
+}
+
+.question-marks-guidance strong {
+  color: #78350f;
+}
+
+.question-marks-guidance span {
+  color: #92400e;
+  line-height: 1.7;
+}
+
+@media (max-width: 720px) {
+  .question-marks-guidance {
+    grid-template-columns: 1fr;
+  }
+
+  .question-marks-guidance > svg {
+    display: none;
+  }
+
+  .question-marks-guidance button {
+    width: 100%;
+  }
+}
