@@ -155,6 +155,65 @@ def test_build_project_pdf_exports_question_parts_as_structured_blocks():
     assert "RAW MULTIPART TEXT MUST NOT BE DUPLICATED" not in text
 
 
+def test_pdf_export_preserves_hierarchy_without_parent_fallback_text():
+    project = ProjectSession(
+        metadata=ProjectMetadata(
+            paper_title="Hierarchical multipart practice",
+            subject="الفيزياء",
+            output_mode=OutputMode.bilingual,
+        ),
+        questions=[
+            QuestionItem(
+                id="q-hierarchy-pdf",
+                original_number="5",
+                original_text="RAW HIERARCHICAL TEXT",
+                translated_text="",
+                order_index=1,
+                parts=[
+                    QuestionPart(
+                        id="part-e",
+                        label="(e)",
+                        original_text="",
+                        translated_text="",
+                        marks=3,
+                        order_index=1,
+                    ),
+                    QuestionPart(
+                        id="part-i",
+                        label="(i)",
+                        original_text="State the unit.",
+                        translated_text="اذكر الوحدة.",
+                        marks=1,
+                        parent_id="part-e",
+                        order_index=2,
+                    ),
+                    QuestionPart(
+                        id="part-ii",
+                        label="(ii)",
+                        original_text="Calculate the value.",
+                        translated_text="احسب القيمة.",
+                        marks=2,
+                        parent_id="part-e",
+                        order_index=3,
+                    ),
+                ],
+            )
+        ],
+    )
+
+    pdf_bytes = build_project_pdf_bytes(project)
+    text = _pdf_text(pdf_bytes)
+
+    assert pdf_bytes.startswith(b"%PDF")
+    assert "السؤال" in text or "1" in text
+    assert "e) [3]" in text
+    assert "i) [1]" in text
+    assert "ii) [2]" in text
+    assert text.index("e) [3]") < text.index("i) [1]")
+    assert "[Original text unavailable]" not in text
+    assert "RAW HIERARCHICAL TEXT" not in text
+
+
 def test_export_pdf_endpoint_returns_downloadable_pdf_file():
     create_response = client.post("/api/projects")
     project_id = create_response.json()["id"]

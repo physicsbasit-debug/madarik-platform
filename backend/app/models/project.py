@@ -111,6 +111,7 @@ class QuestionPart(BaseModel):
     original_text: str
     translated_text: str = ""
     marks: int | None = None
+    parent_id: str | None = None
     order_index: int = Field(ge=1)
 
 

@@ -183,6 +183,7 @@ interface ApiQuestionPart {
   original_text: string;
   translated_text: string;
   marks: number | null;
+  parent_id?: string | null;
   order_index: number;
 }
 
@@ -440,6 +441,7 @@ function fromApiQuestionPart(part: ApiQuestionPart): QuestionPart {
     originalText: part.original_text,
     translatedText: part.translated_text,
     marks: part.marks,
+    parentId: part.parent_id ?? null,
     orderIndex: part.order_index,
   };
 }
@@ -451,6 +453,7 @@ function toApiQuestionPart(part: QuestionPart): ApiQuestionPart {
     original_text: part.originalText,
     translated_text: part.translatedText,
     marks: part.marks,
+    parent_id: part.parentId ?? null,
     order_index: part.orderIndex,
   };
 }

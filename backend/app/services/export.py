@@ -203,6 +203,7 @@ def _add_docx_text_blocks(
     rtl: bool,
     fallback: str,
     font_size: float,
+    indent_level: int = 0,
 ) -> None:
     blocks = _split_export_blocks(text) or [fallback]
 
@@ -213,8 +214,17 @@ def _add_docx_text_blocks(
         paragraph.paragraph_format.space_after = Pt(3)
         paragraph.paragraph_format.line_spacing = 1.15
 
-        if not rtl:
-            paragraph.paragraph_format.left_indent = Inches(0.2)
+        safe_indent_level = max(indent_level, 0)
+
+        if rtl:
+            if safe_indent_level:
+                paragraph.paragraph_format.right_indent = Inches(
+                    0.2 * safe_indent_level
+                )
+        else:
+            paragraph.paragraph_format.left_indent = Inches(
+                0.2 + (0.2 * safe_indent_level)
+            )
 
         run = paragraph.add_run(
             _clean_export_text(block),
@@ -456,18 +466,97 @@ def _question_marks_label(question: QuestionItem) -> str:
     return f" [{marks}]"
 
 
+def _question_part_depth(
+    part: QuestionPart,
+    parts: list[QuestionPart],
+) -> int:
+    """Return a cycle-safe hierarchy depth for one structured part."""
+
+    parts_by_id = {
+        item.id: item
+        for item in parts
+    }
+    depth = 0
+    current = part
+    visited = {part.id}
+
+    while current.parent_id:
+        parent = parts_by_id.get(current.parent_id)
+
+        if parent is None or parent.id in visited:
+            break
+
+        visited.add(parent.id)
+        depth += 1
+        current = parent
+
+    return depth
+
+
 def _question_total_marks(question: QuestionItem) -> int | None:
-    """Return explicit question marks or a safe sum of structured parts."""
+    """Return explicit marks or a hierarchy-safe total.
+
+    Parent marks often summarize their children. Summing every row would then
+    double-count the question, so each root branch prefers descendant marks and
+    falls back to the root mark only when the branch has no marked children.
+    """
 
     if question.marks is not None:
         return question.marks
 
-    part_marks = [
-        part.marks
+    if not question.parts:
+        return None
+
+    parts_by_id = {
+        part.id: part
         for part in question.parts
-        if part.marks is not None
+    }
+    children: dict[str, list[QuestionPart]] = {}
+
+    for part in question.parts:
+        if part.parent_id in parts_by_id:
+            children.setdefault(part.parent_id, []).append(part)
+
+    roots = [
+        part
+        for part in question.parts
+        if part.parent_id not in parts_by_id
     ]
-    return sum(part_marks) if part_marks else None
+
+    def branch_marks(
+        part: QuestionPart,
+        visited: set[str],
+    ) -> int | None:
+        if part.id in visited:
+            return part.marks
+
+        next_visited = visited | {part.id}
+        child_values = [
+            branch_marks(child, next_visited)
+            for child in children.get(part.id, [])
+        ]
+        concrete_child_values = [
+            value
+            for value in child_values
+            if value is not None
+        ]
+
+        if concrete_child_values:
+            return sum(concrete_child_values)
+
+        return part.marks
+
+    totals = [
+        branch_marks(root, set())
+        for root in roots
+    ]
+    concrete_totals = [
+        value
+        for value in totals
+        if value is not None
+    ]
+
+    return sum(concrete_totals) if concrete_totals else None
 
 
 def _part_heading_text(part: QuestionPart) -> str:
@@ -524,6 +613,8 @@ def _add_question_number(
 def _add_arabic_text(
     document: Document,
     text: str,
+    *,
+    indent_level: int = 0,
 ) -> None:
     _add_docx_text_blocks(
         document,
@@ -531,12 +622,15 @@ def _add_arabic_text(
         rtl=True,
         fallback="[ترجمة تحتاج مراجعة]",
         font_size=12,
+        indent_level=indent_level,
     )
 
 
 def _add_english_text(
     document: Document,
     text: str,
+    *,
+    indent_level: int = 0,
 ) -> None:
     _add_docx_text_blocks(
         document,
@@ -544,19 +638,24 @@ def _add_english_text(
         rtl=False,
         fallback="[Original text unavailable]",
         font_size=10.5,
+        indent_level=indent_level,
     )
 
 
 def _add_docx_part_heading(
     document: Document,
     part: QuestionPart,
+    *,
+    depth: int = 0,
 ) -> None:
     paragraph = document.add_paragraph()
     # Part labels such as (i) [1] are LTR tokens. Use an LTR paragraph
     # aligned to the right so their parentheses and marks stay intact.
     _set_paragraph_bidi(paragraph, rtl=False)
     paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    paragraph.paragraph_format.right_indent = Inches(0.18)
+    paragraph.paragraph_format.right_indent = Inches(
+        0.18 + (0.28 * max(depth, 0))
+    )
     paragraph.paragraph_format.space_before = Pt(5)
     paragraph.paragraph_format.space_after = Pt(2)
 
@@ -572,18 +671,40 @@ def _add_docx_question_parts(
     question: QuestionItem,
 ) -> None:
     for part in _sorted_question_parts(question):
-        _add_docx_part_heading(document, part)
+        depth = _question_part_depth(
+            part,
+            question.parts,
+        )
+        _add_docx_part_heading(
+            document,
+            part,
+            depth=depth,
+        )
+
+        has_part_text = bool(
+            part.original_text.strip()
+            or part.translated_text.strip()
+        )
+
+        if not has_part_text:
+            continue
 
         if project.metadata.output_mode == OutputMode.bilingual:
-            _add_english_text(document, part.original_text)
+            _add_english_text(
+                document,
+                part.original_text,
+                indent_level=depth,
+            )
             _add_arabic_text(
                 document,
                 part.translated_text or "[تحتاج ترجمة]",
+                indent_level=depth,
             )
         else:
             _add_arabic_text(
                 document,
                 part.translated_text or part.original_text,
+                indent_level=depth,
             )
 
 
@@ -826,8 +947,27 @@ def _add_pdf_text_blocks(
     *,
     rtl: bool,
     fallback: str,
+    indent_level: int = 0,
 ) -> None:
     blocks = _split_export_blocks(text) or [fallback]
+    safe_indent_level = max(indent_level, 0)
+
+    if safe_indent_level:
+        indentation = safe_indent_level * 18
+        style = ParagraphStyle(
+            f"{style.name}Depth{safe_indent_level}",
+            parent=style,
+            rightIndent=(
+                style.rightIndent + indentation
+                if rtl
+                else style.rightIndent
+            ),
+            leftIndent=(
+                style.leftIndent + indentation
+                if not rtl
+                else style.leftIndent
+            ),
+        )
 
     for block in blocks:
         story.append(
@@ -1007,13 +1147,37 @@ def _add_pdf_question_parts(
     styles: dict[str, ParagraphStyle],
 ) -> None:
     for part in _sorted_question_parts(question):
+        depth = _question_part_depth(
+            part,
+            question.parts,
+        )
+        heading_style = styles["part"]
+
+        if depth:
+            heading_style = ParagraphStyle(
+                f"{heading_style.name}Depth{depth}",
+                parent=heading_style,
+                rightIndent=(
+                    heading_style.rightIndent
+                    + (depth * 18)
+                ),
+            )
+
         story.append(
             _pdf_paragraph(
                 _part_heading_text(part),
-                styles["part"],
+                heading_style,
                 rtl=False,
             )
         )
+
+        has_part_text = bool(
+            part.original_text.strip()
+            or part.translated_text.strip()
+        )
+
+        if not has_part_text:
+            continue
 
         if project.metadata.output_mode == OutputMode.bilingual:
             _add_pdf_text_blocks(
@@ -1022,6 +1186,7 @@ def _add_pdf_question_parts(
                 styles["body_en"],
                 rtl=False,
                 fallback="[Original text unavailable]",
+                indent_level=depth,
             )
             _add_pdf_text_blocks(
                 story,
@@ -1029,6 +1194,7 @@ def _add_pdf_question_parts(
                 styles["body_ar"],
                 rtl=True,
                 fallback="[تحتاج ترجمة]",
+                indent_level=depth,
             )
         else:
             _add_pdf_text_blocks(
@@ -1037,6 +1203,7 @@ def _add_pdf_question_parts(
                 styles["body_ar"],
                 rtl=True,
                 fallback="[تحتاج ترجمة]",
+                indent_level=depth,
             )
 
 
