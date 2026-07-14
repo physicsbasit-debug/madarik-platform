@@ -82,6 +82,7 @@ export interface QuestionPart {
   originalText: string;
   translatedText: string;
   marks: number | null;
+  parentId?: string | null;
   orderIndex: number;
 }
 

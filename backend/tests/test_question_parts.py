@@ -48,6 +48,17 @@ def test_parse_complex_question_parts_in_order() -> None:
         5,
     ]
 
+    assert parts[0].parent_id is None
+    assert parts[1].parent_id is None
+    assert [
+        part.parent_id
+        for part in parts[2:]
+    ] == [
+        parts[1].id,
+        parts[1].id,
+        parts[1].id,
+    ]
+
     assert [part.marks for part in parts] == [
         2,
         None,
@@ -66,6 +77,53 @@ def test_parser_preserves_figure_references_and_units() -> None:
     assert "0.046 kg" in second_part
     assert "5.0 × 10–4 s" in second_part
     assert "65 m / s" in second_part
+
+
+def test_parser_preserves_empty_parent_with_roman_children() -> None:
+    parts = parse_question_parts(
+        "(d) State whether the results agree. "
+        "(e) "
+        "(i) Draw the symbol. [1] "
+        "(ii) Explain why the method is reliable. [2]"
+    )
+
+    assert [part.label for part in parts] == [
+        "(d)",
+        "(e)",
+        "(i)",
+        "(ii)",
+    ]
+    assert parts[1].original_text == ""
+    assert parts[2].parent_id == parts[1].id
+    assert parts[3].parent_id == parts[1].id
+
+
+def test_normal_alphabetic_sequence_keeps_i_as_root_part() -> None:
+    parts = parse_question_parts(
+        "(h) State one reason. "
+        "(i) State a second reason. "
+        "(j) State a third reason."
+    )
+
+    assert [part.label for part in parts] == [
+        "(h)",
+        "(i)",
+        "(j)",
+    ]
+    assert all(part.parent_id is None for part in parts)
+
+
+def test_roman_only_sequence_stays_flat_without_parent() -> None:
+    parts = parse_question_parts(
+        "(i) State the unit. [1] "
+        "(ii) Calculate the value. [2]"
+    )
+
+    assert [part.label for part in parts] == [
+        "(i)",
+        "(ii)",
+    ]
+    assert all(part.parent_id is None for part in parts)
 
 
 def test_text_without_part_markers_returns_empty_list() -> None:
@@ -137,10 +195,35 @@ def test_old_question_payload_defaults_to_empty_parts() -> None:
     assert question.parts == []
 
 
+def test_old_question_part_payload_defaults_to_root_level() -> None:
+    part = QuestionItem.model_validate(
+        {
+            "id": "question-with-old-part",
+            "original_number": "2",
+            "original_text": "Old multipart question",
+            "translated_text": "",
+            "order_index": 1,
+            "parts": [
+                {
+                    "id": "old-part",
+                    "label": "(a)",
+                    "original_text": "State the unit.",
+                    "translated_text": "",
+                    "marks": 1,
+                    "order_index": 1,
+                }
+            ],
+        }
+    ).parts[0]
+
+    assert part.parent_id is None
+
+
 def test_project_round_trip_preserves_question_parts() -> None:
     parts = parse_question_parts(
         "(a) Define force. [1] "
-        "(b) Calculate force. [2]"
+        "(b) "
+        "(i) Calculate force. [2]"
     )
 
     project = ProjectSession(
@@ -160,8 +243,11 @@ def test_project_round_trip_preserves_question_parts() -> None:
         project.model_dump(mode="json")
     )
 
-    assert len(restored.questions[0].parts) == 2
-    assert restored.questions[0].parts[1].marks == 2
+    restored_parts = restored.questions[0].parts
+
+    assert len(restored_parts) == 3
+    assert restored_parts[2].marks == 2
+    assert restored_parts[2].parent_id == restored_parts[1].id
 
 
 def test_question_parser_populates_parts() -> None:

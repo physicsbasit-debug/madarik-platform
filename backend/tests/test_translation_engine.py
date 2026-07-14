@@ -103,6 +103,56 @@ def test_translate_questions_translates_parts_independently():
     )
 
 
+def test_translate_questions_preserves_hierarchy_and_empty_parent_heading():
+    question = QuestionItem(
+        id="q-hierarchy",
+        original_number="5",
+        original_text="Hierarchical multipart question",
+        translated_text="",
+        order_index=1,
+        parts=[
+            QuestionPart(
+                id="part-e",
+                label="(e)",
+                original_text="",
+                translated_text="",
+                marks=None,
+                order_index=1,
+            ),
+            QuestionPart(
+                id="part-i",
+                label="(i)",
+                original_text="State the function of the cell membrane. [1]",
+                translated_text="",
+                marks=1,
+                parent_id="part-e",
+                order_index=2,
+            ),
+        ],
+    )
+    glossary = [
+        GlossaryTerm(
+            id="t-cell-hierarchy",
+            english_term="cell membrane",
+            arabic_term="غشاء الخلية",
+            subject="أحياء",
+        )
+    ]
+
+    translated_question = translate_questions_with_glossary(
+        [question],
+        glossary,
+    )[0]
+
+    assert translated_question.parts[0].parent_id is None
+    assert translated_question.parts[1].parent_id == "part-e"
+    assert translated_question.parts[1].translated_text.startswith("اذكر")
+    assert translated_question.translated_text.splitlines()[0] == "(e)"
+    assert translated_question.translated_text.splitlines()[1].startswith(
+        "  (i) اذكر"
+    )
+
+
 def test_translate_questions_preserves_blank_manual_part():
     question = QuestionItem(
         id="q-blank-part",
@@ -170,6 +220,7 @@ def test_translate_questions_endpoint_updates_structured_parts():
                     "original_text": "Explain why the current decreases when the resistance increases. [2]",
                     "translated_text": "",
                     "marks": 2,
+                    "parent_id": "part-a",
                     "order_index": 2,
                 },
             ]
@@ -187,5 +238,6 @@ def test_translate_questions_endpoint_updates_structured_parts():
     )
     assert translated_question["parts"][0]["translated_text"].startswith("اذكر")
     assert translated_question["parts"][1]["translated_text"].startswith("فسّر")
+    assert translated_question["parts"][1]["parent_id"] == "part-a"
     assert "(a)" in translated_question["translated_text"]
     assert "(b)" in translated_question["translated_text"]

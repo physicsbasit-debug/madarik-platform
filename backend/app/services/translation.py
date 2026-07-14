@@ -244,6 +244,33 @@ def _translate_question_parts(
     return translated_parts, providers, notes
 
 
+def _question_part_depth(
+    part: QuestionPart,
+    parts: list[QuestionPart],
+) -> int:
+    """Return a cycle-safe hierarchy depth for one structured part."""
+
+    parts_by_id = {
+        item.id: item
+        for item in parts
+    }
+    depth = 0
+    current = part
+    visited = {part.id}
+
+    while current.parent_id:
+        parent = parts_by_id.get(current.parent_id)
+
+        if parent is None or parent.id in visited:
+            break
+
+        visited.add(parent.id)
+        depth += 1
+        current = parent
+
+    return depth
+
+
 def _build_combined_parts_translation(parts: list[QuestionPart]) -> str:
     """Build a readable question-level translation from translated parts.
 
@@ -253,12 +280,26 @@ def _build_combined_parts_translation(parts: list[QuestionPart]) -> str:
     """
 
     lines: list[str] = []
+    parent_ids = {
+        part.parent_id
+        for part in parts
+        if part.parent_id is not None
+    }
+
     for part in sorted(parts, key=lambda item: item.order_index):
         translated_text = part.translated_text.strip()
-        if not translated_text:
+
+        if not translated_text and part.id not in parent_ids:
             continue
+
         label = part.label.strip()
-        lines.append(f"{label} {translated_text}".strip())
+        indentation = "  " * _question_part_depth(
+            part,
+            parts,
+        )
+        line = f"{label} {translated_text}".strip()
+        lines.append(f"{indentation}{line}")
+
     return "\n".join(lines)
 
 

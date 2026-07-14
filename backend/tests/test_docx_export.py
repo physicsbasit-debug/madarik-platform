@@ -166,6 +166,72 @@ def test_build_project_docx_exports_question_parts_as_structured_blocks():
 
 
 
+def test_docx_export_indents_child_parts_and_avoids_double_counting_marks():
+    project = ProjectSession(
+        metadata=ProjectMetadata(
+            paper_title="Hierarchical multipart practice",
+            subject="الفيزياء",
+            output_mode=OutputMode.bilingual,
+        ),
+        questions=[
+            QuestionItem(
+                id="q-hierarchy-docx",
+                original_number="5",
+                original_text="RAW HIERARCHICAL TEXT",
+                translated_text="",
+                order_index=1,
+                parts=[
+                    QuestionPart(
+                        id="part-e",
+                        label="(e)",
+                        original_text="",
+                        translated_text="",
+                        marks=3,
+                        order_index=1,
+                    ),
+                    QuestionPart(
+                        id="part-i",
+                        label="(i)",
+                        original_text="State the unit.",
+                        translated_text="اذكر الوحدة.",
+                        marks=1,
+                        parent_id="part-e",
+                        order_index=2,
+                    ),
+                    QuestionPart(
+                        id="part-ii",
+                        label="(ii)",
+                        original_text="Calculate the value.",
+                        translated_text="احسب القيمة.",
+                        marks=2,
+                        parent_id="part-e",
+                        order_index=3,
+                    ),
+                ],
+            )
+        ],
+    )
+
+    document = Document(BytesIO(build_project_docx_bytes(project)))
+    text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+    parent_heading = next(
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph.text == "(e) [3]"
+    )
+    child_heading = next(
+        paragraph
+        for paragraph in document.paragraphs
+        if paragraph.text == "(i) [1]"
+    )
+
+    assert "السؤال 1 [3]" in text
+    assert "[Original text unavailable]" not in text
+    assert child_heading.paragraph_format.right_indent > (
+        parent_heading.paragraph_format.right_indent
+    )
+
+
 def test_docx_mixed_direction_headings_keep_stable_alignment():
     project = ProjectSession(
         metadata=ProjectMetadata(

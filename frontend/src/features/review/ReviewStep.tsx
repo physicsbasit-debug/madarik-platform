@@ -15,7 +15,7 @@ import {
   Unlink,
   X,
 } from "lucide-react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, CSSProperties } from "react";
 import type {
   PdfLayoutAssetInfo,
   QuestionItem,
@@ -65,22 +65,130 @@ function sortQuestionParts(parts: QuestionPart[] | undefined) {
   return [...(parts ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
 }
 
-function reindexQuestionParts(parts: QuestionPart[]) {
-  return parts.map((part, index) => ({
+function normalizeQuestionPartHierarchy(parts: QuestionPart[]) {
+  const sortedParts = sortQuestionParts(parts);
+  const partIds = new Set(sortedParts.map((part) => part.id));
+  const sanitizedParts = sortedParts.map((part) => ({
+    ...part,
+    parentId:
+      part.parentId &&
+      part.parentId !== part.id &&
+      partIds.has(part.parentId)
+        ? part.parentId
+        : null,
+  }));
+  const partsByParent = new Map<string | null, QuestionPart[]>();
+
+  for (const part of sanitizedParts) {
+    const parentId = part.parentId ?? null;
+    const siblings = partsByParent.get(parentId) ?? [];
+    siblings.push(part);
+    partsByParent.set(parentId, siblings);
+  }
+
+  const orderedParts: QuestionPart[] = [];
+  const visited = new Set<string>();
+
+  function visit(part: QuestionPart, activePath: Set<string>) {
+    if (visited.has(part.id)) return;
+
+    if (activePath.has(part.id)) {
+      orderedParts.push({ ...part, parentId: null });
+      visited.add(part.id);
+      return;
+    }
+
+    orderedParts.push(part);
+    visited.add(part.id);
+
+    const nextPath = new Set(activePath);
+    nextPath.add(part.id);
+
+    for (const child of partsByParent.get(part.id) ?? []) {
+      visit(child, nextPath);
+    }
+  }
+
+  for (const rootPart of partsByParent.get(null) ?? []) {
+    visit(rootPart, new Set());
+  }
+
+  for (const orphanPart of sanitizedParts) {
+    if (!visited.has(orphanPart.id)) {
+      visit({ ...orphanPart, parentId: null }, new Set());
+    }
+  }
+
+  return orderedParts.map((part, index) => ({
     ...part,
     orderIndex: index + 1,
   }));
 }
 
-function createQuestionPart(orderIndex: number): QuestionPart {
+function getQuestionPartDepth(part: QuestionPart, parts: QuestionPart[]) {
+  const partsById = new Map(parts.map((item) => [item.id, item]));
+  const visited = new Set([part.id]);
+  let depth = 0;
+  let current = part;
+
+  while (current.parentId) {
+    const parent = partsById.get(current.parentId);
+
+    if (!parent || visited.has(parent.id)) break;
+
+    visited.add(parent.id);
+    depth += 1;
+    current = parent;
+  }
+
+  return depth;
+}
+
+function getQuestionPartSiblings(part: QuestionPart, parts: QuestionPart[]) {
+  return parts.filter(
+    (candidate) => (candidate.parentId ?? null) === (part.parentId ?? null),
+  );
+}
+
+function canMoveQuestionPart(
+  part: QuestionPart,
+  parts: QuestionPart[],
+  direction: "up" | "down",
+) {
+  const siblings = getQuestionPartSiblings(part, parts);
+  const index = siblings.findIndex((candidate) => candidate.id === part.id);
+
+  if (direction === "up") return index > 0;
+  return index >= 0 && index < siblings.length - 1;
+}
+
+const childPartLabels = [
+  "(i)",
+  "(ii)",
+  "(iii)",
+  "(iv)",
+  "(v)",
+  "(vi)",
+  "(vii)",
+  "(viii)",
+  "(ix)",
+  "(x)",
+];
+
+function createQuestionPart(
+  orderIndex: number,
+  parentId: string | null = null,
+  label?: string,
+): QuestionPart {
   return {
     id:
       globalThis.crypto?.randomUUID?.() ??
       `question-part-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    label: "(جديد)",
+    label: label ?? (parentId ? "(i)" : "(جديد)"),
     originalText: "",
     translatedText: "",
     marks: null,
+    parentId,
     orderIndex,
   };
 }
@@ -157,7 +265,7 @@ export function ReviewStep({
 
   function saveQuestionParts(question: QuestionItem, parts: QuestionPart[]) {
     onUpdateQuestion(question.id, {
-      parts: reindexQuestionParts(parts),
+      parts: normalizeQuestionPartHierarchy(parts),
     });
   }
 
@@ -173,17 +281,45 @@ export function ReviewStep({
   }
 
   function addQuestionPart(question: QuestionItem) {
-    const currentParts = sortQuestionParts(question.parts);
+    const currentParts = normalizeQuestionPartHierarchy(question.parts ?? []);
     saveQuestionParts(question, [
       ...currentParts,
       createQuestionPart(currentParts.length + 1),
     ]);
   }
 
+  function addChildQuestionPart(question: QuestionItem, parentId: string) {
+    const currentParts = normalizeQuestionPartHierarchy(question.parts ?? []);
+    const childIndex = currentParts.filter(
+      (part) => part.parentId === parentId,
+    ).length;
+    const childLabel =
+      childPartLabels[childIndex] ?? `(${childIndex + 1})`;
+
+    saveQuestionParts(question, [
+      ...currentParts,
+      createQuestionPart(
+        currentParts.length + 1,
+        parentId,
+        childLabel,
+      ),
+    ]);
+  }
+
   function deleteQuestionPart(question: QuestionItem, partId: string) {
-    const nextParts = sortQuestionParts(question.parts).filter(
-      (part) => part.id !== partId,
-    );
+    const currentParts = normalizeQuestionPartHierarchy(question.parts ?? []);
+    const deletedPart = currentParts.find((part) => part.id === partId);
+    const nextParts = currentParts
+      .filter((part) => part.id !== partId)
+      .map((part) =>
+        part.parentId === partId
+          ? {
+              ...part,
+              parentId: deletedPart?.parentId ?? null,
+            }
+          : part,
+      );
+
     saveQuestionParts(question, nextParts);
   }
 
@@ -192,23 +328,47 @@ export function ReviewStep({
     partId: string,
     direction: "up" | "down",
   ) {
-    const currentParts = sortQuestionParts(question.parts);
-    const currentIndex = currentParts.findIndex((part) => part.id === partId);
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    const currentParts = normalizeQuestionPartHierarchy(question.parts ?? []);
+    const currentPart = currentParts.find((part) => part.id === partId);
+
+    if (!currentPart) return;
+
+    const siblings = getQuestionPartSiblings(currentPart, currentParts);
+    const currentSiblingIndex = siblings.findIndex(
+      (part) => part.id === partId,
+    );
+    const targetSiblingIndex =
+      direction === "up"
+        ? currentSiblingIndex - 1
+        : currentSiblingIndex + 1;
 
     if (
-      currentIndex < 0 ||
-      targetIndex < 0 ||
-      targetIndex >= currentParts.length
+      currentSiblingIndex < 0 ||
+      targetSiblingIndex < 0 ||
+      targetSiblingIndex >= siblings.length
     ) {
       return;
     }
 
-    const nextParts = [...currentParts];
-    [nextParts[currentIndex], nextParts[targetIndex]] = [
-      nextParts[targetIndex],
-      nextParts[currentIndex],
-    ];
+    const targetPart = siblings[targetSiblingIndex];
+    const nextParts = currentParts.map((part) => {
+      if (part.id === currentPart.id) {
+        return {
+          ...part,
+          orderIndex: targetPart.orderIndex,
+        };
+      }
+
+      if (part.id === targetPart.id) {
+        return {
+          ...part,
+          orderIndex: currentPart.orderIndex,
+        };
+      }
+
+      return part;
+    });
+
     saveQuestionParts(question, nextParts);
   }
 
@@ -295,7 +455,9 @@ export function ReviewStep({
           const availableLayoutAssets = layoutAssets.filter(
             (asset) => !linkedAssetIds.includes(asset.id),
           );
-          const questionParts = sortQuestionParts(question.parts);
+          const questionParts = normalizeQuestionPartHierarchy(
+            question.parts ?? [],
+          );
 
           return (
             <article
@@ -348,7 +510,7 @@ export function ReviewStep({
                     <strong>أجزاء السؤال</strong>
                     <span>
                       {questionParts.length > 0
-                        ? `${questionParts.length} جزء محفوظ ومرتب`
+                        ? `${questionParts.length} جزء محفوظ بهيكل رئيسي وفرعي`
                         : "لا توجد أجزاء منظمة لهذا السؤال"}
                     </span>
                   </div>
@@ -359,20 +521,66 @@ export function ReviewStep({
                     disabled={question.status === "deleted"}
                   >
                     <Plus size={16} />
-                    إضافة جزء
+                    إضافة جزء رئيسي
                   </button>
                 </div>
 
                 {questionParts.length > 0 ? (
                   <div className="question-parts-list">
-                    {questionParts.map((part, partIndex) => (
-                      <article key={part.id} className="question-part-card">
+                    {questionParts.map((part, partIndex) => {
+                      const partDepth = getQuestionPartDepth(
+                        part,
+                        questionParts,
+                      );
+                      const parentPart = part.parentId
+                        ? questionParts.find(
+                            (candidate) => candidate.id === part.parentId,
+                          )
+                        : null;
+                      const parentCandidates = questionParts.filter(
+                        (candidate) =>
+                          candidate.id !== part.id &&
+                          !candidate.parentId &&
+                          candidate.orderIndex < part.orderIndex,
+                      );
+
+                      return (
+                        <article
+                        key={part.id}
+                        className={`question-part-card ${
+                          partDepth > 0 ? "is-child" : "is-root"
+                        }`}
+                        style={
+                          {
+                            "--question-part-depth": partDepth,
+                          } as CSSProperties
+                        }
+                      >
                         <header className="question-part-card-header">
                           <div>
-                            <span>الجزء {partIndex + 1}</span>
+                            <span>
+                              {partDepth > 0
+                                ? `جزء فرعي تابع لـ ${
+                                    parentPart?.label || "جزء رئيسي"
+                                  }`
+                                : `جزء رئيسي · الترتيب ${partIndex + 1}`}
+                            </span>
                             <strong>{part.label.trim() || "بدون وسم"}</strong>
                           </div>
                           <div className="question-part-actions">
+                            {partDepth === 0 ? (
+                              <button
+                                type="button"
+                                className="secondary-button compact"
+                                onClick={() =>
+                                  addChildQuestionPart(question, part.id)
+                                }
+                                disabled={question.status === "deleted"}
+                              >
+                                <Plus size={15} />
+                                إضافة فرعي
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className="secondary-button compact"
@@ -380,7 +588,12 @@ export function ReviewStep({
                                 moveQuestionPart(question, part.id, "up")
                               }
                               disabled={
-                                question.status === "deleted" || partIndex === 0
+                                question.status === "deleted" ||
+                                !canMoveQuestionPart(
+                                  part,
+                                  questionParts,
+                                  "up",
+                                )
                               }
                             >
                               <ArrowUp size={15} />
@@ -394,7 +607,11 @@ export function ReviewStep({
                               }
                               disabled={
                                 question.status === "deleted" ||
-                                partIndex === questionParts.length - 1
+                                !canMoveQuestionPart(
+                                  part,
+                                  questionParts,
+                                  "down",
+                                )
                               }
                             >
                               <ArrowDown size={15} />
@@ -448,6 +665,30 @@ export function ReviewStep({
                             />
                           </label>
 
+                          <label className="question-part-parent-field">
+                            التبعية
+                            <select
+                              value={part.parentId ?? ""}
+                              onChange={(event) =>
+                                updateQuestionPart(question, part.id, {
+                                  parentId: event.target.value || null,
+                                })
+                              }
+                              disabled={question.status === "deleted"}
+                            >
+                              <option value="">جزء رئيسي</option>
+                              {parentCandidates.map((candidate) => (
+                                <option
+                                  key={candidate.id}
+                                  value={candidate.id}
+                                >
+                                  فرعي تابع لـ{" "}
+                                  {candidate.label.trim() || "جزء رئيسي"}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+
                           <label className="question-part-field-wide">
                             النص الأصلي
                             <textarea
@@ -475,8 +716,9 @@ export function ReviewStep({
                             />
                           </label>
                         </div>
-                      </article>
-                    ))}
+                        </article>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="question-parts-empty">

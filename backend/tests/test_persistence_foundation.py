@@ -76,6 +76,7 @@ def test_project_repository_persists_question_parts_updates(tmp_path: Path) -> N
             original_text="Calculate the resultant force.",
             translated_text="احسب القوة المحصلة.",
             marks=2,
+            parent_id="part-a",
             order_index=2,
         ),
     ]
@@ -107,6 +108,7 @@ def test_project_repository_persists_question_parts_updates(tmp_path: Path) -> N
     assert [part.label for part in updated_question.parts] == ["(a)", "(b)"]
     assert updated_question.parts[0].translated_text == "اذكر وحدة القوة."
     assert updated_question.parts[1].marks == 2
+    assert updated_question.parts[1].parent_id == "part-a"
     assert [part.order_index for part in updated_question.parts] == [1, 2]
 
 
