@@ -1,7 +1,8 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.project import GlossaryTerm, QuestionItem, QuestionPart
+from app.models.project import GlossaryTerm, ProjectMetadata, QuestionItem, QuestionPart
+from app.services.ai_provider import TranslationProviderResult
 from app.services.translation import translate_question_text, translate_questions_with_glossary
 
 client = TestClient(app)
@@ -241,3 +242,77 @@ def test_translate_questions_endpoint_updates_structured_parts():
     assert translated_question["parts"][1]["parent_id"] == "part-a"
     assert "(a)" in translated_question["translated_text"]
     assert "(b)" in translated_question["translated_text"]
+
+
+def test_translate_questions_passes_project_and_parent_context(monkeypatch):
+    captured_contexts = []
+
+    def fake_translate_with_provider(
+        original_text,
+        glossary,
+        fallback_translation,
+        context=None,
+    ):
+        captured_contexts.append(context)
+        return TranslationProviderResult(
+            translated_text=f"ترجمة: {original_text}",
+            provider="openai",
+            used_external_provider=True,
+            note="",
+        )
+
+    monkeypatch.setattr(
+        "app.services.translation.translate_with_optional_external_provider",
+        fake_translate_with_provider,
+    )
+
+    question = QuestionItem(
+        id="q-context",
+        original_number="7",
+        original_text="A circuit contains a cell and a resistor.",
+        translated_text="",
+        order_index=1,
+        parts=[
+            QuestionPart(
+                id="part-a",
+                label="(a)",
+                original_text="The current in the circuit is 2 A.",
+                marks=1,
+                order_index=1,
+            ),
+            QuestionPart(
+                id="part-i",
+                label="(i)",
+                original_text="Calculate the potential difference. [2]",
+                marks=2,
+                parent_id="part-a",
+                order_index=2,
+            ),
+        ],
+    )
+    metadata = ProjectMetadata(
+        subject="فيزياء",
+        grade="الصف العاشر",
+        semester="الفصل الدراسي الثاني",
+    )
+
+    translated = translate_questions_with_glossary(
+        [question],
+        [],
+        metadata,
+    )[0]
+
+    assert len(captured_contexts) == 2
+    parent_context, child_context = captured_contexts
+    assert parent_context.subject == "فيزياء"
+    assert parent_context.grade == "الصف العاشر"
+    assert parent_context.semester == "الفصل الدراسي الثاني"
+    assert parent_context.question_number == "7"
+    assert parent_context.part_label == "(a)"
+    assert parent_context.question_stem == question.original_text
+    assert parent_context.parent_part_text == ""
+    assert child_context.part_label == "(i)"
+    assert child_context.parent_part_text == "The current in the circuit is 2 A."
+    assert translated.parts[1].parent_id == "part-a"
+    assert translated.translated_text.splitlines()[1].startswith("  (i) ترجمة:")
+    assert "Phase 4-A2" in (translated.review_notes or "")
