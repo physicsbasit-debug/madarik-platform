@@ -91,11 +91,14 @@ interface ApiTranslationProviderStatus {
   ready?: boolean;
   reason?: string;
   model: string;
+  api_mode?: string;
   base_url_configured?: boolean;
   timeout_seconds?: number;
   max_input_chars?: number;
+  max_output_tokens?: number;
   temperature?: number;
   supported_providers?: string[];
+  stores_responses?: boolean;
   fallback: string;
 }
 
@@ -107,11 +110,14 @@ function fromApiTranslationProviderStatus(status: ApiTranslationProviderStatus):
     ready: status.ready,
     reason: status.reason,
     model: status.model,
+    apiMode: status.api_mode,
     baseUrlConfigured: status.base_url_configured,
     timeoutSeconds: status.timeout_seconds,
     maxInputChars: status.max_input_chars,
+    maxOutputTokens: status.max_output_tokens,
     temperature: status.temperature,
     supportedProviders: status.supported_providers,
+    storesResponses: status.stores_responses,
     fallback: status.fallback,
   };
 }
