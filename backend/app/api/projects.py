@@ -576,7 +576,11 @@ def translate_project_questions(project_id: str, account: AuthAccountPublic | No
     if not project.questions:
         raise HTTPException(status_code=400, detail="لا توجد أسئلة قابلة للترجمة.")
 
-    translated_questions = translate_questions_with_glossary(project.questions, project.glossary)
+    translated_questions = translate_questions_with_glossary(
+        project.questions,
+        project.glossary,
+        project.metadata,
+    )
     updated_project = project_store.set_translated_questions(project_id, translated_questions)
     if updated_project is None:
         raise HTTPException(status_code=404, detail="Project not found")

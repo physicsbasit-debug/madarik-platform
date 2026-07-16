@@ -1,8 +1,8 @@
 import re
 from uuid import uuid4
 
-from app.models.project import GlossaryTerm, QuestionItem, QuestionPart, QuestionStatus
-from app.services.ai_provider import translate_with_optional_external_provider
+from app.models.project import GlossaryTerm, ProjectMetadata, QuestionItem, QuestionPart, QuestionStatus
+from app.services.ai_provider import TranslationPromptContext, translate_with_optional_external_provider
 
 
 COMMAND_TRANSLATIONS: list[tuple[str, str]] = [
@@ -197,6 +197,8 @@ def translate_question_text(original_text: str, glossary: list[GlossaryTerm]) ->
 def _translate_text_with_provider(
     original_text: str,
     glossary: list[GlossaryTerm],
+    *,
+    context: TranslationPromptContext | None = None,
 ):
     """Translate one text block through the configured provider with fallback."""
 
@@ -205,12 +207,36 @@ def _translate_text_with_provider(
         original_text=original_text,
         glossary=glossary,
         fallback_translation=fallback_translation,
+        context=context,
+    )
+
+
+def _build_prompt_context(
+    metadata: ProjectMetadata | None,
+    *,
+    question_number: str = "",
+    part_label: str = "",
+    question_stem: str = "",
+    parent_part_text: str = "",
+) -> TranslationPromptContext:
+    return TranslationPromptContext(
+        subject=metadata.subject if metadata else "",
+        grade=metadata.grade if metadata else "",
+        semester=metadata.semester if metadata else "",
+        question_number=question_number,
+        part_label=part_label,
+        question_stem=question_stem,
+        parent_part_text=parent_part_text,
     )
 
 
 def _translate_question_parts(
     parts: list[QuestionPart],
     glossary: list[GlossaryTerm],
+    *,
+    metadata: ProjectMetadata | None = None,
+    question_number: str = "",
+    question_stem: str = "",
 ) -> tuple[list[QuestionPart], list[str], list[str]]:
     """Translate multipart-question parts independently and preserve structure.
 
@@ -222,6 +248,7 @@ def _translate_question_parts(
     translated_parts: list[QuestionPart] = []
     providers: list[str] = []
     notes: list[str] = []
+    parts_by_id = {part.id: part for part in parts}
 
     for part in sorted(parts, key=lambda item: item.order_index):
         original_text = part.original_text.strip()
@@ -229,7 +256,19 @@ def _translate_question_parts(
             translated_parts.append(part)
             continue
 
-        provider_result = _translate_text_with_provider(original_text, glossary)
+        parent_part = parts_by_id.get(part.parent_id) if part.parent_id else None
+        context = _build_prompt_context(
+            metadata,
+            question_number=question_number,
+            part_label=part.label,
+            question_stem=question_stem,
+            parent_part_text=parent_part.original_text if parent_part else "",
+        )
+        provider_result = _translate_text_with_provider(
+            original_text,
+            glossary,
+            context=context,
+        )
         translated_parts.append(
             part.model_copy(
                 update={
@@ -303,8 +342,12 @@ def _build_combined_parts_translation(parts: list[QuestionPart]) -> str:
     return "\n".join(lines)
 
 
-def translate_questions_with_glossary(questions: list[QuestionItem], glossary: list[GlossaryTerm]) -> list[QuestionItem]:
-    """Translate non-deleted questions using the reviewed glossary and provider layer."""
+def translate_questions_with_glossary(
+    questions: list[QuestionItem],
+    glossary: list[GlossaryTerm],
+    metadata: ProjectMetadata | None = None,
+) -> list[QuestionItem]:
+    """Translate questions with the Phase 4-A2 scientific prompt and context."""
 
     translated_questions: list[QuestionItem] = []
     for question in questions:
@@ -320,6 +363,9 @@ def translate_questions_with_glossary(questions: list[QuestionItem], glossary: l
             translated_parts, provider_names, provider_notes = _translate_question_parts(
                 question.parts,
                 glossary,
+                metadata=metadata,
+                question_number=question.original_number,
+                question_stem=question.original_text,
             )
             translated_text = _build_combined_parts_translation(translated_parts)
 
@@ -329,6 +375,10 @@ def translate_questions_with_glossary(questions: list[QuestionItem], glossary: l
                 provider_result = _translate_text_with_provider(
                     question.original_text,
                     glossary,
+                    context=_build_prompt_context(
+                        metadata,
+                        question_number=question.original_number,
+                    ),
                 )
                 translated_text = provider_result.translated_text
                 provider_names.append(provider_result.provider)
@@ -338,6 +388,10 @@ def translate_questions_with_glossary(questions: list[QuestionItem], glossary: l
             provider_result = _translate_text_with_provider(
                 question.original_text,
                 glossary,
+                context=_build_prompt_context(
+                    metadata,
+                    question_number=question.original_number,
+                ),
             )
             translated_text = provider_result.translated_text
             provider_names.append(provider_result.provider)
@@ -358,7 +412,7 @@ def translate_questions_with_glossary(questions: list[QuestionItem], glossary: l
         )
 
         review_note = (
-            "ترجمة Phase 1-G1 عبر طبقة مزود الترجمة. "
+            "ترجمة Phase 4-A2 عبر موجه الترجمة العلمية. "
             f"المزود المستخدم: {', '.join(providers_used)}."
             f"{parts_note} "
             "راجع الترجمة قبل التصدير."
