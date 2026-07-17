@@ -321,7 +321,7 @@ def test_translate_questions_passes_project_and_parent_context(monkeypatch):
     assert child_context.parent_part_text == "The current in the circuit is 2 A."
     assert translated.parts[1].parent_id == "part-a"
     assert translated.translated_text.splitlines()[1].startswith("  (i) ترجمة:")
-    assert "Phase 4-A3" in (translated.review_notes or "")
+    assert "Phase 4-A4" in (translated.review_notes or "")
 
 
 def test_phase4_a3_local_fallback_uses_only_approved_glossary_terms():
@@ -351,3 +351,39 @@ def test_phase4_a3_local_fallback_uses_only_approved_glossary_terms():
 
     assert "كمية الحركة" in approved_translation
     assert "كمية الحركة" not in review_translation
+
+
+def test_phase4_a4_review_note_reports_scientific_fidelity_guard(monkeypatch):
+    def fake_translate_with_provider(
+        original_text,
+        glossary,
+        fallback_translation,
+        context=None,
+    ):
+        return TranslationProviderResult(
+            translated_text="احسب V = IR عندما تكون I = 2 A. [2]",
+            provider="gemini",
+            used_external_provider=True,
+            note=(
+                "فحص القاموس: لا توجد مصطلحات معتمدة مطابقة في النص المصدر. "
+                "فحص الأمان العلمي: التزم الناتج بجميع عناصر المحتوى العلمي المحمي."
+            ),
+        )
+
+    monkeypatch.setattr(
+        "app.services.translation.translate_with_optional_external_provider",
+        fake_translate_with_provider,
+    )
+
+    question = QuestionItem(
+        id="q-a4-note",
+        original_number="1",
+        original_text="Calculate V = IR when I = 2 A. [2]",
+        translated_text="",
+        order_index=1,
+    )
+    translated = translate_questions_with_glossary([question], [])[0]
+
+    assert "Phase 4-A4" in (translated.review_notes or "")
+    assert "حارس سلامة المحتوى العلمي" in (translated.review_notes or "")
+    assert "فحص الأمان العلمي" in (translated.review_notes or "")

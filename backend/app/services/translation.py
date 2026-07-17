@@ -176,8 +176,8 @@ def _pattern_based_translation(core_text: str, term_map: dict[str, str]) -> str 
 def translate_question_text(original_text: str, glossary: list[GlossaryTerm]) -> str:
     """Return the deterministic local fallback translation.
 
-    This path remains conservative and review-first. Phase 4-A3 uses it whenever
-    the external provider is unavailable or keeps violating approved glossary terms.
+    This path remains conservative and review-first. Phase 4-A4 uses it whenever
+    the external provider is unavailable or keeps violating glossary or fidelity guards.
     """
 
     marks_suffix = _extract_marks_suffix(original_text)
@@ -354,7 +354,7 @@ def translate_questions_with_glossary(
     glossary: list[GlossaryTerm],
     metadata: ProjectMetadata | None = None,
 ) -> list[QuestionItem]:
-    """Translate questions with Phase 4-A3 glossary enforcement and context."""
+    """Translate questions with Phase 4-A4 glossary and scientific fidelity guards."""
 
     translated_questions: list[QuestionItem] = []
     for question in questions:
@@ -419,7 +419,7 @@ def translate_questions_with_glossary(
         )
 
         review_note = (
-            "ترجمة Phase 4-A3 مع فرض قاموس المصطلحات العلمية المعتمد. "
+            "ترجمة Phase 4-A4 مع فرض القاموس وحارس سلامة المحتوى العلمي. "
             f"المزود المستخدم: {', '.join(providers_used)}."
             f"{parts_note} "
             "راجع الترجمة قبل التصدير."

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 import re
 from typing import Any, Callable
@@ -60,7 +61,28 @@ class GlossaryComplianceResult:
         return not self.missing_terms
 
 
-TRANSLATION_PROMPT_VERSION = "phase-4-a3-v1"
+@dataclass(frozen=True)
+class FidelityToken:
+    """One source value that must survive scientific translation."""
+
+    kind: str
+    value: str
+    canonical: str
+
+
+@dataclass(frozen=True)
+class FidelityComplianceResult:
+    """Protected source values and any occurrences missing from a translation."""
+
+    protected_tokens: tuple[FidelityToken, ...]
+    missing_tokens: tuple[FidelityToken, ...]
+
+    @property
+    def is_compliant(self) -> bool:
+        return not self.missing_tokens
+
+
+TRANSLATION_PROMPT_VERSION = "phase-4-a4-v1"
 DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
 MAX_PROMPT_CONTEXT_CHARS = 1200
 
@@ -174,6 +196,263 @@ def _format_glossary_terms(terms: tuple[GlossaryTerm, ...] | list[GlossaryTerm])
     return "، ".join(
         f"{term.english_term.strip()} = {term.arabic_term.strip()}"
         for term in terms
+    )
+
+
+_MARK_PATTERN = re.compile(
+    r"\[\s*\d+\s*\]|\(\s*\d+\s+marks?\s*\)|\b\d+\s+marks?\b",
+    flags=re.IGNORECASE,
+)
+_PART_LABEL_PATTERN = re.compile(r"\((?:[A-Za-z]|[ivxlcdmIVXLCDM]{1,6})\)")
+_REFERENCE_PATTERN = re.compile(
+    r"\b(?P<label>Fig(?:ure)?|Table|Diagram|Graph)\s*\.?\s*"
+    r"(?P<identifier>\d+(?:\.\d+)?[A-Za-z]?)\b",
+    flags=re.IGNORECASE,
+)
+_EQUATION_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_])"
+    r"(?P<expression>(?:[A-Za-zΔλμρσθφω]|\d+(?:\.\d+)?)"
+    r"[A-Za-z0-9_Δλμρσθφω]*\s*(?:=|≤|≥|<|>)\s*.+?)"
+    r"(?=\s+(?:when|and|or|where|if|then|for|using|with|from|calculate|state|determine|find)\b|"
+    r"[.;,؟\n]|$)",
+    flags=re.IGNORECASE,
+)
+_SCIENTIFIC_NUMBER_PATTERN = re.compile(
+    r"(?<![\w.])[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?"
+    r"\s*(?:×|x|X|\*)\s*10\s*(?:\^|\*\*)\s*[+-]?\d+(?![\w.])"
+)
+_RATIO_PATTERN = re.compile(r"(?<![\w.])\d+(?:\.\d+)?\s*:\s*\d+(?:\.\d+)?(?!\w)")
+_UNIT_PATTERN = re.compile(
+    r"(?<![\w.])"
+    r"(?P<number>[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?)\s*"
+    r"(?P<unit>"
+    r"kg\s*/\s*m(?:\s*(?:\^?3|³))|"
+    r"g\s*/\s*cm(?:\s*(?:\^?3|³))|"
+    r"m\s*/\s*s(?:\s*(?:\^?2|²))?|"
+    r"m\s+s\s*(?:\^?\s*[−-]?[12]|[⁻-]?[¹²12])|"
+    r"°\s*C|%|kHz|MHz|Hz|kPa|Pa|kJ|J|kW|W|kN|N|"
+    r"mA|A|mV|V|kg|mg|g|km|cm|mm|mL|L|mol|ms|min|h|m|s|K|Ω|ohms?"
+    r")"
+    r"(?![A-Za-z])",
+    flags=re.IGNORECASE,
+)
+_NUMBER_PATTERN = re.compile(
+    r"(?<![\w.])[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?(?![\w.])"
+)
+_SPECIAL_SYMBOL_PATTERN = re.compile(r"[ΩΔλμρσθφωαβγπ]")
+_FORMULA_CANDIDATE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9])"
+    r"(?:[A-Z][a-z]?[0-9₀-₉]*){2,}(?:\^?[0-9₀-₉]*[+\-⁺⁻])?"
+    r"(?![A-Za-z0-9])|"
+    r"(?<![A-Za-z0-9])(?:[A-Z][a-z]?)[0-9₀-₉]+"
+    r"(?:\^?[0-9₀-₉]*[+\-⁺⁻])?(?![A-Za-z0-9])"
+)
+_VARIABLE_CONTEXT_PATTERNS = (
+    re.compile(r"\b(?:value\s+of|variable)\s+(?P<variable>[A-Za-z])\b", re.IGNORECASE),
+    re.compile(r"\b(?P<variable>[A-Za-z])\s*[- ]axis\b", re.IGNORECASE),
+    re.compile(r"\bplot\s+(?P<first>[A-Za-z])\s+against\s+(?P<second>[A-Za-z])\b", re.IGNORECASE),
+)
+_CHEMICAL_ELEMENTS = {
+    "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P", "S",
+    "Cl", "Ar", "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga",
+    "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd",
+    "Ag", "Cd", "In", "Sn", "Sb", "Te", "I", "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm",
+    "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W", "Re", "Os",
+    "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa",
+    "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg",
+    "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og",
+}
+_FIDELITY_KIND_LABELS = {
+    "mark": "درجة",
+    "reference": "مرجع شكل/جدول",
+    "equation": "معادلة أو علاقة",
+    "scientific_number": "صيغة عددية علمية",
+    "ratio": "نسبة عددية",
+    "quantity": "قيمة ووحدة",
+    "chemical_formula": "صيغة كيميائية",
+    "part_label": "رمز جزء",
+    "variable": "متغير",
+    "number": "قيمة عددية",
+    "symbol": "رمز علمي",
+}
+_REFERENCE_ARABIC_LABELS = {
+    "fig": ("شكل", "الشكل", "رسم", "الرسم"),
+    "figure": ("شكل", "الشكل", "رسم", "الرسم"),
+    "table": ("جدول", "الجدول"),
+    "diagram": ("مخطط", "المخطط", "رسم", "الرسم", "شكل", "الشكل"),
+    "graph": ("رسم بياني", "الرسم البياني", "منحنى", "المنحنى"),
+}
+
+
+def _spans_overlap(spans: list[tuple[int, int]], start: int, end: int) -> bool:
+    return any(start < existing_end and end > existing_start for existing_start, existing_end in spans)
+
+
+def _normalise_fidelity_value(kind: str, value: str) -> str:
+    normalised = unicodedata.normalize("NFKC", value or "").strip()
+    normalised = normalised.replace("−", "-").replace("–", "-")
+    if kind in {"mark", "equation", "scientific_number", "ratio", "quantity", "part_label"}:
+        normalised = re.sub(r"\s+", "", normalised)
+    return normalised
+
+
+def _is_chemical_formula(candidate: str) -> bool:
+    core = re.sub(r"(?:\^?[0-9₀-₉]*[+\-⁺⁻])$", "", candidate)
+    elements = re.findall(r"[A-Z][a-z]?", core)
+    return bool(elements) and all(element in _CHEMICAL_ELEMENTS for element in elements) and (
+        len(elements) >= 2 or bool(re.search(r"[0-9₀-₉]", core))
+    )
+
+
+def extract_source_fidelity_tokens(original_text: str) -> list[FidelityToken]:
+    """Extract source values whose scientific identity must survive translation.
+
+    The extractor is intentionally conservative. It protects content that can be
+    checked deterministically without treating ordinary English words as formulas
+    or variables.
+    """
+
+    source = original_text or ""
+    protected: list[FidelityToken] = []
+    occupied_spans: list[tuple[int, int]] = []
+
+    def add_token(kind: str, value: str, start: int, end: int, *, canonical: str | None = None) -> None:
+        protected.append(
+            FidelityToken(
+                kind=kind,
+                value=value,
+                canonical=canonical or _normalise_fidelity_value(kind, value),
+            )
+        )
+        occupied_spans.append((start, end))
+
+    for match in _MARK_PATTERN.finditer(source):
+        add_token("mark", match.group(0), *match.span())
+
+    for match in _REFERENCE_PATTERN.finditer(source):
+        if _spans_overlap(occupied_spans, *match.span()):
+            continue
+        canonical = f"{match.group('label').casefold()}:{match.group('identifier')}"
+        add_token("reference", match.group(0), *match.span(), canonical=canonical)
+
+    for match in _EQUATION_PATTERN.finditer(source):
+        span = match.span("expression")
+        if not _spans_overlap(occupied_spans, *span):
+            add_token("equation", match.group("expression"), *span)
+
+    for pattern, kind in ((_SCIENTIFIC_NUMBER_PATTERN, "scientific_number"), (_RATIO_PATTERN, "ratio")):
+        for match in pattern.finditer(source):
+            if not _spans_overlap(occupied_spans, *match.span()):
+                add_token(kind, match.group(0), *match.span())
+
+    for match in _UNIT_PATTERN.finditer(source):
+        if not _spans_overlap(occupied_spans, *match.span()):
+            add_token("quantity", match.group(0), *match.span())
+
+    for match in _FORMULA_CANDIDATE_PATTERN.finditer(source):
+        if not _spans_overlap(occupied_spans, *match.span()) and _is_chemical_formula(match.group(0)):
+            add_token("chemical_formula", match.group(0), *match.span())
+
+    for match in _PART_LABEL_PATTERN.finditer(source):
+        if not _spans_overlap(occupied_spans, *match.span()):
+            add_token("part_label", match.group(0), *match.span())
+
+    for pattern in _VARIABLE_CONTEXT_PATTERNS:
+        for match in pattern.finditer(source):
+            for group_name in ("variable", "first", "second"):
+                if group_name not in match.groupdict() or match.group(group_name) is None:
+                    continue
+                span = match.span(group_name)
+                if not _spans_overlap(occupied_spans, *span):
+                    add_token("variable", match.group(group_name), *span)
+
+    for match in _NUMBER_PATTERN.finditer(source):
+        if not _spans_overlap(occupied_spans, *match.span()):
+            add_token("number", match.group(0), *match.span())
+
+    for match in _SPECIAL_SYMBOL_PATTERN.finditer(source):
+        if not _spans_overlap(occupied_spans, *match.span()):
+            add_token("symbol", match.group(0), *match.span())
+
+    return protected
+
+
+def _reference_occurrence_count(token: FidelityToken, translated_text: str) -> int:
+    label, identifier = token.canonical.split(":", 1)
+    english_label = re.escape(label)
+    arabic_labels = "|".join(re.escape(item) for item in _REFERENCE_ARABIC_LABELS.get(label, ()))
+    labels = f"(?:{english_label}|{arabic_labels})" if arabic_labels else english_label
+    pattern = re.compile(
+        rf"(?<![A-Za-z0-9]){labels}\s*\.?\s*[\(\[]?\s*{re.escape(identifier)}\s*[\)\]]?",
+        flags=re.IGNORECASE,
+    )
+    return len(pattern.findall(unicodedata.normalize("NFKC", translated_text or "")))
+
+
+def _fidelity_occurrence_count(token: FidelityToken, translated_text: str) -> int:
+    if token.kind == "reference":
+        return _reference_occurrence_count(token, translated_text)
+
+    normalised_translation = unicodedata.normalize("NFKC", translated_text or "")
+    normalised_translation = normalised_translation.replace("−", "-").replace("–", "-")
+
+    if token.kind in {"mark", "equation", "scientific_number", "ratio", "quantity", "part_label"}:
+        normalised_translation = re.sub(r"\s+", "", normalised_translation)
+
+    if token.kind == "number":
+        return len(
+            re.findall(
+                rf"(?<![\w.]){re.escape(token.canonical)}(?![\w.])",
+                normalised_translation,
+            )
+        )
+
+    if token.kind in {"chemical_formula", "variable"}:
+        return len(
+            re.findall(
+                rf"(?<![A-Za-z0-9]){re.escape(token.canonical)}(?![A-Za-z0-9])",
+                normalised_translation,
+            )
+        )
+
+    return normalised_translation.count(token.canonical)
+
+
+def validate_translation_fidelity(
+    original_text: str,
+    translated_text: str,
+) -> FidelityComplianceResult:
+    """Verify protected scientific values, including repeated occurrences."""
+
+    protected_tokens = extract_source_fidelity_tokens(original_text)
+    required_counts = Counter((token.kind, token.canonical) for token in protected_tokens)
+    representative = {(token.kind, token.canonical): token for token in protected_tokens}
+    missing: list[FidelityToken] = []
+
+    for key, required_count in required_counts.items():
+        token = representative[key]
+        found_count = _fidelity_occurrence_count(token, translated_text)
+        missing.extend([token] * max(0, required_count - found_count))
+
+    return FidelityComplianceResult(
+        protected_tokens=tuple(protected_tokens),
+        missing_tokens=tuple(missing),
+    )
+
+
+def _format_fidelity_tokens(tokens: tuple[FidelityToken, ...] | list[FidelityToken]) -> str:
+    return "، ".join(
+        f"{_FIDELITY_KIND_LABELS.get(token.kind, token.kind)}: {token.value}"
+        for token in tokens
+    )
+
+
+def _build_protected_content_text(tokens: list[FidelityToken]) -> str:
+    if not tokens:
+        return "لا يوجد محتوى علمي محمي قابل للفحص في النص المصدر."
+    return "\n".join(
+        f"- {_FIDELITY_KIND_LABELS.get(token.kind, token.kind)} => {token.value}"
+        for token in tokens
     )
 
 
@@ -306,10 +585,11 @@ def build_translation_prompts(
     glossary: list[GlossaryTerm],
     context: TranslationPromptContext | None = None,
 ) -> tuple[str, str]:
-    """Build the Phase 4-A3 scientific translation and glossary protocol."""
+    """Build the Phase 4-A4 scientific translation, glossary, and fidelity protocol."""
 
     approved_terms = _approved_glossary_terms(glossary)
     applicable_terms = find_applicable_glossary_terms(original_text, glossary)
+    protected_tokens = extract_source_fidelity_tokens(original_text)
     glossary_lines = [
         f"- {term.english_term.strip()} = {term.arabic_term.strip()}"
         for term in approved_terms
@@ -326,6 +606,7 @@ def build_translation_prompts(
         if mandatory_lines
         else "لا توجد مصطلحات معتمدة مطابقة للنص المصدر."
     )
+    protected_text = _build_protected_content_text(protected_tokens)
     command_text = "\n".join(command_lines)
     context_text = _build_translation_context_text(context)
 
@@ -335,8 +616,8 @@ def build_translation_prompts(
 1. أعد الترجمة العربية فقط، بلا مقدمة أو تعليق أو Markdown أو علامات اقتباس إضافية.
 2. ترجم السؤال فقط. لا تحل السؤال ولا تجب عنه، ولا تضف تلميحًا أو تفسيرًا أو حقيقة علمية غير موجودة في الأصل.
 3. حافظ على مستوى الطلب المعرفي وفعل الأمر الامتحاني؛ لا تحوّل «اذكر» إلى «فسّر» ولا «احسب» إلى «حدّد».
-4. حافظ حرفيًا على الأرقام والقيم والإشارات والمعادلات والمتغيرات والرموز الكيميائية والوحدات والدرجات وأقواسها، ولا تحوّلها إلى كلمات.
-5. حافظ على مراجع الأشكال والجداول والرسوم وتسميات الأجزاء والخيارات كما وردت.
+4. قسم PROTECTED SOURCE CONTENT ملزم: أبقِ كل قيمة والأرقام والإشارات والمعادلات والمتغيرات والرموز الكيميائية والوحدات والدرجات ومراجع الأشكال والجداول المدرجة فيه دون حذف أو تغيير في هويتها العلمية. يسمح فقط باختلافات المسافات الطباعية غير المؤثرة.
+5. حافظ على مراجع الأشكال والجداول والرسوم وتسميات الأجزاء والخيارات كما وردت، مع جواز ترجمة كلمة Figure أو Table إلى مقابلها العربي مع إبقاء المعرّف نفسه.
 6. اكتب عربية طبيعية دقيقة، وتجنب الترجمة الحرفية الركيكة أو مزج الإنجليزية بالعربية إلا في رمز أو مصطلح يجب إبقاؤه.
 7. قاموس الورقة المعتمد ملزم. إذا ظهر مصطلح إنجليزي في النص المصدر ضمن قسم MANDATORY SOURCE TERMS، فاستخدم مقابله العربي المحدد حرفيًا، ولا تستبدله بمرادف.
 8. استخدم سياق المادة والصف والسؤال الرئيسي والجزء الأب لحسم المعنى فقط، ولا تنقل هذا السياق إلى الناتج ما لم يكن موجودًا في النص المصدر.
@@ -357,6 +638,9 @@ def build_translation_prompts(
         "MANDATORY SOURCE TERMS\n"
         "----------------------\n"
         f"{mandatory_text}\n\n"
+        "PROTECTED SOURCE CONTENT\n"
+        "------------------------\n"
+        f"{protected_text}\n\n"
         "SOURCE QUESTION\n"
         "---------------\n"
         f"{original_text.strip()}\n\n"
@@ -367,30 +651,40 @@ def build_translation_prompts(
     return system_prompt, user_prompt
 
 
-def build_glossary_correction_prompts(
+def build_translation_correction_prompts(
     original_text: str,
     previous_translation: str,
     glossary: list[GlossaryTerm],
-    missing_terms: tuple[GlossaryTerm, ...],
+    missing_terms: tuple[GlossaryTerm, ...] = (),
+    missing_fidelity_tokens: tuple[FidelityToken, ...] = (),
     context: TranslationPromptContext | None = None,
 ) -> tuple[str, str]:
-    """Build the single allowed correction request for glossary violations."""
+    """Build the one allowed correction request for all deterministic violations."""
 
     system_prompt, _ = build_translation_prompts(original_text, glossary, context)
-    required_text = "\n".join(
-        f"- {term.english_term.strip()} => {term.arabic_term.strip()}"
-        for term in missing_terms
+    required_terms_text = (
+        "\n".join(
+            f"- {term.english_term.strip()} => {term.arabic_term.strip()}"
+            for term in missing_terms
+        )
+        if missing_terms
+        else "لا توجد مخالفة قاموس في هذه المحاولة."
+    )
+    protected_text = (
+        _build_protected_content_text(list(missing_fidelity_tokens))
+        if missing_fidelity_tokens
+        else "لا توجد مخالفة محتوى علمي محمي في هذه المحاولة."
     )
     correction_system = (
         f"{system_prompt}\n\n"
-        "هذه محاولة تصحيح واحدة. حافظ على معنى الترجمة السابقة وبنيتها، "
-        "وغيّر فقط ما يلزم لفرض المصطلحات المعتمدة المفقودة."
+        "هذه محاولة تصحيح واحدة فقط. حافظ على معنى الترجمة السابقة وبنيتها، "
+        "وغيّر فقط ما يلزم لإصلاح مخالفات القاموس أو المحتوى العلمي المحمي."
     )
     correction_user = (
         f"PROMPT VERSION: {TRANSLATION_PROMPT_VERSION}\n\n"
         "CORRECTION TASK\n"
         "---------------\n"
-        "صحّح الترجمة السابقة بحيث تظهر جميع المقابلات العربية الإلزامية أدناه حرفيًا. "
+        "صحّح الترجمة السابقة بحيث تلتزم بجميع المصطلحات والقيم العلمية الإلزامية أدناه. "
         "لا تحل السؤال ولا تضف شرحًا أو ملاحظة.\n\n"
         "SOURCE QUESTION\n"
         "---------------\n"
@@ -400,12 +694,51 @@ def build_glossary_correction_prompts(
         f"{previous_translation.strip()}\n\n"
         "MISSING MANDATORY TERMS\n"
         "-----------------------\n"
-        f"{required_text}\n\n"
+        f"{required_terms_text}\n\n"
+        "MISSING PROTECTED CONTENT\n"
+        "-------------------------\n"
+        f"{protected_text}\n\n"
         "OUTPUT REQUIREMENT\n"
         "------------------\n"
         "أعد الترجمة العربية المصححة فقط."
     )
     return correction_system, correction_user
+
+
+def build_glossary_correction_prompts(
+    original_text: str,
+    previous_translation: str,
+    glossary: list[GlossaryTerm],
+    missing_terms: tuple[GlossaryTerm, ...],
+    context: TranslationPromptContext | None = None,
+) -> tuple[str, str]:
+    """Backward-compatible wrapper for a glossary-only correction request."""
+
+    return build_translation_correction_prompts(
+        original_text,
+        previous_translation,
+        glossary,
+        missing_terms=missing_terms,
+        context=context,
+    )
+
+
+def build_fidelity_correction_prompts(
+    original_text: str,
+    previous_translation: str,
+    glossary: list[GlossaryTerm],
+    missing_tokens: tuple[FidelityToken, ...],
+    context: TranslationPromptContext | None = None,
+) -> tuple[str, str]:
+    """Build a correction request for protected scientific content only."""
+
+    return build_translation_correction_prompts(
+        original_text,
+        previous_translation,
+        glossary,
+        missing_fidelity_tokens=missing_tokens,
+        context=context,
+    )
 
 
 def build_translation_messages(
@@ -664,13 +997,31 @@ def _extract_provider_text(
     return extractor(payload if isinstance(payload, dict) else {})
 
 
+def _glossary_success_note(compliance: GlossaryComplianceResult) -> str:
+    if compliance.applicable_terms:
+        return (
+            "فحص القاموس: التزم الناتج بجميع المصطلحات المعتمدة المطابقة "
+            f"(العدد: {len(compliance.applicable_terms)})."
+        )
+    return "فحص القاموس: لا توجد مصطلحات معتمدة مطابقة في النص المصدر."
+
+
+def _fidelity_success_note(compliance: FidelityComplianceResult) -> str:
+    if compliance.protected_tokens:
+        return (
+            "فحص الأمان العلمي: التزم الناتج بجميع عناصر المحتوى العلمي المحمي "
+            f"(العدد: {len(compliance.protected_tokens)})."
+        )
+    return "فحص الأمان العلمي: لا يوجد محتوى علمي محمي قابل للفحص في النص المصدر."
+
+
 def translate_with_optional_external_provider(
     original_text: str,
     glossary: list[GlossaryTerm],
     fallback_translation: str,
     context: TranslationPromptContext | None = None,
 ) -> TranslationProviderResult:
-    """Use the configured provider, enforce approved terms, and keep a safe fallback."""
+    """Use one provider request, one correction at most, and a safe local fallback."""
 
     decision = evaluate_provider_decision(original_text)
     if not decision.can_use_external:
@@ -700,37 +1051,36 @@ def translate_with_optional_external_provider(
                 "عاد مزود الذكاء الاصطناعي باستجابة فارغة؛ تم استخدام fallback.",
             )
 
-        compliance = validate_glossary_compliance(
+        glossary_compliance = validate_glossary_compliance(
             original_text,
             translated_text,
             glossary,
         )
-        if compliance.is_compliant:
-            if compliance.applicable_terms:
-                glossary_note = (
-                    "فحص القاموس: التزم الناتج بجميع المصطلحات المعتمدة المطابقة "
-                    f"(العدد: {len(compliance.applicable_terms)})."
-                )
-            else:
-                glossary_note = "فحص القاموس: لا توجد مصطلحات معتمدة مطابقة في النص المصدر."
-
+        fidelity_compliance = validate_translation_fidelity(
+            original_text,
+            translated_text,
+        )
+        if glossary_compliance.is_compliant and fidelity_compliance.is_compliant:
             return TranslationProviderResult(
                 translated_text=translated_text,
                 provider=decision.provider,
                 used_external_provider=True,
                 note=(
                     f"تم توليد الترجمة عبر {decision.provider} باستخدام {api_label}. "
-                    f"{glossary_note} تبقى الترجمة قابلة لمراجعة المعلم."
+                    f"{_glossary_success_note(glossary_compliance)} "
+                    f"{_fidelity_success_note(fidelity_compliance)} "
+                    "تبقى الترجمة قابلة لمراجعة المعلم."
                 ),
             )
 
-        request_stage = "تصحيح القاموس"
-        correction_prompts = build_glossary_correction_prompts(
+        request_stage = "تصحيح الترجمة"
+        correction_prompts = build_translation_correction_prompts(
             original_text,
             translated_text,
             glossary,
-            compliance.missing_terms,
-            context,
+            missing_terms=glossary_compliance.missing_terms,
+            missing_fidelity_tokens=fidelity_compliance.missing_tokens,
+            context=context,
         )
         correction_response, correction_extractor, _ = _post_provider_request(
             decision.provider,
@@ -740,42 +1090,71 @@ def translate_with_optional_external_provider(
             prompts=correction_prompts,
         )
         correction_response.raise_for_status()
-        corrected_text = _extract_provider_text(
-            correction_response,
-            correction_extractor,
-        )
+        corrected_text = _extract_provider_text(correction_response, correction_extractor)
         if not corrected_text:
             return _fallback_result(
                 fallback_translation,
                 decision.provider,
-                "عادت محاولة تصحيح القاموس باستجابة فارغة؛ تم استخدام fallback.",
+                "عادت محاولة تصحيح الترجمة باستجابة فارغة؛ تم استخدام fallback.",
             )
 
-        corrected_compliance = validate_glossary_compliance(
+        corrected_glossary = validate_glossary_compliance(
             original_text,
             corrected_text,
             glossary,
         )
-        if corrected_compliance.is_compliant:
+        corrected_fidelity = validate_translation_fidelity(
+            original_text,
+            corrected_text,
+        )
+        if corrected_glossary.is_compliant and corrected_fidelity.is_compliant:
+            if glossary_compliance.is_compliant:
+                glossary_note = _glossary_success_note(corrected_glossary)
+            else:
+                glossary_note = (
+                    "فحص القاموس: صُححت مخالفة المصطلحات تلقائيًا في محاولة واحدة، "
+                    "ثم تحقق الالتزام بجميع المصطلحات المطابقة "
+                    f"(العدد: {len(corrected_glossary.applicable_terms)})."
+                )
+
+            if fidelity_compliance.is_compliant:
+                fidelity_note = _fidelity_success_note(corrected_fidelity)
+            else:
+                fidelity_note = (
+                    "فحص الأمان العلمي: صُححت مخالفة المحتوى العلمي المحمي تلقائيًا "
+                    "في محاولة واحدة، ثم تحقق الالتزام بجميع العناصر المحمية "
+                    f"(العدد: {len(corrected_fidelity.protected_tokens)})."
+                )
+
             return TranslationProviderResult(
                 translated_text=corrected_text,
                 provider=decision.provider,
                 used_external_provider=True,
                 note=(
                     f"تم توليد الترجمة عبر {decision.provider} باستخدام {api_label}. "
-                    "فحص القاموس: صُححت مخالفة المصطلحات تلقائيًا في محاولة واحدة، "
-                    f"ثم تحقق الالتزام بجميع المصطلحات المطابقة "
-                    f"(العدد: {len(corrected_compliance.applicable_terms)}). "
+                    f"{glossary_note} {fidelity_note} "
                     "تبقى الترجمة قابلة لمراجعة المعلم."
                 ),
+            )
+
+        failure_notes: list[str] = []
+        if not corrected_glossary.is_compliant:
+            failure_notes.append(
+                "استمرت مخالفة المصطلحات المعتمدة بعد محاولة تصحيح واحدة؛ "
+                "المصطلحات غير المتحققة: "
+                f"{_format_glossary_terms(corrected_glossary.missing_terms)}."
+            )
+        if not corrected_fidelity.is_compliant:
+            failure_notes.append(
+                "استمرت مخالفة المحتوى العلمي المحمي بعد محاولة تصحيح واحدة؛ "
+                "العناصر غير المتحققة: "
+                f"{_format_fidelity_tokens(corrected_fidelity.missing_tokens)}."
             )
 
         return _fallback_result(
             fallback_translation,
             decision.provider,
-            "استمرت مخالفة المصطلحات المعتمدة بعد محاولة تصحيح واحدة؛ "
-            "تم استخدام fallback المحلي. المصطلحات غير المتحققة: "
-            f"{_format_glossary_terms(corrected_compliance.missing_terms)}.",
+            " ".join(failure_notes) + " تم استخدام fallback المحلي.",
         )
     except httpx.TimeoutException:
         return _fallback_result(
