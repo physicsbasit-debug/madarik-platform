@@ -7,13 +7,16 @@ from app.models.project import GlossaryTerm, GlossaryTermStatus
 from app.services.ai_provider import (
     TRANSLATION_PROMPT_VERSION,
     TranslationPromptContext,
+    build_fidelity_correction_prompts,
     build_glossary_correction_prompts,
     build_translation_messages,
     build_translation_prompts,
+    extract_source_fidelity_tokens,
     find_applicable_glossary_terms,
     get_ai_provider_status,
     translate_with_optional_external_provider,
     validate_glossary_compliance,
+    validate_translation_fidelity,
 )
 
 client = TestClient(app)
@@ -701,3 +704,229 @@ def test_phase4_a3_does_not_enforce_unapproved_term(monkeypatch):
     assert result.provider == "gemini"
     assert result.used_external_provider is True
     assert "لا توجد مصطلحات معتمدة مطابقة" in result.note
+
+def test_phase4_a4_extracts_protected_scientific_content_without_plain_words():
+    tokens = extract_source_fidelity_tokens(
+        "(b)(ii) Calculate V = IR when I = 2 A and R = 5 Ω. "
+        "Use H₂O in Figure 2.1 and plot x against t with "
+        "1.5 × 10^3 particles in a ratio 1:2. [3]"
+    )
+    protected = {(token.kind, token.canonical) for token in tokens}
+
+    assert ("part_label", "(b)") in protected
+    assert ("part_label", "(ii)") in protected
+    assert ("equation", "V=IR") in protected
+    assert ("equation", "I=2A") in protected
+    assert ("equation", "R=5Ω") in protected
+    assert ("chemical_formula", "H2O") in protected
+    assert ("reference", "figure:2.1") in protected
+    assert ("scientific_number", "1.5×10^3") in protected
+    assert ("ratio", "1:2") in protected
+    assert ("variable", "x") in protected
+    assert ("variable", "t") in protected
+    assert ("mark", "[3]") in protected
+    assert all(token.value.lower() != "calculate" for token in tokens)
+
+
+def test_phase4_a4_fidelity_accepts_spacing_and_arabic_reference_label():
+    result = validate_translation_fidelity(
+        "Calculate V = IR using Figure 2 and 5 kg. [2]",
+        "احسب V=IR باستخدام الشكل (2) وكتلة مقدارها 5kg. [ 2 ]",
+    )
+
+    assert result.is_compliant is True
+    assert result.missing_tokens == ()
+
+
+def test_phase4_a4_fidelity_detects_changed_equation_quantity_formula_and_mark():
+    result = validate_translation_fidelity(
+        "Calculate V = IR for a 5 kg sample of H₂O. [2]",
+        "احسب V = I/R لعينة كتلتها 6 kg من CO₂. [3]",
+    )
+
+    missing = {(token.kind, token.canonical) for token in result.missing_tokens}
+    assert ("equation", "V=IR") in missing
+    assert ("quantity", "5kg") in missing
+    assert ("chemical_formula", "H2O") in missing
+    assert ("mark", "[2]") in missing
+
+
+def test_phase4_a4_fidelity_preserves_repeated_occurrences():
+    result = validate_translation_fidelity(
+        "Record 5 cm, then compare it with another 5 cm length.",
+        "سجّل طولًا مقداره 5 cm ثم قارنه بالطول الآخر.",
+    )
+
+    assert result.is_compliant is False
+    assert len(result.missing_tokens) == 1
+    assert result.missing_tokens[0].canonical == "5cm"
+
+
+def test_phase4_a4_prompt_lists_protected_source_content():
+    system_prompt, user_prompt = build_translation_prompts(
+        "Calculate V = IR when I = 2 A. [2]",
+        [],
+    )
+
+    assert TRANSLATION_PROMPT_VERSION == "phase-4-a4-v1"
+    assert "PROTECTED SOURCE CONTENT" in user_prompt
+    assert "معادلة أو علاقة => V = IR" in user_prompt
+    assert "معادلة أو علاقة => I = 2 A" in user_prompt
+    assert "درجة => [2]" in user_prompt
+    assert "قسم PROTECTED SOURCE CONTENT ملزم" in system_prompt
+
+
+def test_phase4_a4_builds_fidelity_correction_prompt():
+    fidelity = validate_translation_fidelity(
+        "Calculate V = IR when I = 2 A. [2]",
+        "احسب V = I/R عندما تكون I = 3 A. [2]",
+    )
+    system_prompt, user_prompt = build_fidelity_correction_prompts(
+        "Calculate V = IR when I = 2 A. [2]",
+        "احسب V = I/R عندما تكون I = 3 A. [2]",
+        [],
+        fidelity.missing_tokens,
+    )
+
+    assert fidelity.is_compliant is False
+    assert "محاولة تصحيح واحدة فقط" in system_prompt
+    assert "MISSING PROTECTED CONTENT" in user_prompt
+    assert "معادلة أو علاقة => V = IR" in user_prompt
+    assert "معادلة أو علاقة => I = 2 A" in user_prompt
+
+
+def test_phase4_a4_gemini_corrects_fidelity_violation_once(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "")
+    monkeypatch.setattr(settings, "ai_model", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "gemini-secret")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-3.1-flash-lite")
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 4000)
+
+    payloads: list[dict[str, object]] = []
+    response_texts = iter(
+        [
+            "احسب V = I/R عندما تكون I = 3 A. [2]",
+            "احسب V = IR عندما تكون I = 2 A. [2]",
+        ]
+    )
+
+    def fake_post(url, *, headers, json, timeout):
+        payloads.append(json)
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "candidates": [
+                    {"content": {"parts": [{"text": next(response_texts)}]}}
+                ]
+            },
+        )
+
+    monkeypatch.setattr("app.services.ai_provider.httpx.post", fake_post)
+
+    result = translate_with_optional_external_provider(
+        original_text="Calculate V = IR when I = 2 A. [2]",
+        glossary=[],
+        fallback_translation="احسب V = IR عندما تكون I = 2 A. [2]",
+    )
+
+    assert len(payloads) == 2
+    assert result.provider == "gemini"
+    assert result.used_external_provider is True
+    assert result.translated_text == "احسب V = IR عندما تكون I = 2 A. [2]"
+    assert "صُححت مخالفة المحتوى العلمي المحمي تلقائيًا" in result.note
+    correction_prompt = payloads[1]["contents"][0]["parts"][0]["text"]
+    assert "MISSING PROTECTED CONTENT" in correction_prompt
+    assert "V = IR" in correction_prompt
+    assert "I = 2 A" in correction_prompt
+
+
+def test_phase4_a4_combines_glossary_and_fidelity_in_one_retry(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "")
+    monkeypatch.setattr(settings, "ai_model", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "gemini-secret")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-3.1-flash-lite")
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 4000)
+
+    payloads: list[dict[str, object]] = []
+    response_texts = iter(
+        [
+            "احسب فرق الكمون عندما تكون I = 3 A. [2]",
+            "احسب فرق الجهد عندما تكون I = 2 A. [2]",
+        ]
+    )
+
+    def fake_post(url, *, headers, json, timeout):
+        payloads.append(json)
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={"candidates": [{"content": {"parts": [{"text": next(response_texts)}]}}]},
+        )
+
+    monkeypatch.setattr("app.services.ai_provider.httpx.post", fake_post)
+
+    result = translate_with_optional_external_provider(
+        original_text="Calculate the potential difference when I = 2 A. [2]",
+        glossary=[
+            GlossaryTerm(
+                id="potential-difference-a4",
+                english_term="potential difference",
+                arabic_term="فرق الجهد",
+            )
+        ],
+        fallback_translation="احسب فرق الجهد عندما تكون I = 2 A. [2]",
+    )
+
+    assert len(payloads) == 2
+    assert result.provider == "gemini"
+    assert "صُححت مخالفة المصطلحات" in result.note
+    assert "صُححت مخالفة المحتوى العلمي" in result.note
+    correction_prompt = payloads[1]["contents"][0]["parts"][0]["text"]
+    assert "potential difference => فرق الجهد" in correction_prompt
+    assert "I = 2 A" in correction_prompt
+
+
+def test_phase4_a4_falls_back_after_persistent_fidelity_violation(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "")
+    monkeypatch.setattr(settings, "ai_model", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "gemini-secret")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-3.1-flash-lite")
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 4000)
+
+    call_count = 0
+
+    def fake_post(url, *, headers, json, timeout):
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "candidates": [
+                    {"content": {"parts": [{"text": "احسب V = I/R عندما تكون I = 3 A. [2]"}]}}
+                ]
+            },
+        )
+
+    monkeypatch.setattr("app.services.ai_provider.httpx.post", fake_post)
+    fallback = "احسب V = IR عندما تكون I = 2 A. [2]"
+    result = translate_with_optional_external_provider(
+        original_text="Calculate V = IR when I = 2 A. [2]",
+        glossary=[],
+        fallback_translation=fallback,
+    )
+
+    assert call_count == 2
+    assert result.provider == "mock"
+    assert result.used_external_provider is False
+    assert result.translated_text == fallback
+    assert "استمرت مخالفة المحتوى العلمي المحمي" in result.note
+    assert "V = IR" in result.note
+    assert "I = 2 A" in result.note
