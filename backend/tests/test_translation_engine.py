@@ -1,7 +1,13 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.project import GlossaryTerm, ProjectMetadata, QuestionItem, QuestionPart
+from app.models.project import (
+    GlossaryTerm,
+    GlossaryTermStatus,
+    ProjectMetadata,
+    QuestionItem,
+    QuestionPart,
+)
 from app.services.ai_provider import TranslationProviderResult
 from app.services.translation import translate_question_text, translate_questions_with_glossary
 
@@ -315,4 +321,33 @@ def test_translate_questions_passes_project_and_parent_context(monkeypatch):
     assert child_context.parent_part_text == "The current in the circuit is 2 A."
     assert translated.parts[1].parent_id == "part-a"
     assert translated.translated_text.splitlines()[1].startswith("  (i) ترجمة:")
-    assert "Phase 4-A2" in (translated.review_notes or "")
+    assert "Phase 4-A3" in (translated.review_notes or "")
+
+
+def test_phase4_a3_local_fallback_uses_only_approved_glossary_terms():
+    source = "State the momentum. [1]"
+    approved_translation = translate_question_text(
+        source,
+        [
+            GlossaryTerm(
+                id="momentum-approved",
+                english_term="momentum",
+                arabic_term="كمية الحركة",
+                status=GlossaryTermStatus.approved,
+            )
+        ],
+    )
+    review_translation = translate_question_text(
+        source,
+        [
+            GlossaryTerm(
+                id="momentum-review",
+                english_term="momentum",
+                arabic_term="كمية الحركة",
+                status=GlossaryTermStatus.needs_review,
+            )
+        ],
+    )
+
+    assert "كمية الحركة" in approved_translation
+    assert "كمية الحركة" not in review_translation

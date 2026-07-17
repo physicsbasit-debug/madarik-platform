@@ -3,14 +3,17 @@ from fastapi.testclient import TestClient
 
 from app.core.config import settings
 from app.main import app
-from app.models.project import GlossaryTerm
+from app.models.project import GlossaryTerm, GlossaryTermStatus
 from app.services.ai_provider import (
     TRANSLATION_PROMPT_VERSION,
     TranslationPromptContext,
+    build_glossary_correction_prompts,
     build_translation_messages,
     build_translation_prompts,
+    find_applicable_glossary_terms,
     get_ai_provider_status,
     translate_with_optional_external_provider,
+    validate_glossary_compliance,
 )
 
 client = TestClient(app)
@@ -434,3 +437,267 @@ def test_gemini_provider_falls_back_when_key_is_missing(monkeypatch):
     assert result.used_external_provider is False
     assert result.translated_text == "اذكر وحدة القوة. [1]"
     assert "مفتاح" in result.note
+
+
+def test_phase4_a3_only_approved_matching_terms_are_mandatory():
+    glossary = [
+        GlossaryTerm(
+            id="approved-pd",
+            english_term="potential difference",
+            arabic_term="فرق الجهد",
+            status=GlossaryTermStatus.approved,
+        ),
+        GlossaryTerm(
+            id="review-current",
+            english_term="current",
+            arabic_term="التيار الكهربائي",
+            status=GlossaryTermStatus.needs_review,
+        ),
+        GlossaryTerm(
+            id="unused-resistance",
+            english_term="resistance",
+            arabic_term="المقاومة",
+            status=GlossaryTermStatus.approved,
+        ),
+    ]
+
+    applicable = find_applicable_glossary_terms(
+        "Calculate the potential difference and current. [2]",
+        glossary,
+    )
+    system_prompt, user_prompt = build_translation_prompts(
+        "Calculate the potential difference and current. [2]",
+        glossary,
+    )
+
+    assert [term.id for term in applicable] == ["approved-pd"]
+    assert "قاموس الورقة المعتمد ملزم" in system_prompt
+    assert "potential difference => فرق الجهد" in user_prompt
+    assert "resistance = المقاومة" in user_prompt
+    assert "current = التيار الكهربائي" not in user_prompt
+
+
+def test_phase4_a3_glossary_compliance_tolerates_arabic_diacritics():
+    glossary = [
+        GlossaryTerm(
+            id="resultant-force",
+            english_term="resultant force",
+            arabic_term="القوة المحصلة",
+        )
+    ]
+
+    compliance = validate_glossary_compliance(
+        "State the resultant force. [1]",
+        "اذكر القُوّة المُحصّلة. [1]",
+        glossary,
+    )
+
+    assert compliance.is_compliant is True
+    assert len(compliance.applicable_terms) == 1
+    assert compliance.missing_terms == ()
+
+
+def test_phase4_a3_builds_one_correction_prompt_for_missing_terms():
+    glossary = [
+        GlossaryTerm(
+            id="potential-difference",
+            english_term="potential difference",
+            arabic_term="فرق الجهد",
+        )
+    ]
+    compliance = validate_glossary_compliance(
+        "Calculate the potential difference. [1]",
+        "احسب فرق الكمون. [1]",
+        glossary,
+    )
+
+    system_prompt, user_prompt = build_glossary_correction_prompts(
+        "Calculate the potential difference. [1]",
+        "احسب فرق الكمون. [1]",
+        glossary,
+        compliance.missing_terms,
+    )
+
+    assert compliance.is_compliant is False
+    assert "محاولة تصحيح واحدة" in system_prompt
+    assert "PREVIOUS TRANSLATION" in user_prompt
+    assert "احسب فرق الكمون. [1]" in user_prompt
+    assert "potential difference => فرق الجهد" in user_prompt
+    assert user_prompt.rstrip().endswith("أعد الترجمة العربية المصححة فقط.")
+
+
+def test_phase4_a3_gemini_corrects_glossary_violation_once(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "")
+    monkeypatch.setattr(settings, "ai_model", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "gemini-secret")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-3.1-flash-lite")
+    monkeypatch.setattr(
+        settings,
+        "gemini_base_url",
+        "https://generativelanguage.googleapis.com/v1beta",
+    )
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 4000)
+
+    captured_payloads: list[dict[str, object]] = []
+    response_texts = iter(
+        [
+            "احسب فرق الكمون بين النقطتين. [1]",
+            "احسب فرق الجهد بين النقطتين. [1]",
+        ]
+    )
+
+    def fake_post(url, *, headers, json, timeout):
+        captured_payloads.append(json)
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [{"text": next(response_texts)}],
+                        }
+                    }
+                ]
+            },
+        )
+
+    monkeypatch.setattr("app.services.ai_provider.httpx.post", fake_post)
+
+    glossary = [
+        GlossaryTerm(
+            id="potential-difference",
+            english_term="potential difference",
+            arabic_term="فرق الجهد",
+        )
+    ]
+    result = translate_with_optional_external_provider(
+        original_text="Calculate the potential difference between the points. [1]",
+        glossary=glossary,
+        fallback_translation="احسب فرق الجهد بين النقطتين. [1]",
+    )
+
+    assert result.provider == "gemini"
+    assert result.used_external_provider is True
+    assert result.translated_text == "احسب فرق الجهد بين النقطتين. [1]"
+    assert "صُححت مخالفة المصطلحات تلقائيًا في محاولة واحدة" in result.note
+    assert len(captured_payloads) == 2
+
+    first_prompt = captured_payloads[0]["contents"][0]["parts"][0]["text"]
+    correction_prompt = captured_payloads[1]["contents"][0]["parts"][0]["text"]
+    assert "potential difference => فرق الجهد" in first_prompt
+    assert "PREVIOUS TRANSLATION" in correction_prompt
+    assert "احسب فرق الكمون بين النقطتين. [1]" in correction_prompt
+
+
+def test_phase4_a3_falls_back_after_persistent_glossary_violation(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "")
+    monkeypatch.setattr(settings, "ai_model", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "gemini-secret")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-3.1-flash-lite")
+    monkeypatch.setattr(
+        settings,
+        "gemini_base_url",
+        "https://generativelanguage.googleapis.com/v1beta",
+    )
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 4000)
+
+    call_count = 0
+
+    def fake_post(url, *, headers, json, timeout):
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [{"text": "احسب فرق الكمون بين النقطتين. [1]"}],
+                        }
+                    }
+                ]
+            },
+        )
+
+    monkeypatch.setattr("app.services.ai_provider.httpx.post", fake_post)
+
+    glossary = [
+        GlossaryTerm(
+            id="potential-difference",
+            english_term="potential difference",
+            arabic_term="فرق الجهد",
+        )
+    ]
+    fallback = "احسب فرق الجهد بين النقطتين. [1]"
+    result = translate_with_optional_external_provider(
+        original_text="Calculate the potential difference between the points. [1]",
+        glossary=glossary,
+        fallback_translation=fallback,
+    )
+
+    assert call_count == 2
+    assert result.provider == "mock"
+    assert result.used_external_provider is False
+    assert result.translated_text == fallback
+    assert "استمرت مخالفة المصطلحات المعتمدة" in result.note
+    assert "potential difference = فرق الجهد" in result.note
+
+
+def test_phase4_a3_does_not_enforce_unapproved_term(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "")
+    monkeypatch.setattr(settings, "ai_model", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "gemini-secret")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-3.1-flash-lite")
+    monkeypatch.setattr(
+        settings,
+        "gemini_base_url",
+        "https://generativelanguage.googleapis.com/v1beta",
+    )
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 4000)
+
+    call_count = 0
+
+    def fake_post(url, *, headers, json, timeout):
+        nonlocal call_count
+        call_count += 1
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [{"text": "اذكر شدة التيار. [1]"}],
+                        }
+                    }
+                ]
+            },
+        )
+
+    monkeypatch.setattr("app.services.ai_provider.httpx.post", fake_post)
+
+    result = translate_with_optional_external_provider(
+        original_text="State the current. [1]",
+        glossary=[
+            GlossaryTerm(
+                id="current-review",
+                english_term="current",
+                arabic_term="التيار الكهربائي",
+                status=GlossaryTermStatus.needs_review,
+            )
+        ],
+        fallback_translation="اذكر شدة التيار. [1]",
+    )
+
+    assert call_count == 1
+    assert result.provider == "gemini"
+    assert result.used_external_provider is True
+    assert "لا توجد مصطلحات معتمدة مطابقة" in result.note

@@ -465,9 +465,11 @@ export function ReviewStep({
           {translationProviderStatus?.ready && translationProviderStatus.apiMode
             ? ` عبر ${formatProviderApiMode(translationProviderStatus.apiMode)}`
             : ""}
-          . تُترجم أجزاء السؤال بصورة مستقلة عند وجودها. ترسل مدارك طلبات
-          OpenAI الرسمية عبر Responses API وطلبات Gemini عبر generateContent
-          مع store=false، ومع ذلك تبقى مراجعة المعلم إلزامية قبل التصدير.
+          . تُترجم أجزاء السؤال بصورة مستقلة عند وجودها، ويُفحص التزام الناتج
+          بالمصطلحات العلمية المعتمدة آليًا. عند وجود مخالفة تُجرى محاولة تصحيح
+          واحدة فقط قبل الرجوع إلى fallback المحلي. ترسل مدارك طلبات OpenAI
+          الرسمية عبر Responses API وطلبات Gemini عبر generateContent مع
+          store=false، وتبقى مراجعة المعلم إلزامية قبل التصدير.
         </span>
       </div>
 

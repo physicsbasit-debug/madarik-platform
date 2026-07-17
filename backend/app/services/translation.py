@@ -1,7 +1,14 @@
 import re
 from uuid import uuid4
 
-from app.models.project import GlossaryTerm, ProjectMetadata, QuestionItem, QuestionPart, QuestionStatus
+from app.models.project import (
+    GlossaryTerm,
+    GlossaryTermStatus,
+    ProjectMetadata,
+    QuestionItem,
+    QuestionPart,
+    QuestionStatus,
+)
 from app.services.ai_provider import TranslationPromptContext, translate_with_optional_external_provider
 
 
@@ -99,7 +106,7 @@ def _build_term_map(glossary: list[GlossaryTerm]) -> dict[str, str]:
     for term in glossary:
         english = term.english_term.strip().lower()
         arabic = term.arabic_term.strip()
-        if english and arabic:
+        if term.status == GlossaryTermStatus.approved and english and arabic:
             term_map[english] = arabic
     return term_map
 
@@ -167,10 +174,10 @@ def _pattern_based_translation(core_text: str, term_map: dict[str, str]) -> str 
 
 
 def translate_question_text(original_text: str, glossary: list[GlossaryTerm]) -> str:
-    """Return a deterministic Phase 1-E2 draft translation.
+    """Return the deterministic local fallback translation.
 
-    This is intentionally conservative and review-first. It is not a final AI translation.
-    The real AI provider is deferred until the API key and deployment policy are fixed.
+    This path remains conservative and review-first. Phase 4-A3 uses it whenever
+    the external provider is unavailable or keeps violating approved glossary terms.
     """
 
     marks_suffix = _extract_marks_suffix(original_text)
@@ -347,7 +354,7 @@ def translate_questions_with_glossary(
     glossary: list[GlossaryTerm],
     metadata: ProjectMetadata | None = None,
 ) -> list[QuestionItem]:
-    """Translate questions with the Phase 4-A2 scientific prompt and context."""
+    """Translate questions with Phase 4-A3 glossary enforcement and context."""
 
     translated_questions: list[QuestionItem] = []
     for question in questions:
@@ -412,7 +419,7 @@ def translate_questions_with_glossary(
         )
 
         review_note = (
-            "ترجمة Phase 4-A2 عبر موجه الترجمة العلمية. "
+            "ترجمة Phase 4-A3 مع فرض قاموس المصطلحات العلمية المعتمد. "
             f"المزود المستخدم: {', '.join(providers_used)}."
             f"{parts_note} "
             "راجع الترجمة قبل التصدير."
