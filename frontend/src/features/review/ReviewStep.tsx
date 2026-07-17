@@ -62,6 +62,13 @@ function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} م.ب`;
 }
 
+function formatProviderApiMode(apiMode?: string) {
+  if (apiMode === "responses") return "Responses API";
+  if (apiMode === "generate_content") return "Gemini generateContent";
+  if (apiMode === "chat_completions") return "Chat Completions";
+  return apiMode ?? "";
+}
+
 function sortQuestionParts(parts: QuestionPart[] | undefined) {
   return [...(parts ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
 }
@@ -456,11 +463,11 @@ export function ReviewStep({
             ? `جاهز للترجمة الفعلية: ${translationProviderStatus.provider} / ${translationProviderStatus.model}`
             : "الترجمة الخارجية غير جاهزة؛ سيُستخدم fallback المحلي"}
           {translationProviderStatus?.ready && translationProviderStatus.apiMode
-            ? ` عبر ${translationProviderStatus.apiMode === "responses" ? "Responses API" : "Chat Completions"}`
+            ? ` عبر ${formatProviderApiMode(translationProviderStatus.apiMode)}`
             : ""}
-          . تُترجم أجزاء السؤال بصورة مستقلة عند وجودها. عند استخدام OpenAI
-          الرسمي ترسل مدارك الطلب مع store=false، ومع ذلك تبقى مراجعة المعلم
-          إلزامية قبل التصدير.
+          . تُترجم أجزاء السؤال بصورة مستقلة عند وجودها. ترسل مدارك طلبات
+          OpenAI الرسمية عبر Responses API وطلبات Gemini عبر generateContent
+          مع store=false، ومع ذلك تبقى مراجعة المعلم إلزامية قبل التصدير.
         </span>
       </div>
 
