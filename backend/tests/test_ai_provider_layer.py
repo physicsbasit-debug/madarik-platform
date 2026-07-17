@@ -297,3 +297,140 @@ def test_provider_status_reports_prompt_version(monkeypatch):
     status = get_ai_provider_status()
 
     assert status["prompt_version"] == TRANSLATION_PROMPT_VERSION
+
+def test_gemini_provider_status_uses_dedicated_settings_without_exposing_secret(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "")
+    monkeypatch.setattr(settings, "ai_model", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "gemini-secret-that-must-not-leak")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-3.1-flash-lite")
+    monkeypatch.setattr(
+        settings,
+        "gemini_base_url",
+        "https://generativelanguage.googleapis.com/v1beta",
+    )
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+
+    status = get_ai_provider_status()
+
+    assert status["provider"] == "gemini"
+    assert status["configured"] is True
+    assert status["ready"] is True
+    assert status["reason"] == "ready"
+    assert status["model"] == "gemini-3.1-flash-lite"
+    assert status["api_mode"] == "generate_content"
+    assert "gemini" in status["supported_providers"]
+    assert "gemini-secret-that-must-not-leak" not in str(status)
+
+
+def test_gemini_provider_uses_generate_content_without_storage(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "")
+    monkeypatch.setattr(settings, "ai_model", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "gemini-secret")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-3.1-flash-lite")
+    monkeypatch.setattr(
+        settings,
+        "gemini_base_url",
+        "https://generativelanguage.googleapis.com/v1beta",
+    )
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+    monkeypatch.setattr(settings, "ai_max_input_chars", 4000)
+    monkeypatch.setattr(settings, "ai_max_output_tokens", 700)
+    monkeypatch.setattr(settings, "ai_temperature", 0.1)
+
+    captured: dict[str, object] = {}
+
+    def fake_post(url, *, headers, json, timeout):
+        captured.update(
+            {
+                "url": url,
+                "headers": headers,
+                "json": json,
+                "timeout": timeout,
+            }
+        )
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "candidates": [
+                    {
+                        "content": {
+                            "role": "model",
+                            "parts": [
+                                {
+                                    "text": (
+                                        "احسب تسارع جسم كتلته 5 kg عندما تكون "
+                                        "القوة المحصلة المؤثرة عليه 20 N."
+                                    )
+                                }
+                            ],
+                        }
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 62,
+                    "candidatesTokenCount": 29,
+                    "totalTokenCount": 91,
+                },
+            },
+        )
+
+    monkeypatch.setattr("app.services.ai_provider.httpx.post", fake_post)
+
+    result = translate_with_optional_external_provider(
+        original_text=(
+            "Calculate the acceleration of a 5 kg object when the net force "
+            "acting on it is 20 N."
+        ),
+        glossary=[],
+        fallback_translation="fallback",
+        context=TranslationPromptContext(
+            subject="فيزياء",
+            grade="الصف العاشر",
+        ),
+    )
+
+    assert result.used_external_provider is True
+    assert result.provider == "gemini"
+    assert result.translated_text.startswith("احسب تسارع جسم")
+    assert "Gemini generateContent" in result.note
+    assert captured["url"] == (
+        "https://generativelanguage.googleapis.com/v1beta/"
+        "models/gemini-3.1-flash-lite:generateContent"
+    )
+
+    headers = captured["headers"]
+    assert isinstance(headers, dict)
+    assert headers["x-goog-api-key"] == "gemini-secret"
+    assert "Authorization" not in headers
+
+    request_json = captured["json"]
+    assert isinstance(request_json, dict)
+    assert request_json["store"] is False
+    assert request_json["generationConfig"]["maxOutputTokens"] == 700
+    assert request_json["generationConfig"]["temperature"] == 0.1
+    assert "لا تحل السؤال" in request_json["systemInstruction"]["parts"][0]["text"]
+    assert TRANSLATION_PROMPT_VERSION in request_json["contents"][0]["parts"][0]["text"]
+    assert request_json["contents"][0]["role"] == "user"
+
+
+def test_gemini_provider_falls_back_when_key_is_missing(monkeypatch):
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "")
+    monkeypatch.setattr(settings, "ai_model", "")
+    monkeypatch.setattr(settings, "gemini_model", "")
+    monkeypatch.setattr(settings, "ai_external_enabled", True)
+
+    result = translate_with_optional_external_provider(
+        original_text="State the unit of force. [1]",
+        glossary=[],
+        fallback_translation="اذكر وحدة القوة. [1]",
+    )
+
+    assert result.provider == "mock"
+    assert result.used_external_provider is False
+    assert result.translated_text == "اذكر وحدة القوة. [1]"
+    assert "مفتاح" in result.note

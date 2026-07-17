@@ -29,6 +29,17 @@ class Settings(BaseModel):
     ai_api_key: str = os.getenv("MADARIK_AI_API_KEY", "")
     ai_model: str = os.getenv("MADARIK_AI_MODEL", "")
     ai_base_url: str = os.getenv("MADARIK_AI_BASE_URL", "https://api.openai.com/v1")
+
+    # Phase 4-A2b: Gemini provider settings. Dedicated Gemini variables are
+    # preferred when Gemini is selected, while the generic Phase 4-A1 settings
+    # remain available for OpenAI and OpenAI-compatible providers.
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "")
+    gemini_base_url: str = os.getenv(
+        "GEMINI_BASE_URL",
+        "https://generativelanguage.googleapis.com/v1beta",
+    )
+
     ai_timeout_seconds: float = float(os.getenv("MADARIK_AI_TIMEOUT_SECONDS", "45"))
     ai_max_input_chars: int = int(os.getenv("MADARIK_AI_MAX_INPUT_CHARS", "4000"))
     ai_max_output_tokens: int = int(os.getenv("MADARIK_AI_MAX_OUTPUT_TOKENS", "1200"))

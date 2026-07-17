@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -9,7 +10,7 @@ from app.core.config import settings
 from app.models.project import GlossaryTerm
 
 
-SUPPORTED_EXTERNAL_PROVIDERS = {"openai", "openai-compatible"}
+SUPPORTED_EXTERNAL_PROVIDERS = {"gemini", "openai", "openai-compatible"}
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,7 @@ class TranslationPromptContext:
 
 
 TRANSLATION_PROMPT_VERSION = "phase-4-a2-v1"
+DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
 MAX_PROMPT_CONTEXT_CHARS = 1200
 
 
@@ -79,12 +81,16 @@ def normalise_provider_name(provider: str) -> str:
     value = provider.strip().lower()
     if value in {"", "mock", "none", "fallback"}:
         return "mock"
+    if value in {"google", "google-gemini", "google_gemini", "gemini"}:
+        return "gemini"
     if value in {"openai", "openai-compatible", "openai_compatible"}:
         return "openai-compatible" if value != "openai" else "openai"
     return value
 
 
 def _provider_api_mode(provider: str) -> str:
+    if provider == "gemini":
+        return "generate_content"
     if provider == "openai":
         return "responses"
     if provider == "openai-compatible":
@@ -92,11 +98,29 @@ def _provider_api_mode(provider: str) -> str:
     return "mock"
 
 
+def _provider_api_key(provider: str) -> str:
+    if provider == "gemini":
+        return settings.gemini_api_key.strip() or settings.ai_api_key.strip()
+    return settings.ai_api_key.strip()
+
+
+def _provider_model(provider: str) -> str:
+    if provider == "gemini":
+        return settings.gemini_model.strip() or settings.ai_model.strip() or DEFAULT_GEMINI_MODEL
+    return settings.ai_model.strip()
+
+
+def _provider_base_url(provider: str) -> str:
+    if provider == "gemini":
+        return settings.gemini_base_url.strip()
+    return settings.ai_base_url.strip()
+
+
 def evaluate_provider_decision(input_text: str = "") -> ProviderDecision:
     """Return a safe decision for whether external AI may be used."""
 
     provider = normalise_provider_name(settings.ai_provider)
-    configured = bool(settings.ai_api_key.strip() and settings.ai_model.strip())
+    configured = bool(_provider_api_key(provider) and _provider_model(provider))
     input_length = len(input_text or "")
 
     if provider == "mock":
@@ -121,17 +145,20 @@ def get_ai_provider_status() -> dict[str, object]:
     """Return safe provider metadata for UI/tests without exposing secrets."""
 
     decision = evaluate_provider_decision()
-    configured = bool(settings.ai_api_key.strip() and settings.ai_model.strip())
     provider = normalise_provider_name(settings.ai_provider)
+    model = _provider_model(provider)
+    api_key = _provider_api_key(provider)
+    base_url = _provider_base_url(provider)
+    configured = bool(api_key and model)
     return {
         "provider": provider,
         "configured": configured if provider != "mock" else False,
         "external_enabled": settings.ai_external_enabled,
         "ready": decision.can_use_external,
         "reason": decision.reason,
-        "model": settings.ai_model if provider != "mock" and settings.ai_model else "",
+        "model": model if provider != "mock" else "",
         "api_mode": _provider_api_mode(provider),
-        "base_url_configured": bool(settings.ai_base_url.strip()) if provider != "mock" else False,
+        "base_url_configured": bool(base_url) if provider != "mock" else False,
         "timeout_seconds": settings.ai_timeout_seconds,
         "max_input_chars": settings.ai_max_input_chars,
         "max_output_tokens": settings.ai_max_output_tokens,
@@ -139,7 +166,7 @@ def get_ai_provider_status() -> dict[str, object]:
         "supported_providers": sorted(SUPPORTED_EXTERNAL_PROVIDERS | {"mock"}),
         "fallback": decision.fallback,
         "prompt_version": TRANSLATION_PROMPT_VERSION,
-        # Madarik never asks OpenAI to retain translated exam content.
+        # Madarik never asks an external provider to retain translated exam content.
         "stores_responses": False,
     }
 
@@ -242,6 +269,35 @@ def build_translation_messages(
     ]
 
 
+def _extract_gemini_content(payload: dict[str, Any]) -> str:
+    """Extract text parts from a Gemini generateContent response."""
+
+    candidates = payload.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        return ""
+
+    first_candidate = candidates[0]
+    if not isinstance(first_candidate, dict):
+        return ""
+
+    content = first_candidate.get("content")
+    if not isinstance(content, dict):
+        return ""
+
+    parts = content.get("parts")
+    if not isinstance(parts, list):
+        return ""
+
+    collected: list[str] = []
+    for part in parts:
+        if not isinstance(part, dict):
+            continue
+        text = part.get("text")
+        if isinstance(text, str) and text.strip():
+            collected.append(text.strip())
+    return "\n".join(collected).strip()
+
+
 def _extract_openai_chat_content(payload: dict[str, Any]) -> str:
     choices = payload.get("choices")
     if not isinstance(choices, list) or not choices:
@@ -281,6 +337,15 @@ def _extract_openai_responses_content(payload: dict[str, Any]) -> str:
     return "\n".join(collected).strip()
 
 
+def _gemini_generate_content_url() -> str:
+    model = _provider_model("gemini").removeprefix("models/")
+    encoded_model = quote(model, safe="")
+    return (
+        f"{_provider_base_url('gemini').rstrip('/')}/models/"
+        f"{encoded_model}:generateContent"
+    )
+
+
 def _chat_completions_url() -> str:
     return f"{settings.ai_base_url.rstrip('/')}/chat/completions"
 
@@ -295,6 +360,39 @@ def _fallback_result(fallback_translation: str, provider: str, note: str) -> Tra
         provider="mock",
         used_external_provider=False,
         note=note if note else f"تعذر استخدام المزود {provider}؛ تم استخدام fallback.",
+    )
+
+
+def _post_gemini_generate_content(
+    original_text: str,
+    glossary: list[GlossaryTerm],
+    context: TranslationPromptContext | None = None,
+) -> httpx.Response:
+    system_prompt, user_prompt = build_translation_prompts(original_text, glossary, context)
+    return httpx.post(
+        _gemini_generate_content_url(),
+        headers={
+            "x-goog-api-key": _provider_api_key("gemini"),
+            "Content-Type": "application/json",
+        },
+        json={
+            "systemInstruction": {
+                "parts": [{"text": system_prompt}],
+            },
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": user_prompt}],
+                }
+            ],
+            "generationConfig": {
+                "temperature": settings.ai_temperature,
+                "maxOutputTokens": settings.ai_max_output_tokens,
+            },
+            # Exam content is sent for this one translation request only.
+            "store": False,
+        },
+        timeout=settings.ai_timeout_seconds,
     )
 
 
@@ -364,17 +462,22 @@ def translate_with_optional_external_provider(
         return _fallback_result(fallback_translation, decision.provider, reason_notes.get(decision.reason, ""))
 
     try:
-        if decision.provider == "openai":
+        if decision.provider == "gemini":
+            response = _post_gemini_generate_content(original_text, glossary, context)
+            extract_content = _extract_gemini_content
+            api_label = "Gemini generateContent"
+        elif decision.provider == "openai":
             response = _post_openai_responses(original_text, glossary, context)
             extract_content = _extract_openai_responses_content
+            api_label = "Responses API"
         else:
             response = _post_openai_compatible_chat(original_text, glossary, context)
             extract_content = _extract_openai_chat_content
+            api_label = "Chat Completions"
 
         response.raise_for_status()
         translated_text = extract_content(response.json())
         if translated_text:
-            api_label = "Responses API" if decision.provider == "openai" else "Chat Completions"
             return TranslationProviderResult(
                 translated_text=translated_text,
                 provider=decision.provider,
