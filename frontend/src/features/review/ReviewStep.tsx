@@ -25,6 +25,7 @@ import type {
   TranslationProviderStatus,
   TranslationBatchSummary,
   FullExamIntakeReport,
+  FullExamTranslationReport,
 } from "../../types/project";
 
 interface ReviewStepProps {
@@ -36,6 +37,7 @@ interface ReviewStepProps {
   ) => void;
   onMoveQuestion: (questionId: string, direction: "up" | "down") => void;
   onTranslateQuestions: () => void;
+  onRetryQuestionTranslation: (questionId: string) => void;
   onBulkUpdateStatus: (
     status: QuestionStatus,
     includeDeleted?: boolean,
@@ -52,6 +54,7 @@ interface ReviewStepProps {
   translationProviderStatus: TranslationProviderStatus | null;
   translationBatchSummary?: TranslationBatchSummary | null;
   fullExamIntakeReport?: FullExamIntakeReport | null;
+  fullExamTranslationReport?: FullExamTranslationReport | null;
 }
 
 const statusLabels: Record<QuestionStatus, string> = {
@@ -79,6 +82,26 @@ function formatFullExamIntakeStatus(
   if (status === "accepted") return "مقبولة هيكليًا";
   if (status === "needs_review") return "تحتاج مراجعة هيكلية";
   return "مرفوضة هيكليًا";
+}
+
+
+function formatFullExamTranslationStatus(
+  status: FullExamTranslationReport["status"],
+) {
+  if (status === "accepted") return "مقبولة بعد المراجعة";
+  if (status === "needs_review") return "مكتملة وتحتاج مراجعة";
+  if (status === "incomplete") return "غير مكتملة";
+  return "تتضمن أسئلة فشلت ترجمتها";
+}
+
+function formatQuestionTranslationStatus(
+  status: FullExamTranslationReport["questions"][number]["status"],
+) {
+  if (status === "accepted") return "ترجمة معتمدة";
+  if (status === "needs_review") return "تحتاج مراجعة";
+  if (status === "untranslated") return "غير مكتملة";
+  if (status === "failed") return "فشلت الترجمة";
+  return "محذوف";
 }
 
 
@@ -274,6 +297,7 @@ export function ReviewStep({
   onUpdateQuestion,
   onMoveQuestion,
   onTranslateQuestions,
+  onRetryQuestionTranslation,
   onBulkUpdateStatus,
   onUploadQuestionAsset,
   onDeleteQuestionAsset,
@@ -283,6 +307,7 @@ export function ReviewStep({
   translationProviderStatus,
   translationBatchSummary,
   fullExamIntakeReport,
+  fullExamTranslationReport,
 }: ReviewStepProps) {
   const sortedQuestions = [...questions].sort(
     (a, b) => a.orderIndex - b.orderIndex,
@@ -518,6 +543,29 @@ export function ReviewStep({
         </span>
       </div>
 
+      {fullExamTranslationReport ? (
+        <div className="notice-card translation-notice">
+          <strong>قبول ترجمة الورقة ومراجعتها:</strong>
+          <span>
+            {formatFullExamTranslationStatus(
+              fullExamTranslationReport.status,
+            )}. اكتمال الترجمة:{" "}
+            {fullExamTranslationReport.completionPercent}%، الأسئلة المترجمة:{" "}
+            {fullExamTranslationReport.translatedQuestions} من{" "}
+            {fullExamTranslationReport.activeQuestions}، المعتمدة:{" "}
+            {fullExamTranslationReport.acceptedQuestions}، تحتاج مراجعة:{" "}
+            {fullExamTranslationReport.needsReviewQuestions}، غير المكتملة:{" "}
+            {fullExamTranslationReport.untranslatedQuestions}، الفاشلة:{" "}
+            {fullExamTranslationReport.failedQuestions}، مخالفات القاموس:{" "}
+            {fullExamTranslationReport.glossaryViolationCount}، مخالفات السلامة
+            العلمية: {fullExamTranslationReport.fidelityViolationCount}.
+            {fullExamTranslationReport.warnings.length > 0
+              ? ` تنبيهات: ${fullExamTranslationReport.warnings.join(" ")}`
+              : " جميع فحوص قبول الترجمة والمراجعة ناجحة."}
+          </span>
+        </div>
+      ) : null}
+
       {translationBatchSummary ? (
         <div className="notice-card translation-notice">
           <strong>ملخص دفعة الترجمة:</strong>
@@ -583,6 +631,14 @@ export function ReviewStep({
           const hasQuestionMarksGuidance =
             questionPartsTotalMarks !== null &&
             question.marks !== questionPartsTotalMarks;
+          const translationAcceptance =
+            fullExamTranslationReport?.questions.find(
+              (item) => item.questionId === question.id,
+            );
+          const canRetryTranslation =
+            question.status !== "deleted" &&
+            translationAcceptance !== undefined &&
+            translationAcceptance.status !== "accepted";
 
           return (
             <article
@@ -600,21 +656,43 @@ export function ReviewStep({
                       المصدر: صفحة {question.sourcePageNumbers?.join("، ")}
                     </small>
                   ) : null}
+                  {translationAcceptance ? (
+                    <small>
+                      حالة الترجمة:{" "}
+                      {formatQuestionTranslationStatus(
+                        translationAcceptance.status,
+                      )}. {translationAcceptance.message}
+                    </small>
+                  ) : null}
                 </div>
-                <select
-                  value={question.status}
-                  onChange={(event) =>
-                    onUpdateQuestion(question.id, {
-                      status: event.target.value as QuestionStatus,
-                    })
-                  }
-                >
-                  <option value="approved">{statusLabels.approved}</option>
-                  <option value="needs_review">
-                    {statusLabels.needs_review}
-                  </option>
-                  <option value="deleted">{statusLabels.deleted}</option>
-                </select>
+                <div className="question-header-actions">
+                  {canRetryTranslation ? (
+                    <button
+                      type="button"
+                      className="secondary-button compact"
+                      onClick={() =>
+                        onRetryQuestionTranslation(question.id)
+                      }
+                    >
+                      <RotateCcw size={15} />
+                      إعادة ترجمة السؤال
+                    </button>
+                  ) : null}
+                  <select
+                    value={question.status}
+                    onChange={(event) =>
+                      onUpdateQuestion(question.id, {
+                        status: event.target.value as QuestionStatus,
+                      })
+                    }
+                  >
+                    <option value="approved">{statusLabels.approved}</option>
+                    <option value="needs_review">
+                      {statusLabels.needs_review}
+                    </option>
+                    <option value="deleted">{statusLabels.deleted}</option>
+                  </select>
+                </div>
               </header>
 
               <label>

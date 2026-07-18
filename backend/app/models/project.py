@@ -32,8 +32,6 @@ class GlossaryTermSource(str, Enum):
     detected = "detected"
 
 
-
-
 class TranslationOutcomeStatus(str, Enum):
     external_success = "external_success"
     corrected_success = "corrected_success"
@@ -57,6 +55,21 @@ class FullExamIntakeStatus(str, Enum):
     accepted = "accepted"
     needs_review = "needs_review"
     rejected = "rejected"
+
+
+class FullExamTranslationAcceptanceStatus(str, Enum):
+    accepted = "accepted"
+    needs_review = "needs_review"
+    incomplete = "incomplete"
+    failed = "failed"
+
+
+class FullExamTranslationQuestionStatus(str, Enum):
+    accepted = "accepted"
+    needs_review = "needs_review"
+    untranslated = "untranslated"
+    failed = "failed"
+    deleted = "deleted"
 
 
 class PdfPageKind(str, Enum):
@@ -109,7 +122,6 @@ class QuestionAssetInfo(BaseModel):
     size: int = Field(ge=0)
     type: str
     data_base64: str
-
 
 
 class PdfLayoutAssetInfo(BaseModel):
@@ -190,9 +202,6 @@ class GlossaryTerm(BaseModel):
     notes: str | None = None
 
 
-
-
-
 class TranslationItemOutcome(BaseModel):
     question_id: str
     question_number: str = ""
@@ -219,6 +228,50 @@ class TranslationBatchSummary(BaseModel):
     failed_safely_count: int = Field(default=0, ge=0)
     urgent_review_count: int = Field(default=0, ge=0)
     items: list[TranslationItemOutcome] = Field(default_factory=list)
+
+
+class FullExamTranslationQuestionSummary(BaseModel):
+    question_id: str
+    question_number: str
+    status: FullExamTranslationQuestionStatus
+    total_items: int = Field(default=0, ge=0)
+    translated_items: int = Field(default=0, ge=0)
+    urgent_review_items: int = Field(default=0, ge=0)
+    failed_items: int = Field(default=0, ge=0)
+    glossary_violation_count: int = Field(default=0, ge=0)
+    fidelity_violation_count: int = Field(default=0, ge=0)
+    source_page_numbers: list[int] = Field(default_factory=list)
+    linked_layout_asset_count: int = Field(default=0, ge=0)
+    message: str = ""
+
+
+class FullExamTranslationCheck(BaseModel):
+    code: str
+    passed: bool
+    message: str
+
+
+class FullExamTranslationReport(BaseModel):
+    status: FullExamTranslationAcceptanceStatus
+    total_questions: int = Field(default=0, ge=0)
+    active_questions: int = Field(default=0, ge=0)
+    deleted_questions: int = Field(default=0, ge=0)
+    translated_questions: int = Field(default=0, ge=0)
+    accepted_questions: int = Field(default=0, ge=0)
+    needs_review_questions: int = Field(default=0, ge=0)
+    untranslated_questions: int = Field(default=0, ge=0)
+    failed_questions: int = Field(default=0, ge=0)
+    completion_percent: float = Field(default=0, ge=0, le=100)
+    total_items: int = Field(default=0, ge=0)
+    translated_items: int = Field(default=0, ge=0)
+    urgent_review_items: int = Field(default=0, ge=0)
+    glossary_violation_count: int = Field(default=0, ge=0)
+    fidelity_violation_count: int = Field(default=0, ge=0)
+    source_page_linked_questions: int = Field(default=0, ge=0)
+    multi_page_questions: int = Field(default=0, ge=0)
+    questions: list[FullExamTranslationQuestionSummary] = Field(default_factory=list)
+    checks: list[FullExamTranslationCheck] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class FullExamPageSummary(BaseModel):
@@ -277,7 +330,6 @@ class AnswerKeyItem(BaseModel):
     notes: str = "مسودة نموذج إجابة آلية تحتاج مراجعة المعلم."
 
 
-
 class EducationalAnalysisReport(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     question_count: int = Field(default=0, ge=0)
@@ -293,7 +345,6 @@ class EducationalAnalysisReport(BaseModel):
     recommendations: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     needs_review: bool = True
-
 
 
 class EducationalQualityToolsReport(BaseModel):
@@ -322,6 +373,7 @@ class ProjectSession(BaseModel):
     quality_tools: EducationalQualityToolsReport | None = None
     translation_batch_summary: TranslationBatchSummary | None = None
     full_exam_intake_report: FullExamIntakeReport | None = None
+    full_exam_translation_report: FullExamTranslationReport | None = None
     current_step: StepKey = StepKey.setup
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

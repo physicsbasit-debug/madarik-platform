@@ -13,6 +13,7 @@ from app.models.project import (
     ProjectSession,
     QuestionPatch,
     QuestionAssetInfo,
+    QuestionStatus,
     QuestionBulkStatusRequest,
     QuestionReorderRequest,
     StepUpdate,
@@ -27,11 +28,17 @@ from app.services.full_exam_intake import (
     link_layout_assets_to_page_aware_questions,
     parse_full_exam_questions_from_pages,
 )
+from app.services.full_exam_translation import (
+    build_full_exam_translation_report,
+)
 from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
 from app.services.ocr import OcrExtractionError, extract_text_from_image_bytes
 from app.services.pdf_ocr import PdfOcrExtractionError, extract_text_from_scanned_pdf_bytes
 from app.services.pdf_layout_assets import PdfLayoutAssetExtractionError, extract_pdf_layout_assets_from_bytes
-from app.services.translation import translate_questions_batch_with_glossary
+from app.services.translation import (
+    merge_translation_retry_summary,
+    translate_questions_batch_with_glossary,
+)
 from app.services.readiness import build_project_readiness_report
 from app.services.ai_provider import get_ai_provider_status
 from app.services.answer_key import build_answer_key_draft
@@ -631,7 +638,7 @@ def generate_project_glossary(project_id: str, account: AuthAccountPublic | None
 
 @router.post("/{project_id}/translate-questions")
 def translate_project_questions(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
-    """Translate a complete paper with Phase 4-A5 batch isolation and summary."""
+    """Translate a complete paper and build Phase 4-A6b acceptance."""
 
     project = _get_or_404(project_id, account)
     if not project.questions:
@@ -642,10 +649,82 @@ def translate_project_questions(project_id: str, account: AuthAccountPublic | No
         project.glossary,
         project.metadata,
     )
+    translation_report = build_full_exam_translation_report(
+        batch_result.questions,
+        project.glossary,
+        batch_result.summary,
+        project.full_exam_intake_report,
+    )
     updated_project = project_store.set_translated_questions(
         project_id,
         batch_result.questions,
         batch_result.summary,
+        translation_report,
+    )
+    if updated_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return updated_project
+
+
+@router.post("/{project_id}/questions/{question_id}/retry-translation")
+def retry_project_question_translation(
+    project_id: str,
+    question_id: str,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> ProjectSession:
+    """Retry one active question without retranslating the whole paper."""
+
+    project = _get_or_404(project_id, account)
+    question = next(
+        (
+            item
+            for item in project.questions
+            if item.id == question_id
+        ),
+        None,
+    )
+    if question is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project or question not found",
+        )
+    if question.status == QuestionStatus.deleted:
+        raise HTTPException(
+            status_code=400,
+            detail="لا يمكن إعادة ترجمة سؤال محذوف.",
+        )
+
+    retry_result = translate_questions_batch_with_glossary(
+        [question],
+        project.glossary,
+        project.metadata,
+    )
+    retried_question = retry_result.questions[0]
+    updated_questions = [
+        (
+            retried_question
+            if item.id == question_id
+            else item
+        )
+        for item in project.questions
+    ]
+    merged_summary = merge_translation_retry_summary(
+        updated_questions,
+        project.translation_batch_summary,
+        retry_result,
+        question_id,
+    )
+    translation_report = build_full_exam_translation_report(
+        updated_questions,
+        project.glossary,
+        merged_summary,
+        project.full_exam_intake_report,
+    )
+    updated_project = project_store.set_translated_questions(
+        project_id,
+        updated_questions,
+        merged_summary,
+        translation_report,
     )
     if updated_project is None:
         raise HTTPException(status_code=404, detail="Project not found")

@@ -436,6 +436,21 @@ h4 {
   color: #64748b;
 }
 
+.question-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.question-card-header small {
+  display: block;
+  margin-top: 0.35rem;
+  color: #64748b;
+  line-height: 1.55;
+}
+
 .question-card textarea[readonly] {
   background: #f8fafc;
 }
@@ -1839,5 +1854,17 @@ button:disabled {
 
   .question-marks-guidance button {
     width: 100%;
+  }
+}
+
+
+@media (max-width: 720px) {
+  .question-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .question-header-actions {
+    justify-content: flex-start;
   }
 }
