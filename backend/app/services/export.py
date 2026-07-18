@@ -14,6 +14,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
+from PIL import Image as PILImage
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
@@ -33,6 +34,11 @@ from app.models.project import (
     QuestionItem,
     QuestionPart,
     QuestionStatus,
+)
+from app.services.export_review import (
+    student_export_marks_label,
+    student_export_mode_label,
+    student_export_total_label,
 )
 from app.services.full_exam_export import build_full_exam_export_manifest
 from app.services.scientific_text import normalise_scientific_text, protect_scientific_bidi
@@ -407,8 +413,10 @@ def _add_metadata_table(
             ("الزمن", metadata.duration),
             (
                 "الدرجة",
-                metadata.total_marks
-                or str(marks_total),
+                student_export_marks_label(
+                    metadata,
+                    marks_total,
+                ),
             ),
         ),
         (
@@ -432,11 +440,7 @@ def _add_metadata_table(
             row_data[1][1],
         )
 
-    mode = (
-        "ثنائية اللغة"
-        if metadata.output_mode == OutputMode.bilingual
-        else "عربية نظيفة"
-    )
+    mode = student_export_mode_label(project)
 
     summary_table = document.add_table(
         rows=1,
@@ -448,7 +452,7 @@ def _add_metadata_table(
     summary_items = [
         ("نوع النسخة", mode),
         ("عدد الأسئلة", str(question_count)),
-        ("مجموع الدرجات", str(marks_total)),
+        (student_export_total_label(metadata), str(marks_total)),
     ]
 
     for cell, (label, value) in zip(
@@ -605,6 +609,7 @@ def _add_question_number(
 
     paragraph.paragraph_format.space_before = Pt(8)
     paragraph.paragraph_format.space_after = Pt(4)
+    paragraph.paragraph_format.keep_with_next = True
 
     run = paragraph.add_run(
         _question_heading_text(
@@ -667,6 +672,7 @@ def _add_docx_part_heading(
     )
     paragraph.paragraph_format.space_before = Pt(5)
     paragraph.paragraph_format.space_after = Pt(2)
+    paragraph.paragraph_format.keep_with_next = True
 
     run = paragraph.add_run(_part_heading_text(part))
     run.bold = True
@@ -718,31 +724,34 @@ def _add_docx_question_parts(
 
 
 
+def _docx_asset_size(asset_bytes: bytes) -> tuple[float, float]:
+    """Return bounded image dimensions in inches without distortion."""
+
+    max_width = 3.55
+    max_height = 2.65
+
+    try:
+        with PILImage.open(BytesIO(asset_bytes)) as image:
+            width_px, height_px = image.size
+    except Exception:
+        return 3.2, 2.2
+
+    if width_px <= 0 or height_px <= 0:
+        return 3.2, 2.2
+
+    scale = min(
+        max_width / width_px,
+        max_height / height_px,
+    )
+    return width_px * scale, height_px * scale
+
+
 def _add_docx_question_assets(
     document: Document,
     question: QuestionItem,
 ) -> None:
     if not question.attachments:
         return
-
-    label = document.add_paragraph()
-    _set_paragraph_bidi(
-        label,
-        rtl=True,
-    )
-
-    label.paragraph_format.space_before = Pt(5)
-    label.paragraph_format.space_after = Pt(3)
-
-    label_run = label.add_run(
-        "مرفقات السؤال:"
-    )
-    label_run.bold = True
-    label_run.font.size = Pt(10)
-    _set_run_rtl(
-        label_run,
-        rtl=True,
-    )
 
     for asset in question.attachments:
         asset_bytes = _asset_bytes(
@@ -754,13 +763,17 @@ def _add_docx_question_assets(
 
         paragraph = document.add_paragraph()
         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph.paragraph_format.space_before = Pt(2)
         paragraph.paragraph_format.space_after = Pt(4)
+        paragraph.paragraph_format.keep_together = True
 
         try:
+            width, height = _docx_asset_size(asset_bytes)
             run = paragraph.add_run()
             run.add_picture(
                 BytesIO(asset_bytes),
-                width=Inches(3.8),
+                width=Inches(width),
+                height=Inches(height),
             )
         except Exception:
             paragraph.clear()
@@ -770,8 +783,7 @@ def _add_docx_question_assets(
             )
 
             broken = paragraph.add_run(
-                "تعذر إدراج المرفق: "
-                + _clean_export_text(asset.name)
+                "تعذر إدراج الرسم المرتبط بالسؤال."
             )
             broken.font.size = Pt(9)
             broken.italic = True
@@ -1095,7 +1107,7 @@ def _add_pdf_logo(story: list, project: ProjectSession) -> None:
 def _add_pdf_header(story: list, project: ProjectSession, questions: list[QuestionItem], styles: dict[str, ParagraphStyle]) -> None:
     metadata = project.metadata
     marks_total = sum(_question_total_marks(question) or 0 for question in questions)
-    mode = "ثنائية اللغة" if metadata.output_mode == OutputMode.bilingual else "عربية نظيفة"
+    mode = student_export_mode_label(project)
 
     story.append(_pdf_paragraph(metadata.paper_title or "ورقة تدريبية مترجمة", styles["title"], rtl=True))
     story.append(_pdf_paragraph("منصة مدارك", styles["subtitle"], rtl=True))
@@ -1103,7 +1115,12 @@ def _add_pdf_header(story: list, project: ProjectSession, questions: list[Questi
     rows = [
         ("اسم المدرسة", metadata.school_name, "المادة", metadata.subject),
         ("الصف", metadata.grade, "الفصل الدراسي", metadata.semester),
-        ("الزمن", metadata.duration, "الدرجة", metadata.total_marks or str(marks_total)),
+        (
+            "الزمن",
+            metadata.duration,
+            "الدرجة",
+            student_export_marks_label(metadata, marks_total),
+        ),
         ("اسم المعلم", metadata.teacher_name, "التاريخ", metadata.date),
         ("نوع النسخة", mode, "عدد الأسئلة", str(len(questions))),
     ]
@@ -1137,7 +1154,6 @@ def _add_pdf_question_assets(story: list, question: QuestionItem, styles: dict[s
     if not question.attachments:
         return
 
-    story.append(_pdf_paragraph("مرفقات السؤال:", styles["small"], rtl=True))
     for asset in question.attachments:
         asset_bytes = _asset_bytes(asset.data_base64)
         if not asset_bytes:

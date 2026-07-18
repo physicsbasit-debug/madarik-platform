@@ -156,6 +156,5 @@ def test_docx_uses_summary_table_and_smaller_image() -> None:
 
     shape = document.inline_shapes[0]
 
-    assert abs(
-        shape.width - Inches(3.8)
-    ) < 1000
+    assert shape.width <= Inches(3.55)
+    assert shape.height <= Inches(2.65)

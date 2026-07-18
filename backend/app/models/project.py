@@ -15,6 +15,12 @@ class ExportFormat(str, Enum):
     pdf = "pdf"
 
 
+class MarksPolicy(str, Enum):
+    unresolved = "unresolved"
+    use_question_total = "use_question_total"
+    scale_to_declared = "scale_to_declared"
+
+
 class QuestionStatus(str, Enum):
     approved = "approved"
     needs_review = "needs_review"
@@ -135,6 +141,7 @@ class ProjectMetadata(BaseModel):
     paper_title: str = ""
     duration: str = ""
     total_marks: str = ""
+    marks_policy: MarksPolicy = MarksPolicy.unresolved
     teacher_name: str = ""
     date: str = ""
     output_mode: OutputMode = OutputMode.arabic

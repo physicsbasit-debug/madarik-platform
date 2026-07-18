@@ -161,3 +161,7 @@ backend/tests/test_full_exam_end_to_end_acceptance.py
 ## Phase 4-A6d Fix 5 addendum
 
 أُضيفت معالجة نهائية للصيغ التي يتركها OCR بعد ترتيب المعامل، مثل `5.0 × 10–4` و`8.5 × 10–10`، لتظهر بأسس Unicode سالبة صحيحة في Word وPDF. كما أصبح معرض لقطات PDF في مراجعة الأسئلة مطويًا افتراضيًا ويعرض أعداد اللقطات المرتبطة وغير المرتبطة دون تغيير بيانات الربط أو أدوات القص والحذف.
+
+## Fix 6 closure
+
+Phase 4-A6d Fix 6 adds an explicit marks policy for declared-total mismatches, cleans student-facing attachment labels, bounds DOCX visuals, and prevents fallback Arabic from being described as a clean final translation. See `PHASE_4_A6D_FIX6_MARKS_EXPORT_CLOSURE.md`.
