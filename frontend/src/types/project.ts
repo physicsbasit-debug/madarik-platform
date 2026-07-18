@@ -334,6 +334,63 @@ export interface FullExamExportReport {
 }
 
 
+export type FullExamEndToEndAcceptanceStatus =
+  | 'accepted'
+  | 'needs_review'
+  | 'rejected';
+
+export type FullExamEndToEndStageStatus =
+  | 'accepted'
+  | 'needs_review'
+  | 'pending'
+  | 'failed'
+  | 'skipped';
+
+export type FullExamEndToEndStageKey =
+  | 'intake'
+  | 'layout_assets'
+  | 'glossary'
+  | 'translation'
+  | 'readiness'
+  | 'docx_export'
+  | 'pdf_export'
+  | 'final_consistency';
+
+export interface FullExamEndToEndCheck {
+  code: string;
+  passed: boolean;
+  message: string;
+}
+
+export interface FullExamEndToEndStageSummary {
+  stage: FullExamEndToEndStageKey;
+  status: FullExamEndToEndStageStatus;
+  durationMs: number;
+  message: string;
+  checks: FullExamEndToEndCheck[];
+  warnings: string[];
+  errors: string[];
+}
+
+export interface FullExamEndToEndReport {
+  status: FullExamEndToEndAcceptanceStatus;
+  runId: string;
+  generatedAt: string;
+  totalDurationMs: number;
+  pageCount: number;
+  activeQuestionCount: number;
+  totalMarks: number;
+  translationCompletionPercent: number;
+  requestedFormats: ExportFormat[];
+  generatedFormats: ExportFormat[];
+  acceptedFormats: ExportFormat[];
+  stages: FullExamEndToEndStageSummary[];
+  checks: FullExamEndToEndCheck[];
+  warnings: string[];
+  errors: string[];
+}
+
+
 export type TranslationOutcomeStatus =
   | 'external_success'
   | 'corrected_success'
@@ -395,6 +452,7 @@ export interface ProjectSession {
   fullExamIntakeReport?: FullExamIntakeReport | null;
   fullExamTranslationReport?: FullExamTranslationReport | null;
   fullExamExportReport?: FullExamExportReport | null;
+  fullExamEndToEndReport?: FullExamEndToEndReport | null;
   currentStep: StepKey;
 }
 

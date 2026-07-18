@@ -85,6 +85,31 @@ class FullExamExportArtifactStatus(str, Enum):
     failed = "failed"
 
 
+class FullExamEndToEndAcceptanceStatus(str, Enum):
+    accepted = "accepted"
+    needs_review = "needs_review"
+    rejected = "rejected"
+
+
+class FullExamEndToEndStageStatus(str, Enum):
+    accepted = "accepted"
+    needs_review = "needs_review"
+    pending = "pending"
+    failed = "failed"
+    skipped = "skipped"
+
+
+class FullExamEndToEndStageKey(str, Enum):
+    intake = "intake"
+    layout_assets = "layout_assets"
+    glossary = "glossary"
+    translation = "translation"
+    readiness = "readiness"
+    docx_export = "docx_export"
+    pdf_export = "pdf_export"
+    final_consistency = "final_consistency"
+
+
 class PdfPageKind(str, Enum):
     cover = "cover"
     question = "question"
@@ -325,6 +350,46 @@ class FullExamExportReport(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class FullExamEndToEndCheck(BaseModel):
+    code: str
+    passed: bool
+    message: str
+
+
+class FullExamEndToEndStageSummary(BaseModel):
+    stage: FullExamEndToEndStageKey
+    status: FullExamEndToEndStageStatus
+    duration_ms: float = Field(default=0, ge=0)
+    message: str = ""
+    checks: list[FullExamEndToEndCheck] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+
+
+class FullExamEndToEndReport(BaseModel):
+    status: FullExamEndToEndAcceptanceStatus
+    run_id: str = Field(default_factory=lambda: str(uuid4()))
+    generated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    total_duration_ms: float = Field(default=0, ge=0)
+    page_count: int = Field(default=0, ge=0)
+    active_question_count: int = Field(default=0, ge=0)
+    total_marks: int = Field(default=0, ge=0)
+    translation_completion_percent: float = Field(
+        default=0,
+        ge=0,
+        le=100,
+    )
+    requested_formats: list[ExportFormat] = Field(default_factory=list)
+    generated_formats: list[ExportFormat] = Field(default_factory=list)
+    accepted_formats: list[ExportFormat] = Field(default_factory=list)
+    stages: list[FullExamEndToEndStageSummary] = Field(default_factory=list)
+    checks: list[FullExamEndToEndCheck] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+
+
 class FullExamPageSummary(BaseModel):
     page_number: int = Field(ge=1)
     kind: PdfPageKind
@@ -426,6 +491,7 @@ class ProjectSession(BaseModel):
     full_exam_intake_report: FullExamIntakeReport | None = None
     full_exam_translation_report: FullExamTranslationReport | None = None
     full_exam_export_report: FullExamExportReport | None = None
+    full_exam_end_to_end_report: FullExamEndToEndReport | None = None
     current_step: StepKey = StepKey.setup
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

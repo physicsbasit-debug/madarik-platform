@@ -5,6 +5,7 @@ from app.models.project import (
     AnswerKeyItem,
     EducationalAnalysisReport,
     EducationalQualityToolsReport,
+    FullExamEndToEndReport,
     FullExamExportReport,
     FullExamIntakeReport,
     FullExamTranslationReport,
@@ -68,6 +69,7 @@ class InMemoryProjectStore:
                 "updated_at": now,
                 "owner_account_id": owner_account_id,
                 "full_exam_export_report": None,
+                "full_exam_end_to_end_report": None,
             },
             deep=True,
         )
@@ -100,8 +102,15 @@ class InMemoryProjectStore:
 
 
     @staticmethod
+    def _invalidate_full_exam_end_to_end_report(
+        project: ProjectSession,
+    ) -> None:
+        project.full_exam_end_to_end_report = None
+
+    @staticmethod
     def _invalidate_full_exam_export_report(project: ProjectSession) -> None:
         project.full_exam_export_report = None
+        InMemoryProjectStore._invalidate_full_exam_end_to_end_report(project)
 
     @staticmethod
     def _refresh_full_exam_translation_report(
@@ -517,7 +526,29 @@ class InMemoryProjectStore:
         project = self.get(project_id)
         if project is None:
             return None
+        self._invalidate_full_exam_end_to_end_report(project)
         project.full_exam_export_report = report
+        project.current_step = StepKey.export
+        return self.touch(project_id)
+
+    def set_full_exam_end_to_end_result(
+        self,
+        project_id: str,
+        *,
+        intake_report: FullExamIntakeReport | None,
+        translation_report: FullExamTranslationReport | None,
+        export_report: FullExamExportReport | None,
+        end_to_end_report: FullExamEndToEndReport,
+    ) -> ProjectSession | None:
+        """Persist one internally consistent Phase 4-A6d gate result."""
+
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.full_exam_intake_report = intake_report
+        project.full_exam_translation_report = translation_report
+        project.full_exam_export_report = export_report
+        project.full_exam_end_to_end_report = end_to_end_report
         project.current_step = StepKey.export
         return self.touch(project_id)
 

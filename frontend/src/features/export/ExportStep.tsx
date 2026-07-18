@@ -1,6 +1,6 @@
 import { AlertTriangle, BarChart3, CheckCircle2, Download, FileText, GitBranch, KeyRound, Loader2, Radar, ShieldCheck, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import type { AnswerKeyItem, EducationalAnalysisReport, EducationalQualityToolsReport, FullExamExportReport, GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
+import type { AnswerKeyItem, EducationalAnalysisReport, EducationalQualityToolsReport, FullExamEndToEndReport, FullExamExportReport, GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
 import { MetricCard } from '../../components/MetricCard';
 
 interface ExportStepProps {
@@ -12,6 +12,8 @@ interface ExportStepProps {
   qualityTools: EducationalQualityToolsReport | null;
   readiness: ProjectReadinessReport | null;
   fullExamExportReport: FullExamExportReport | null;
+  fullExamEndToEndReport: FullExamEndToEndReport | null;
+  onRunFullExamAcceptance: () => Promise<void>;
   canExportDocx: boolean;
   canExportPdf: boolean;
   onExportDocx: () => Promise<void>;
@@ -43,6 +45,49 @@ function formatLabel(format: 'docx' | 'pdf') {
 }
 
 
+function endToEndAcceptanceLabel(
+  status: FullExamEndToEndReport['status'],
+) {
+  switch (status) {
+    case 'accepted':
+      return 'مقبول';
+    case 'needs_review':
+      return 'يحتاج مراجعة';
+    case 'rejected':
+      return 'مرفوض';
+  }
+}
+
+function endToEndStageLabel(
+  stage: FullExamEndToEndReport['stages'][number]['stage'],
+) {
+  const labels = {
+    intake: 'إدخال الورقة',
+    layout_assets: 'لقطات الصفحات',
+    glossary: 'القاموس',
+    translation: 'الترجمة',
+    readiness: 'الجاهزية',
+    docx_export: 'تصدير Word',
+    pdf_export: 'تصدير PDF',
+    final_consistency: 'الاتساق النهائي',
+  };
+  return labels[stage];
+}
+
+function endToEndStageStatusLabel(
+  status: FullExamEndToEndReport['stages'][number]['status'],
+) {
+  const labels = {
+    accepted: 'مقبول',
+    needs_review: 'يحتاج مراجعة',
+    pending: 'غير مكتمل',
+    failed: 'فشل',
+    skipped: 'متجاوز',
+  };
+  return labels[status];
+}
+
+
 export function ExportStep({
   metadata,
   questions,
@@ -52,6 +97,8 @@ export function ExportStep({
   qualityTools,
   readiness,
   fullExamExportReport,
+  fullExamEndToEndReport,
+  onRunFullExamAcceptance,
   canExportDocx,
   canExportPdf,
   onExportDocx,
@@ -67,6 +114,7 @@ export function ExportStep({
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isCheckingReadiness, setIsCheckingReadiness] = useState(false);
+  const [isRunningEndToEnd, setIsRunningEndToEnd] = useState(false);
   const [isGeneratingAnswerKey, setIsGeneratingAnswerKey] = useState(false);
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
   const [isGeneratingQualityTools, setIsGeneratingQualityTools] = useState(false);
@@ -95,6 +143,23 @@ export function ExportStep({
   }
 
 
+
+
+  async function handleRunEndToEndAcceptance() {
+    setIsRunningEndToEnd(true);
+    setExportMessage(
+      'جاري فحص الإدخال واللقطات والقاموس والترجمة والجاهزية وإنشاء Word وPDF في الذاكرة...',
+    );
+    try {
+      await onRunFullExamAcceptance();
+      setExportMessage('اكتمل تشغيل بوابة القبول الشامل.');
+    } catch (error) {
+      console.error(error);
+      setExportMessage('تعذر تشغيل بوابة القبول الشامل.');
+    } finally {
+      setIsRunningEndToEnd(false);
+    }
+  }
 
 
   async function handleGenerateQualityTools() {
@@ -265,6 +330,103 @@ export function ExportStep({
       </section>
 
 
+
+
+      <section className="form-card wide-card end-to-end-acceptance-panel">
+        <div className="section-heading">
+          <p className="eyebrow">Phase 4-A6d</p>
+          <h3>بوابة قبول الرحلة الكاملة</h3>
+          <p>
+            تعيد البوابة بناء تقارير الإدخال والترجمة والجاهزية، ثم تنشئ Word وPDF
+            في الذاكرة وتفحصهما دون استدعاء مزود ذكاء اصطناعي أو استبدال النصوص
+            التي راجعها المعلم.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="primary-button"
+          onClick={() => void handleRunEndToEndAcceptance()}
+          disabled={isRunningEndToEnd}
+        >
+          {isRunningEndToEnd ? <Loader2 size={18} className="spin-icon" /> : <ShieldCheck size={18} />}
+          تشغيل بوابة القبول الشامل
+        </button>
+
+        {fullExamEndToEndReport ? (
+          <>
+            <div className={`end-to-end-status end-to-end-${fullExamEndToEndReport.status}`}>
+              {fullExamEndToEndReport.status === 'accepted' ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
+              <div>
+                <strong>{endToEndAcceptanceLabel(fullExamEndToEndReport.status)}</strong>
+                <p>
+                  استغرق الفحص {Math.max(1, Math.round(fullExamEndToEndReport.totalDurationMs))} ms،
+                  واكتملت الترجمة بنسبة {Math.round(fullExamEndToEndReport.translationCompletionPercent)}%.
+                </p>
+              </div>
+            </div>
+
+            <div className="metrics-row">
+              <MetricCard label="الصفحات" value={fullExamEndToEndReport.pageCount} hint="حدود PDF المحفوظة" />
+              <MetricCard label="الأسئلة" value={fullExamEndToEndReport.activeQuestionCount} hint="الأسئلة النشطة" />
+              <MetricCard label="الدرجات" value={fullExamEndToEndReport.totalMarks} hint="مجموع الجاهزية" />
+              <MetricCard label="الصيغ المقبولة" value={fullExamEndToEndReport.acceptedFormats.length} hint={fullExamEndToEndReport.acceptedFormats.map(formatLabel).join('، ') || 'لا توجد'} />
+            </div>
+
+            <div className="end-to-end-stage-grid">
+              {fullExamEndToEndReport.stages.map((stage) => (
+                <article
+                  key={stage.stage}
+                  className={`end-to-end-stage-card end-to-end-stage-${stage.status}`}
+                >
+                  <div className="end-to-end-stage-header">
+                    <strong>{endToEndStageLabel(stage.stage)}</strong>
+                    <span>{endToEndStageStatusLabel(stage.status)}</span>
+                  </div>
+                  <p>{stage.message}</p>
+                  <small>{Math.max(0, Math.round(stage.durationMs))} ms</small>
+                  {stage.errors.length ? (
+                    <ul className="end-to-end-error-list">
+                      {stage.errors.map((error) => <li key={error}>{error}</li>)}
+                    </ul>
+                  ) : null}
+                  {stage.warnings.length ? (
+                    <ul className="end-to-end-warning-list">
+                      {stage.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                    </ul>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+
+            {fullExamEndToEndReport.errors.length ? (
+              <div className="analysis-note readiness-error">
+                <strong>أخطاء المسار</strong>
+                <ul>
+                  {fullExamEndToEndReport.errors.map((error) => <li key={error}>{error}</li>)}
+                </ul>
+              </div>
+            ) : fullExamEndToEndReport.warnings.length ? (
+              <div className="analysis-note warning-card">
+                <strong>ملاحظات المسار</strong>
+                <ul>
+                  {fullExamEndToEndReport.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                </ul>
+              </div>
+            ) : (
+              <div className="notice-card success-card">
+                <ShieldCheck size={22} />
+                <span>اجتازت جميع المراحل المطلوبة دون تحذيرات.</span>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="empty-state">
+            لم تُشغّل بوابة القبول الشامل بعد. الزر أعلاه يختبر المسار الحالي
+            دون إعادة الترجمة أو تنزيل ملفات تلقائيًا.
+          </div>
+        )}
+      </section>
 
 
       <section className="form-card wide-card export-acceptance-panel">

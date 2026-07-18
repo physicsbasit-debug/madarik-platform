@@ -6,6 +6,7 @@ from app.models.auth import AccountRole, AuthAccountPublic
 from app.models.project import (
     ExportFormat,
     ExtractedPdfPageInfo,
+    FullExamEndToEndReport,
     FullExamExportReport,
     ExtractedTextInfo,
     GlossaryTermPatch,
@@ -47,6 +48,9 @@ from app.services.answer_key import build_answer_key_draft
 from app.services.educational_analysis import build_educational_analysis
 from app.services.quality_tools import build_quality_tools_report
 from app.services.full_exam_export import build_full_exam_export_report
+from app.services.full_exam_end_to_end import (
+    run_full_exam_end_to_end_acceptance,
+)
 from app.services.export import (
     DOCX_MIME_TYPE,
     PDF_MIME_TYPE,
@@ -815,6 +819,38 @@ def get_project_readiness(project_id: str, account: AuthAccountPublic | None = D
 
     project = _get_or_404(project_id, account)
     return build_project_readiness_report(project)
+
+
+@router.get("/{project_id}/full-exam/acceptance")
+def get_full_exam_end_to_end_acceptance(
+    project_id: str,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> FullExamEndToEndReport | None:
+    """Return the persisted Phase 4-A6d end-to-end acceptance report."""
+
+    project = _get_or_404(project_id, account)
+    return project.full_exam_end_to_end_report
+
+
+@router.post("/{project_id}/full-exam/acceptance/run")
+def run_full_exam_end_to_end_gate(
+    project_id: str,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> ProjectSession:
+    """Run the non-destructive Phase 4-A6d acceptance gate."""
+
+    project = _get_or_404(project_id, account)
+    result = run_full_exam_end_to_end_acceptance(project)
+    updated_project = project_store.set_full_exam_end_to_end_result(
+        project_id,
+        intake_report=result.intake_report,
+        translation_report=result.translation_report,
+        export_report=result.export_report,
+        end_to_end_report=result.report,
+    )
+    if updated_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return updated_project
 
 
 @router.get("/{project_id}/export/acceptance")

@@ -2024,3 +2024,142 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+/* Phase 4-A6d: full exam end-to-end acceptance gate */
+.end-to-end-acceptance-panel {
+  border-color: #99f6e4;
+  background:
+    linear-gradient(180deg, rgba(240, 253, 250, 0.78), rgba(255, 255, 255, 0.97));
+}
+
+.end-to-end-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.end-to-end-status > div {
+  display: grid;
+  gap: 4px;
+}
+
+.end-to-end-status p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.end-to-end-accepted {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.end-to-end-needs_review {
+  border-color: #f3cf78;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.end-to-end-rejected {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.end-to-end-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+  gap: 12px;
+}
+
+.end-to-end-stage-card {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.end-to-end-stage-card p,
+.end-to-end-stage-card small {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.end-to-end-stage-card small {
+  color: #64748b;
+}
+
+.end-to-end-stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.end-to-end-stage-header strong {
+  color: #0f3b67;
+}
+
+.end-to-end-stage-header span {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.end-to-end-stage-accepted {
+  border-color: #86efac;
+}
+
+.end-to-end-stage-needs_review,
+.end-to-end-stage-pending {
+  border-color: #f3cf78;
+}
+
+.end-to-end-stage-failed {
+  border-color: #fecaca;
+}
+
+.end-to-end-stage-skipped {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.end-to-end-warning-list,
+.end-to-end-error-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-inline-start: 20px;
+  line-height: 1.55;
+  font-size: 0.86rem;
+}
+
+.end-to-end-warning-list {
+  color: #92400e;
+}
+
+.end-to-end-error-list {
+  color: #991b1b;
+}
+
+@media (max-width: 720px) {
+  .end-to-end-stage-header {
+    flex-direction: column;
+  }
+
+  .end-to-end-acceptance-panel .primary-button {
+    width: 100%;
+  }
+}

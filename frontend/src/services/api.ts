@@ -1,5 +1,6 @@
 import type {
   ExtractedTextInfo,
+  FullExamEndToEndReport,
   FullExamExportReport,
   FullExamIntakeReport,
   FullExamTranslationReport,
@@ -432,6 +433,54 @@ interface ApiFullExamExportReport {
 }
 
 
+interface ApiFullExamEndToEndCheck {
+  code: string;
+  passed: boolean;
+  message: string;
+}
+
+interface ApiFullExamEndToEndStageSummary {
+  stage:
+    | 'intake'
+    | 'layout_assets'
+    | 'glossary'
+    | 'translation'
+    | 'readiness'
+    | 'docx_export'
+    | 'pdf_export'
+    | 'final_consistency';
+  status:
+    | 'accepted'
+    | 'needs_review'
+    | 'pending'
+    | 'failed'
+    | 'skipped';
+  duration_ms: number;
+  message: string;
+  checks: ApiFullExamEndToEndCheck[];
+  warnings: string[];
+  errors: string[];
+}
+
+interface ApiFullExamEndToEndReport {
+  status: 'accepted' | 'needs_review' | 'rejected';
+  run_id: string;
+  generated_at: string;
+  total_duration_ms: number;
+  page_count: number;
+  active_question_count: number;
+  total_marks: number;
+  translation_completion_percent: number;
+  requested_formats: Array<'docx' | 'pdf'>;
+  generated_formats: Array<'docx' | 'pdf'>;
+  accepted_formats: Array<'docx' | 'pdf'>;
+  stages: ApiFullExamEndToEndStageSummary[];
+  checks: ApiFullExamEndToEndCheck[];
+  warnings: string[];
+  errors: string[];
+}
+
+
 interface ApiTranslationItemOutcome {
   question_id: string;
   question_number: string;
@@ -487,6 +536,7 @@ interface ApiProjectSession {
   full_exam_intake_report?: ApiFullExamIntakeReport | null;
   full_exam_translation_report?: ApiFullExamTranslationReport | null;
   full_exam_export_report?: ApiFullExamExportReport | null;
+  full_exam_end_to_end_report?: ApiFullExamEndToEndReport | null;
   current_step: StepKey;
 }
 
@@ -843,6 +893,47 @@ function fromApiFullExamExportReport(
 }
 
 
+function fromApiFullExamEndToEndReport(
+  report: ApiFullExamEndToEndReport | null | undefined,
+): FullExamEndToEndReport | null {
+  if (!report) return null;
+
+  return {
+    status: report.status,
+    runId: report.run_id,
+    generatedAt: report.generated_at,
+    totalDurationMs: report.total_duration_ms,
+    pageCount: report.page_count,
+    activeQuestionCount: report.active_question_count,
+    totalMarks: report.total_marks,
+    translationCompletionPercent: report.translation_completion_percent,
+    requestedFormats: report.requested_formats,
+    generatedFormats: report.generated_formats,
+    acceptedFormats: report.accepted_formats,
+    stages: report.stages.map((stage) => ({
+      stage: stage.stage,
+      status: stage.status,
+      durationMs: stage.duration_ms,
+      message: stage.message,
+      checks: stage.checks.map((check) => ({
+        code: check.code,
+        passed: check.passed,
+        message: check.message,
+      })),
+      warnings: stage.warnings,
+      errors: stage.errors,
+    })),
+    checks: report.checks.map((check) => ({
+      code: check.code,
+      passed: check.passed,
+      message: check.message,
+    })),
+    warnings: report.warnings,
+    errors: report.errors,
+  };
+}
+
+
 function fromApiTranslationBatchSummary(
   summary: ApiTranslationBatchSummary | null | undefined,
 ): TranslationBatchSummary | null {
@@ -902,6 +993,9 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     ),
     fullExamExportReport: fromApiFullExamExportReport(
       project.full_exam_export_report,
+    ),
+    fullExamEndToEndReport: fromApiFullExamEndToEndReport(
+      project.full_exam_end_to_end_report,
     ),
     currentStep: project.current_step,
   };
@@ -1305,6 +1399,26 @@ export async function updateGlossaryTerm(
   });
   return fromApiProject(project);
 }
+
+export async function getFullExamEndToEndAcceptance(
+  projectId: string,
+): Promise<FullExamEndToEndReport | null> {
+  const report = await requestJson<ApiFullExamEndToEndReport | null>(
+    `/projects/${projectId}/full-exam/acceptance`,
+  );
+  return fromApiFullExamEndToEndReport(report);
+}
+
+export async function runFullExamEndToEndAcceptance(
+  projectId: string,
+): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(
+    `/projects/${projectId}/full-exam/acceptance/run`,
+    { method: 'POST' },
+  );
+  return fromApiProject(project);
+}
+
 
 export async function getFullExamExportAcceptance(
   projectId: string,
