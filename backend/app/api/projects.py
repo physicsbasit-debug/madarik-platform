@@ -4,6 +4,7 @@ from fastapi.responses import Response
 
 from app.models.auth import AccountRole, AuthAccountPublic
 from app.models.project import (
+    ExtractedPdfPageInfo,
     ExtractedTextInfo,
     GlossaryTermPatch,
     ProjectMetadata,
@@ -21,6 +22,11 @@ from app.services.auth_repository import auth_repository
 from app.services.session_store import project_store
 from app.services.glossary import extract_glossary_terms_from_questions
 from app.services.question_parser import parse_questions_from_text
+from app.services.full_exam_intake import (
+    build_full_exam_intake_report,
+    link_layout_assets_to_page_aware_questions,
+    parse_full_exam_questions_from_pages,
+)
 from app.services.text_extraction import TextExtractionError, extract_text_from_pdf_bytes
 from app.services.ocr import OcrExtractionError, extract_text_from_image_bytes
 from app.services.pdf_ocr import PdfOcrExtractionError, extract_text_from_scanned_pdf_bytes
@@ -71,6 +77,9 @@ def _require_project_access(project: ProjectSession, account: AuthAccountPublic 
     if not _has_project_access(project, account):
         raise HTTPException(status_code=403, detail="لا تملك صلاحية الوصول إلى هذا المشروع.")
     return project
+
+
+MAX_LAYOUT_ASSET_PAGES_PER_UPLOAD = 24
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -223,6 +232,17 @@ async def upload_pdf_and_extract_text(project_id: str, file: UploadFile = File(.
     except TextExtractionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    extracted_pages = [
+        ExtractedPdfPageInfo(
+            page_number=page.page_number,
+            text=page.text,
+            character_count=page.character_count,
+            is_text_empty=page.is_text_empty,
+        )
+        for page in result.pages
+    ]
+    intake_report = build_full_exam_intake_report(extracted_pages)
+
     if not result.is_text_based:
         extracted_text = ExtractedTextInfo(
             text="",
@@ -231,6 +251,7 @@ async def upload_pdf_and_extract_text(project_id: str, file: UploadFile = File(.
             character_count=0,
             is_text_based=False,
             message="لم يتم العثور على نص قابل للاستخراج. يبدو أن الملف PDF مصوّر أو ممسوح ضوئيًا، وسيحتاج OCR في مرحلة لاحقة.",
+            pages=extracted_pages,
         )
     else:
         extracted_text = ExtractedTextInfo(
@@ -239,10 +260,19 @@ async def upload_pdf_and_extract_text(project_id: str, file: UploadFile = File(.
             page_count=result.page_count,
             character_count=result.character_count,
             is_text_based=True,
-            message="تم استخراج النص من PDF نصي بنجاح.",
+            message=(
+                "تم استخراج النص من PDF نصي مع الاحتفاظ بحدود الصفحات "
+                "لبناء تقرير قبول الورقة الكاملة."
+            ),
+            pages=extracted_pages,
         )
 
-    project = project_store.set_extracted_text(project_id, uploaded_file, extracted_text)
+    project = project_store.set_extracted_text(
+        project_id,
+        uploaded_file,
+        extracted_text,
+        full_exam_intake_report=intake_report,
+    )
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
@@ -361,7 +391,10 @@ async def extract_pdf_layout_assets(project_id: str, file: UploadFile = File(...
         raise HTTPException(status_code=400, detail="حجم PDF كبير. الحد الأقصى المؤقت لاستخراج التخطيط هو 8MB.")
 
     try:
-        result = extract_pdf_layout_assets_from_bytes(file_bytes)
+        result = extract_pdf_layout_assets_from_bytes(
+            file_bytes,
+            max_pages=MAX_LAYOUT_ASSET_PAGES_PER_UPLOAD,
+        )
     except PdfLayoutAssetExtractionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -536,11 +569,39 @@ def parse_extracted_questions(project_id: str, account: AuthAccountPublic | None
     if not project.extracted_text.is_text_based:
         raise HTTPException(status_code=400, detail="لا يمكن تقسيم PDF غير نصي في Phase 1-D. سيحتاج OCR لاحقًا.")
 
-    questions = parse_questions_from_text(project.extracted_text.text)
+    used_page_aware_parser = False
+    if project.extracted_text.pages:
+        questions = parse_full_exam_questions_from_pages(project.extracted_text.pages)
+        if questions:
+            used_page_aware_parser = True
+        else:
+            # A text-based PDF can preserve page boundaries without being a full
+            # exam paper. Keep the established Phase 1-D parser as a compatibility
+            # fallback instead of rejecting simple one-page and synthetic test PDFs.
+            questions = parse_questions_from_text(project.extracted_text.text)
+            project.full_exam_intake_report = None
+    else:
+        questions = parse_questions_from_text(project.extracted_text.text)
+
     if not questions:
         raise HTTPException(status_code=400, detail="لم يتم العثور على أسئلة قابلة للتقسيم في النص المستخرج.")
 
-    updated_project = project_store.set_parsed_questions(project_id, questions)
+    intake_report = None
+    if used_page_aware_parser:
+        questions = link_layout_assets_to_page_aware_questions(
+            questions,
+            project.layout_assets,
+        )
+        intake_report = build_full_exam_intake_report(
+            project.extracted_text.pages,
+            questions=questions,
+        )
+
+    updated_project = project_store.set_parsed_questions(
+        project_id,
+        questions,
+        full_exam_intake_report=intake_report,
+    )
     if updated_project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return updated_project

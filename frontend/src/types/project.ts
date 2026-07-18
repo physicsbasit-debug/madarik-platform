@@ -54,6 +54,13 @@ export interface PdfLayoutAssetInfo {
   note: string;
 }
 
+export interface ExtractedPdfPageInfo {
+  pageNumber: number;
+  text: string;
+  characterCount: number;
+  isTextEmpty: boolean;
+}
+
 export interface ExtractedTextInfo {
   text: string;
   preview: string;
@@ -61,6 +68,7 @@ export interface ExtractedTextInfo {
   characterCount: number;
   isTextBased: boolean;
   message: string;
+  pages?: ExtractedPdfPageInfo[];
 }
 
 export interface QuestionAssetInfo {
@@ -101,6 +109,9 @@ export interface QuestionItem {
   linkedLayoutAssetIds?: string[];
   options?: QuestionOption[];
   parts?: QuestionPart[];
+  sourcePageNumbers?: number[];
+  sourcePageStart?: number | null;
+  sourcePageEnd?: number | null;
   reviewNotes?: string | null;
 }
 
@@ -158,6 +169,58 @@ export interface EducationalQualityToolsReport {
   priorityActions: string[];
   warnings: string[];
   needsReview: boolean;
+}
+
+
+export type FullExamIntakeStatus =
+  | 'accepted'
+  | 'needs_review'
+  | 'rejected';
+
+export type PdfPageKind = 'cover' | 'question' | 'blank' | 'other';
+
+export interface FullExamPageSummary {
+  pageNumber: number;
+  kind: PdfPageKind;
+  characterCount: number;
+  questionNumbers: string[];
+  visualReferenceCount: number;
+}
+
+export interface FullExamQuestionSpan {
+  questionNumber: string;
+  pageNumbers: number[];
+  pageStart: number;
+  pageEnd: number;
+  detectedTotalMarks: number | null;
+  visualReferenceCount: number;
+  linkedLayoutAssetCount: number;
+}
+
+export interface FullExamIntakeCheck {
+  code: string;
+  passed: boolean;
+  message: string;
+}
+
+export interface FullExamIntakeReport {
+  status: FullExamIntakeStatus;
+  pageCount: number;
+  contentPageCount: number;
+  blankPageCount: number;
+  coverPageCount: number;
+  questionPageCount: number;
+  detectedQuestionCount: number;
+  detectedQuestionNumbers: string[];
+  reportedTotalMarks: number | null;
+  detectedTotalMarks: number | null;
+  multiPageQuestionCount: number;
+  visualReferenceCount: number;
+  autoLinkedLayoutAssetCount: number;
+  pages: FullExamPageSummary[];
+  questionSpans: FullExamQuestionSpan[];
+  checks: FullExamIntakeCheck[];
+  warnings: string[];
 }
 
 
@@ -219,6 +282,7 @@ export interface ProjectSession {
   educationalAnalysis: EducationalAnalysisReport | null;
   qualityTools: EducationalQualityToolsReport | null;
   translationBatchSummary?: TranslationBatchSummary | null;
+  fullExamIntakeReport?: FullExamIntakeReport | null;
   currentStep: StepKey;
 }
 

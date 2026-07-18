@@ -5,6 +5,7 @@ from app.models.project import (
     AnswerKeyItem,
     EducationalAnalysisReport,
     EducationalQualityToolsReport,
+    FullExamIntakeReport,
     GlossaryTermPatch,
     StepKey,
     ProjectMetadata,
@@ -21,6 +22,10 @@ from app.models.project import (
     TranslationBatchSummary,
 )
 from app.services.demo_content import get_demo_glossary, get_demo_questions
+from app.services.full_exam_intake import (
+    build_full_exam_intake_report,
+    link_layout_assets_to_page_aware_questions,
+)
 from app.services.project_repository import ProjectRepository, project_repository
 
 
@@ -102,6 +107,7 @@ class InMemoryProjectStore:
             return None
         project.uploaded_file = uploaded_file
         project.translation_batch_summary = None
+        project.full_exam_intake_report = None
         if uploaded_file is None:
             project.extracted_text = None
         project.current_step = StepKey.upload
@@ -120,6 +126,7 @@ class InMemoryProjectStore:
         project_id: str,
         uploaded_file: UploadedFileInfo,
         extracted_text: ExtractedTextInfo,
+        full_exam_intake_report: FullExamIntakeReport | None = None,
     ) -> ProjectSession | None:
         project = self.get(project_id)
         if project is None:
@@ -127,6 +134,7 @@ class InMemoryProjectStore:
         project.uploaded_file = uploaded_file
         project.extracted_text = extracted_text
         project.translation_batch_summary = None
+        project.full_exam_intake_report = full_exam_intake_report
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
@@ -137,16 +145,24 @@ class InMemoryProjectStore:
         project.questions = get_demo_questions()
         project.glossary = get_demo_glossary()
         project.translation_batch_summary = None
+        project.full_exam_intake_report = None
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
 
-    def set_parsed_questions(self, project_id: str, questions: list[QuestionItem]) -> ProjectSession | None:
+    def set_parsed_questions(
+        self,
+        project_id: str,
+        questions: list[QuestionItem],
+        full_exam_intake_report: FullExamIntakeReport | None = None,
+    ) -> ProjectSession | None:
         project = self.get(project_id)
         if project is None:
             return None
         project.questions = questions
         project.translation_batch_summary = None
+        if full_exam_intake_report is not None:
+            project.full_exam_intake_report = full_exam_intake_report
         project.current_step = StepKey.review
         return self.touch(project_id)
 
@@ -179,6 +195,15 @@ class InMemoryProjectStore:
             )
             for question in project.questions
         ]
+        project.questions = link_layout_assets_to_page_aware_questions(
+            project.questions,
+            layout_assets,
+        )
+        if project.extracted_text and project.extracted_text.pages:
+            project.full_exam_intake_report = build_full_exam_intake_report(
+                project.extracted_text.pages,
+                questions=project.questions,
+            )
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
@@ -207,6 +232,11 @@ class InMemoryProjectStore:
             )
             for question in project.questions
         ]
+        if project.extracted_text and project.extracted_text.pages:
+            project.full_exam_intake_report = build_full_exam_intake_report(
+                project.extracted_text.pages,
+                questions=project.questions,
+            )
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
@@ -238,6 +268,11 @@ class InMemoryProjectStore:
                     ]
                 }
             )
+            if project.extracted_text and project.extracted_text.pages:
+                project.full_exam_intake_report = build_full_exam_intake_report(
+                    project.extracted_text.pages,
+                    questions=project.questions,
+                )
             project.current_step = StepKey.review
             return self.touch(project_id)
 
@@ -269,6 +304,11 @@ class InMemoryProjectStore:
                     ]
                 }
             )
+            if project.extracted_text and project.extracted_text.pages:
+                project.full_exam_intake_report = build_full_exam_intake_report(
+                    project.extracted_text.pages,
+                    questions=project.questions,
+                )
             project.current_step = StepKey.review
             return self.touch(project_id)
 

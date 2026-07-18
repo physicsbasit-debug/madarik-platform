@@ -24,6 +24,7 @@ import type {
   QuestionStatus,
   TranslationProviderStatus,
   TranslationBatchSummary,
+  FullExamIntakeReport,
 } from "../../types/project";
 
 interface ReviewStepProps {
@@ -50,6 +51,7 @@ interface ReviewStepProps {
   ) => Promise<void>;
   translationProviderStatus: TranslationProviderStatus | null;
   translationBatchSummary?: TranslationBatchSummary | null;
+  fullExamIntakeReport?: FullExamIntakeReport | null;
 }
 
 const statusLabels: Record<QuestionStatus, string> = {
@@ -70,6 +72,15 @@ function formatProviderApiMode(apiMode?: string) {
   if (apiMode === "chat_completions") return "Chat Completions";
   return apiMode ?? "";
 }
+
+function formatFullExamIntakeStatus(
+  status: FullExamIntakeReport["status"],
+) {
+  if (status === "accepted") return "مقبولة هيكليًا";
+  if (status === "needs_review") return "تحتاج مراجعة هيكلية";
+  return "مرفوضة هيكليًا";
+}
+
 
 function formatTranslationBatchStatus(
   status: TranslationBatchSummary["status"],
@@ -271,6 +282,7 @@ export function ReviewStep({
   onCropLayoutAsset,
   translationProviderStatus,
   translationBatchSummary,
+  fullExamIntakeReport,
 }: ReviewStepProps) {
   const sortedQuestions = [...questions].sort(
     (a, b) => a.orderIndex - b.orderIndex,
@@ -459,6 +471,27 @@ export function ReviewStep({
         </button>
       </div>
 
+      {fullExamIntakeReport ? (
+        <div className="notice-card translation-notice">
+          <strong>قبول الورقة الكاملة:</strong>
+          <span>
+            {formatFullExamIntakeStatus(fullExamIntakeReport.status)}. الصفحات:{" "}
+            {fullExamIntakeReport.pageCount}، صفحات المحتوى:{" "}
+            {fullExamIntakeReport.contentPageCount}، الفارغة:{" "}
+            {fullExamIntakeReport.blankPageCount}، الأسئلة الرئيسية:{" "}
+            {fullExamIntakeReport.detectedQuestionCount}، الدرجة المكتشفة:{" "}
+            {fullExamIntakeReport.detectedTotalMarks ?? "—"} من{" "}
+            {fullExamIntakeReport.reportedTotalMarks ?? "—"}، الأسئلة الممتدة عبر صفحات:{" "}
+            {fullExamIntakeReport.multiPageQuestionCount}، المراجع البصرية:{" "}
+            {fullExamIntakeReport.visualReferenceCount}، روابط لقطات PDF الآلية:{" "}
+            {fullExamIntakeReport.autoLinkedLayoutAssetCount}.
+            {fullExamIntakeReport.warnings.length > 0
+              ? ` تنبيهات: ${fullExamIntakeReport.warnings.join(" ")}`
+              : " جميع فحوص البنية الأساسية ناجحة."}
+          </span>
+        </div>
+      ) : null}
+
       <div className="notice-card translation-notice">
         <strong>مرفقات الأسئلة:</strong>
         <span>
@@ -562,6 +595,11 @@ export function ReviewStep({
                     السؤال {getCurrentNumber(question.id)}
                   </span>
                   <strong>الأصل: {question.originalNumber}</strong>
+                  {(question.sourcePageNumbers?.length ?? 0) > 0 ? (
+                    <small>
+                      المصدر: صفحة {question.sourcePageNumbers?.join("، ")}
+                    </small>
+                  ) : null}
                 </div>
                 <select
                   value={question.status}
