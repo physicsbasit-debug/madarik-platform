@@ -6,6 +6,8 @@ import {
   ArrowDown,
   ArrowUp,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Crop,
   ImagePlus,
   Languages,
@@ -315,6 +317,16 @@ export function ReviewStep({
   const activeQuestions = sortedQuestions.filter(
     (question) => question.status !== "deleted",
   );
+  const linkedLayoutAssetIds = new Set(
+    activeQuestions.flatMap(
+      (question) => question.linkedLayoutAssetIds ?? [],
+    ),
+  );
+  const linkedLayoutAssetCount = layoutAssets.filter((asset) =>
+    linkedLayoutAssetIds.has(asset.id),
+  ).length;
+  const unlinkedLayoutAssetCount =
+    layoutAssets.length - linkedLayoutAssetCount;
 
   const [cropTarget, setCropTarget] = useState<{
     questionId: string;
@@ -324,6 +336,8 @@ export function ReviewStep({
   const [layoutAssetTargets, setLayoutAssetTargets] = useState<
     Record<string, string>
   >({});
+  const [showLayoutAssetLibrary, setShowLayoutAssetLibrary] =
+    useState(false);
 
   async function handleSaveCrop(
     crop: VisualCropRequest,
@@ -641,110 +655,144 @@ export function ReviewStep({
       </div>
 
       {layoutAssets.length > 0 ? (
-        <section className="layout-asset-library" aria-label="اللقطات المتاحة للربط">
-          <div className="asset-panel-header">
+        <section
+          className={`layout-asset-library ${
+            showLayoutAssetLibrary ? "is-expanded" : "is-collapsed"
+          }`}
+          aria-label="اللقطات المتاحة للربط"
+        >
+          <div className="asset-panel-header layout-asset-library-summary">
             <div>
               <strong>اللقطات المتاحة للربط</strong>
               <span>
-                تظهر مرة واحدة هنا. اختر السؤال المستهدف لكل لقطة، ويمكن ربط
-                اللقطة بأكثر من سؤال عند الحاجة.
+                {layoutAssets.length} لقطة • {linkedLayoutAssetCount} مرتبطة •{" "}
+                {unlinkedLayoutAssetCount} غير مرتبطة
               </span>
             </div>
-            <span className="status-pill">{layoutAssets.length} لقطة</span>
+            <div className="layout-asset-library-summary-actions">
+              <span className="status-pill">
+                {showLayoutAssetLibrary ? "المعرض مفتوح" : "المعرض مطوي"}
+              </span>
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={() =>
+                  setShowLayoutAssetLibrary((current) => !current)
+                }
+                aria-expanded={showLayoutAssetLibrary}
+                aria-controls="layout-asset-library-content"
+              >
+                {showLayoutAssetLibrary ? (
+                  <ChevronUp size={16} />
+                ) : (
+                  <ChevronDown size={16} />
+                )}
+                {showLayoutAssetLibrary ? "إخفاء اللقطات" : "إظهار اللقطات"}
+              </button>
+            </div>
           </div>
 
-          {activeQuestions.length > 0 ? (
-            <div className="layout-asset-library-grid">
-              {layoutAssets.map((asset) => {
-                const linkedQuestions = activeQuestions.filter((question) =>
-                  (question.linkedLayoutAssetIds ?? []).includes(asset.id),
-                );
-                const targetQuestionId = targetQuestionIdForAsset(asset);
-                const targetIsLinked = linkedQuestions.some(
-                  (question) => question.id === targetQuestionId,
-                );
+          {showLayoutAssetLibrary ? (
+            <div id="layout-asset-library-content">
+              <p className="layout-asset-library-help">
+                اختر السؤال المستهدف لكل لقطة. يمكن ربط اللقطة بأكثر من سؤال،
+                وتبقى جميع وظائف الربط وفك الربط والقص والحذف كما هي.
+              </p>
 
-                return (
-                  <article key={asset.id} className="layout-asset-library-card">
-                    <img
-                      src={`data:${asset.type};base64,${asset.dataBase64}`}
-                      alt={`لقطة متاحة من الصفحة ${asset.pageNumber}`}
-                    />
-                    <div className="layout-asset-library-body">
-                      <div>
-                        <strong>صفحة {asset.pageNumber}</strong>
-                        <span>{asset.note || asset.name}</span>
-                      </div>
+              {activeQuestions.length > 0 ? (
+                <div className="layout-asset-library-grid">
+                  {layoutAssets.map((asset) => {
+                    const linkedQuestions = activeQuestions.filter((question) =>
+                      (question.linkedLayoutAssetIds ?? []).includes(asset.id),
+                    );
+                    const targetQuestionId = targetQuestionIdForAsset(asset);
+                    const targetIsLinked = linkedQuestions.some(
+                      (question) => question.id === targetQuestionId,
+                    );
 
-                      <label>
-                        السؤال المستهدف
-                        <select
-                          value={targetQuestionId}
-                          onChange={(event) =>
-                            setLayoutAssetTargets((current) => ({
-                              ...current,
-                              [asset.id]: event.target.value,
-                            }))
-                          }
-                        >
-                          {activeQuestions.map((question) => (
-                            <option key={question.id} value={question.id}>
-                              {questionDisplayLabel(question)}
-                              {(question.linkedLayoutAssetIds ?? []).includes(
-                                asset.id,
-                              )
-                                ? " — مرتبط"
-                                : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <button
-                        type="button"
-                        className="primary-button compact"
-                        onClick={() =>
-                          onLinkLayoutAsset(targetQuestionId, asset.id)
-                        }
-                        disabled={!targetQuestionId || targetIsLinked}
-                      >
-                        <Link2 size={15} />
-                        {targetIsLinked ? "مرتبط بالسؤال" : "ربط بالسؤال"}
-                      </button>
-
-                      <div className="layout-asset-linked-questions">
-                        <strong>الأسئلة المرتبطة</strong>
-                        {linkedQuestions.length > 0 ? (
+                    return (
+                      <article key={asset.id} className="layout-asset-library-card">
+                        <img
+                          src={`data:${asset.type};base64,${asset.dataBase64}`}
+                          alt={`لقطة متاحة من الصفحة ${asset.pageNumber}`}
+                        />
+                        <div className="layout-asset-library-body">
                           <div>
-                            {linkedQuestions.map((question) => (
-                              <button
-                                key={question.id}
-                                type="button"
-                                className="linked-question-chip"
-                                onClick={() =>
-                                  onUnlinkLayoutAsset(question.id, asset.id)
-                                }
-                                title="فك الربط من هذا السؤال"
-                              >
-                                {questionDisplayLabel(question)}
-                                <Unlink size={13} />
-                              </button>
-                            ))}
+                            <strong>صفحة {asset.pageNumber}</strong>
+                            <span>{asset.note || asset.name}</span>
                           </div>
-                        ) : (
-                          <span>لم تُربط هذه اللقطة بأي سؤال بعد.</span>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+
+                          <label>
+                            السؤال المستهدف
+                            <select
+                              value={targetQuestionId}
+                              onChange={(event) =>
+                                setLayoutAssetTargets((current) => ({
+                                  ...current,
+                                  [asset.id]: event.target.value,
+                                }))
+                              }
+                            >
+                              {activeQuestions.map((question) => (
+                                <option key={question.id} value={question.id}>
+                                  {questionDisplayLabel(question)}
+                                  {(question.linkedLayoutAssetIds ?? []).includes(
+                                    asset.id,
+                                  )
+                                    ? " — مرتبط"
+                                    : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <button
+                            type="button"
+                            className="primary-button compact"
+                            onClick={() =>
+                              onLinkLayoutAsset(targetQuestionId, asset.id)
+                            }
+                            disabled={!targetQuestionId || targetIsLinked}
+                          >
+                            <Link2 size={15} />
+                            {targetIsLinked ? "مرتبط بالسؤال" : "ربط بالسؤال"}
+                          </button>
+
+                          <div className="layout-asset-linked-questions">
+                            <strong>الأسئلة المرتبطة</strong>
+                            {linkedQuestions.length > 0 ? (
+                              <div>
+                                {linkedQuestions.map((question) => (
+                                  <button
+                                    key={question.id}
+                                    type="button"
+                                    className="linked-question-chip"
+                                    onClick={() =>
+                                      onUnlinkLayoutAsset(question.id, asset.id)
+                                    }
+                                    title="فك الربط من هذا السؤال"
+                                  >
+                                    {questionDisplayLabel(question)}
+                                    <Unlink size={13} />
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span>لم تُربط هذه اللقطة بأي سؤال بعد.</span>
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="attachment-box">
+                  لا توجد أسئلة نشطة يمكن ربط اللقطات بها.
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="attachment-box">
-              لا توجد أسئلة نشطة يمكن ربط اللقطات بها.
-            </div>
-          )}
+          ) : null}
         </section>
       ) : null}
 

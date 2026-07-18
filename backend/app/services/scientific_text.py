@@ -48,6 +48,10 @@ _REVERSED_NEGATIVE_EXPONENT_PATTERNS = (
 _REVERSED_POSITIVE_EXPONENT_PATTERN = re.compile(
     rf"(?<![\w.])10(?P<exponent>\d{{1,2}})\s*{_MULTIPLICATION}\s*(?P<coefficient>{_COEFFICIENT})(?![\w.])"
 )
+_BIDI_OR_SPACE = r"[\s\u200e\u200f\u202a-\u202e\u2066-\u2069]*"
+_STANDARD_DASH_NEGATIVE_EXPONENT_PATTERN = re.compile(
+    rf"(?<![\w.])(?P<coefficient>{_COEFFICIENT}){_BIDI_OR_SPACE}{_MULTIPLICATION}{_BIDI_OR_SPACE}10{_BIDI_OR_SPACE}{_DASH}{_BIDI_OR_SPACE}(?P<exponent>\d{{1,2}})(?![\w.])"
+)
 _STANDARD_ASCII_EXPONENT_PATTERN = re.compile(
     rf"(?<![\w.])(?P<coefficient>{_COEFFICIENT})\s*{_MULTIPLICATION}\s*10(?:\s*\^\s*(?P<signed_exponent>[+-]?\d{{1,2}})|\s*(?P<exponent>\d{{1,2}}))(?![\w.])"
 )
@@ -144,6 +148,13 @@ def normalise_scientific_text(value: str) -> str:
 
     text = _REVERSED_POSITIVE_EXPONENT_PATTERN.sub(
         _replace_positive_reversed,
+        text,
+    )
+    text = _STANDARD_DASH_NEGATIVE_EXPONENT_PATTERN.sub(
+        lambda match: _scientific_notation(
+            match.group("coefficient"),
+            f"-{match.group('exponent')}",
+        ),
         text,
     )
     text = _STANDARD_ASCII_EXPONENT_PATTERN.sub(
