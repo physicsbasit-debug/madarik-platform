@@ -1,5 +1,6 @@
 import type {
   ExtractedTextInfo,
+  FullExamIntakeReport,
   GlossaryTerm,
   ProjectMetadata,
   ProjectReadinessReport,
@@ -162,6 +163,13 @@ interface ApiPdfLayoutAssetInfo {
   note: string;
 }
 
+interface ApiExtractedPdfPageInfo {
+  page_number: number;
+  text: string;
+  character_count: number;
+  is_text_empty: boolean;
+}
+
 interface ApiExtractedTextInfo {
   text: string;
   preview: string;
@@ -169,6 +177,7 @@ interface ApiExtractedTextInfo {
   character_count: number;
   is_text_based: boolean;
   message: string;
+  pages?: ApiExtractedPdfPageInfo[];
 }
 
 interface ApiQuestionAssetInfo {
@@ -209,6 +218,9 @@ interface ApiQuestionItem {
   linked_layout_asset_ids?: string[];
   options?: ApiQuestionOption[];
   parts?: ApiQuestionPart[];
+  source_page_numbers?: number[];
+  source_page_start?: number | null;
+  source_page_end?: number | null;
   review_notes?: string | null;
 }
 
@@ -284,6 +296,51 @@ interface ApiProjectReadinessReport {
   issues: ApiProjectReadinessIssue[];
 }
 
+interface ApiFullExamPageSummary {
+  page_number: number;
+  kind: 'cover' | 'question' | 'blank' | 'other';
+  character_count: number;
+  question_numbers: string[];
+  visual_reference_count: number;
+}
+
+interface ApiFullExamQuestionSpan {
+  question_number: string;
+  page_numbers: number[];
+  page_start: number;
+  page_end: number;
+  detected_total_marks: number | null;
+  visual_reference_count: number;
+  linked_layout_asset_count: number;
+}
+
+interface ApiFullExamIntakeCheck {
+  code: string;
+  passed: boolean;
+  message: string;
+}
+
+interface ApiFullExamIntakeReport {
+  status: 'accepted' | 'needs_review' | 'rejected';
+  page_count: number;
+  content_page_count: number;
+  blank_page_count: number;
+  cover_page_count: number;
+  question_page_count: number;
+  detected_question_count: number;
+  detected_question_numbers: string[];
+  reported_total_marks: number | null;
+  detected_total_marks: number | null;
+  multi_page_question_count: number;
+  visual_reference_count: number;
+  auto_linked_layout_asset_count: number;
+  pages: ApiFullExamPageSummary[];
+  question_spans: ApiFullExamQuestionSpan[];
+  checks: ApiFullExamIntakeCheck[];
+  warnings: string[];
+}
+
+
 interface ApiTranslationItemOutcome {
   question_id: string;
   question_number: string;
@@ -336,6 +393,7 @@ interface ApiProjectSession {
   educational_analysis?: ApiEducationalAnalysisReport | null;
   quality_tools?: ApiEducationalQualityToolsReport | null;
   translation_batch_summary?: ApiTranslationBatchSummary | null;
+  full_exam_intake_report?: ApiFullExamIntakeReport | null;
   current_step: StepKey;
 }
 
@@ -382,6 +440,12 @@ function fromApiExtractedText(info: ApiExtractedTextInfo | null): ExtractedTextI
     characterCount: info.character_count,
     isTextBased: info.is_text_based,
     message: info.message,
+    pages: (info.pages ?? []).map((page) => ({
+      pageNumber: page.page_number,
+      text: page.text,
+      characterCount: page.character_count,
+      isTextEmpty: page.is_text_empty,
+    })),
   };
 }
 
@@ -518,6 +582,9 @@ function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
     linkedLayoutAssetIds: question.linked_layout_asset_ids ?? [],
     options: (question.options ?? []).map(fromApiQuestionOption),
     parts: (question.parts ?? []).map(fromApiQuestionPart),
+    sourcePageNumbers: question.source_page_numbers ?? [],
+    sourcePageStart: question.source_page_start ?? null,
+    sourcePageEnd: question.source_page_end ?? null,
     reviewNotes: question.review_notes,
   };
 }
@@ -545,6 +612,51 @@ function fromApiReadinessReport(report: ApiProjectReadinessReport): ProjectReadi
     issues: report.issues,
   };
 }
+
+function fromApiFullExamIntakeReport(
+  report: ApiFullExamIntakeReport | null | undefined,
+): FullExamIntakeReport | null {
+  if (!report) return null;
+
+  return {
+    status: report.status,
+    pageCount: report.page_count,
+    contentPageCount: report.content_page_count,
+    blankPageCount: report.blank_page_count,
+    coverPageCount: report.cover_page_count,
+    questionPageCount: report.question_page_count,
+    detectedQuestionCount: report.detected_question_count,
+    detectedQuestionNumbers: report.detected_question_numbers,
+    reportedTotalMarks: report.reported_total_marks,
+    detectedTotalMarks: report.detected_total_marks,
+    multiPageQuestionCount: report.multi_page_question_count,
+    visualReferenceCount: report.visual_reference_count,
+    autoLinkedLayoutAssetCount: report.auto_linked_layout_asset_count,
+    pages: report.pages.map((page) => ({
+      pageNumber: page.page_number,
+      kind: page.kind,
+      characterCount: page.character_count,
+      questionNumbers: page.question_numbers,
+      visualReferenceCount: page.visual_reference_count,
+    })),
+    questionSpans: report.question_spans.map((span) => ({
+      questionNumber: span.question_number,
+      pageNumbers: span.page_numbers,
+      pageStart: span.page_start,
+      pageEnd: span.page_end,
+      detectedTotalMarks: span.detected_total_marks,
+      visualReferenceCount: span.visual_reference_count,
+      linkedLayoutAssetCount: span.linked_layout_asset_count,
+    })),
+    checks: report.checks.map((check) => ({
+      code: check.code,
+      passed: check.passed,
+      message: check.message,
+    })),
+    warnings: report.warnings,
+  };
+}
+
 
 function fromApiTranslationBatchSummary(
   summary: ApiTranslationBatchSummary | null | undefined,
@@ -596,6 +708,9 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     qualityTools: fromApiQualityTools(project.quality_tools),
     translationBatchSummary: fromApiTranslationBatchSummary(
       project.translation_batch_summary,
+    ),
+    fullExamIntakeReport: fromApiFullExamIntakeReport(
+      project.full_exam_intake_report,
     ),
     currentStep: project.current_step,
   };

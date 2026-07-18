@@ -11,11 +11,28 @@ class TextExtractionError(ValueError):
 
 
 @dataclass(frozen=True)
+class PdfTextPage:
+    """Selectable text retained for one PDF page."""
+
+    page_number: int
+    text: str
+
+    @property
+    def character_count(self) -> int:
+        return len(self.text)
+
+    @property
+    def is_text_empty(self) -> bool:
+        return not bool(self.text.strip())
+
+
+@dataclass(frozen=True)
 class PdfTextExtractionResult:
     """Raw PDF text extraction result used by the API and tests."""
 
     text: str
     page_count: int
+    pages: tuple[PdfTextPage, ...] = ()
 
     @property
     def character_count(self) -> int:
@@ -41,10 +58,11 @@ def _normalize_page_text(page_text: str | None) -> str:
 
 
 def extract_text_from_pdf_bytes(file_bytes: bytes) -> PdfTextExtractionResult:
-    """Extract selectable text from a PDF file.
+    """Extract selectable text from a PDF while preserving page boundaries.
 
-    Phase 1-C intentionally supports text-based PDFs only. Scanned/image PDFs
-    should return a clear no-text result instead of pretending OCR exists.
+    The flattened ``text`` field keeps the established API behaviour. ``pages``
+    retains every page, including empty pages, so full-exam intake can classify
+    covers, blank pages, continuations, and question spans deterministically.
     """
 
     if not file_bytes:
@@ -55,9 +73,18 @@ def extract_text_from_pdf_bytes(file_bytes: bytes) -> PdfTextExtractionResult:
     except Exception as exc:  # pragma: no cover - pypdf exception classes vary by version
         raise TextExtractionError("تعذر فتح الملف كملف PDF صالح.") from exc
 
-    page_texts: list[str] = []
-    for page in reader.pages:
-        page_texts.append(_normalize_page_text(page.extract_text()))
+    pages: list[PdfTextPage] = []
+    for page_number, page in enumerate(reader.pages, start=1):
+        pages.append(
+            PdfTextPage(
+                page_number=page_number,
+                text=_normalize_page_text(page.extract_text()),
+            )
+        )
 
-    text = "\n\n".join(page_text for page_text in page_texts if page_text).strip()
-    return PdfTextExtractionResult(text=text, page_count=len(reader.pages))
+    text = "\n\n".join(page.text for page in pages if page.text).strip()
+    return PdfTextExtractionResult(
+        text=text,
+        page_count=len(reader.pages),
+        pages=tuple(pages),
+    )

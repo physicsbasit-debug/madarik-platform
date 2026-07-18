@@ -53,6 +53,19 @@ class TranslationBatchStatus(str, Enum):
     completed_with_failures = "completed_with_failures"
 
 
+class FullExamIntakeStatus(str, Enum):
+    accepted = "accepted"
+    needs_review = "needs_review"
+    rejected = "rejected"
+
+
+class PdfPageKind(str, Enum):
+    cover = "cover"
+    question = "question"
+    blank = "blank"
+    other = "other"
+
+
 class StepKey(str, Enum):
     setup = "setup"
     upload = "upload"
@@ -110,6 +123,15 @@ class PdfLayoutAssetInfo(BaseModel):
     note: str = ""
 
 
+class ExtractedPdfPageInfo(BaseModel):
+    """Selectable text retained for one PDF page."""
+
+    page_number: int = Field(ge=1)
+    text: str = ""
+    character_count: int = Field(default=0, ge=0)
+    is_text_empty: bool = False
+
+
 class ExtractedTextInfo(BaseModel):
     text: str = ""
     preview: str = ""
@@ -117,6 +139,7 @@ class ExtractedTextInfo(BaseModel):
     character_count: int = Field(default=0, ge=0)
     is_text_based: bool = False
     message: str = ""
+    pages: list[ExtractedPdfPageInfo] = Field(default_factory=list)
 
 
 class QuestionOption(BaseModel):
@@ -151,6 +174,9 @@ class QuestionItem(BaseModel):
     linked_layout_asset_ids: list[str] = Field(default_factory=list)
     options: list[QuestionOption] = Field(default_factory=list)
     parts: list[QuestionPart] = Field(default_factory=list)
+    source_page_numbers: list[int] = Field(default_factory=list)
+    source_page_start: int | None = Field(default=None, ge=1)
+    source_page_end: int | None = Field(default=None, ge=1)
     review_notes: str | None = None
 
 
@@ -193,6 +219,50 @@ class TranslationBatchSummary(BaseModel):
     failed_safely_count: int = Field(default=0, ge=0)
     urgent_review_count: int = Field(default=0, ge=0)
     items: list[TranslationItemOutcome] = Field(default_factory=list)
+
+
+class FullExamPageSummary(BaseModel):
+    page_number: int = Field(ge=1)
+    kind: PdfPageKind
+    character_count: int = Field(default=0, ge=0)
+    question_numbers: list[str] = Field(default_factory=list)
+    visual_reference_count: int = Field(default=0, ge=0)
+
+
+class FullExamQuestionSpan(BaseModel):
+    question_number: str
+    page_numbers: list[int] = Field(default_factory=list)
+    page_start: int = Field(ge=1)
+    page_end: int = Field(ge=1)
+    detected_total_marks: int | None = Field(default=None, ge=0)
+    visual_reference_count: int = Field(default=0, ge=0)
+    linked_layout_asset_count: int = Field(default=0, ge=0)
+
+
+class FullExamIntakeCheck(BaseModel):
+    code: str
+    passed: bool
+    message: str
+
+
+class FullExamIntakeReport(BaseModel):
+    status: FullExamIntakeStatus
+    page_count: int = Field(default=0, ge=0)
+    content_page_count: int = Field(default=0, ge=0)
+    blank_page_count: int = Field(default=0, ge=0)
+    cover_page_count: int = Field(default=0, ge=0)
+    question_page_count: int = Field(default=0, ge=0)
+    detected_question_count: int = Field(default=0, ge=0)
+    detected_question_numbers: list[str] = Field(default_factory=list)
+    reported_total_marks: int | None = Field(default=None, ge=0)
+    detected_total_marks: int | None = Field(default=None, ge=0)
+    multi_page_question_count: int = Field(default=0, ge=0)
+    visual_reference_count: int = Field(default=0, ge=0)
+    auto_linked_layout_asset_count: int = Field(default=0, ge=0)
+    pages: list[FullExamPageSummary] = Field(default_factory=list)
+    question_spans: list[FullExamQuestionSpan] = Field(default_factory=list)
+    checks: list[FullExamIntakeCheck] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class AnswerKeyItem(BaseModel):
@@ -251,6 +321,7 @@ class ProjectSession(BaseModel):
     educational_analysis: EducationalAnalysisReport | None = None
     quality_tools: EducationalQualityToolsReport | None = None
     translation_batch_summary: TranslationBatchSummary | None = None
+    full_exam_intake_report: FullExamIntakeReport | None = None
     current_step: StepKey = StepKey.setup
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

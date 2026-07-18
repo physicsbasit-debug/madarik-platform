@@ -83,6 +83,7 @@ import type {
   AuthAccountPublic,
   AuthStatus,
   ExtractedTextInfo,
+  FullExamIntakeReport,
   GlossaryTerm,
   ProjectMetadata,
   PdfLayoutAssetInfo,
@@ -130,6 +131,9 @@ function applyProjectSession(
     setUploadedFile: (fileInfo: UploadedFileInfo | null) => void;
     setSchoolLogo: (schoolLogo: SchoolLogoInfo | null) => void;
     setExtractedText: (extractedText: ExtractedTextInfo | null) => void;
+    setFullExamIntakeReport: (
+      report: FullExamIntakeReport | null,
+    ) => void;
     setQuestions: (questions: QuestionItem[]) => void;
     setGlossary: (glossary: GlossaryTerm[]) => void;
     setLayoutAssets: (layoutAssets: PdfLayoutAssetInfo[]) => void;
@@ -150,6 +154,7 @@ function applyProjectSession(
   setters.setUploadedFile(project.uploadedFile);
   setters.setSchoolLogo(project.schoolLogo);
   setters.setExtractedText(project.extractedText);
+  setters.setFullExamIntakeReport(project.fullExamIntakeReport ?? null);
   setters.setQuestions(project.questions);
   setters.setGlossary(project.glossary);
   setters.setLayoutAssets(project.layoutAssets);
@@ -175,6 +180,8 @@ export function App() {
   const [extractedText, setExtractedText] = useState<ExtractedTextInfo | null>(
     null,
   );
+  const [fullExamIntakeReport, setFullExamIntakeReport] =
+    useState<FullExamIntakeReport | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>(sampleQuestions);
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
   const [layoutAssets, setLayoutAssets] = useState<PdfLayoutAssetInfo[]>([]);
@@ -228,6 +235,7 @@ export function App() {
       setUploadedFile,
       setSchoolLogo,
       setExtractedText,
+      setFullExamIntakeReport,
       setQuestions,
       setGlossary,
       setLayoutAssets,
@@ -719,6 +727,7 @@ export function App() {
     if (!file) {
       setUploadedFile(null);
       setExtractedText(null);
+      setFullExamIntakeReport(null);
 
       if (!projectId || apiStatus === "offline") return;
       setApiStatus("syncing");
@@ -745,6 +754,7 @@ export function App() {
     };
     setUploadedFile(fileInfo);
     setExtractedText(null);
+    setFullExamIntakeReport(null);
 
     if (!projectId || apiStatus === "offline") {
       setLastSyncNote(
@@ -794,8 +804,12 @@ export function App() {
             );
             applyProject(projectWithLayout);
             setApiStatus("connected");
+            const intakeReport = projectWithLayout.fullExamIntakeReport;
+            const intakeSummary = intakeReport
+              ? ` تقرير القبول: ${intakeReport.pageCount} صفحة، ${intakeReport.detectedQuestionCount} سؤالًا، ${intakeReport.detectedTotalMarks ?? "—"} درجة.`
+              : "";
             setLastSyncNote(
-              `${project.extractedText?.message ?? "تم رفع الملف ومحاولة استخراج النص."} وتم استخراج ${projectWithLayout.layoutAssets.length} لقطة تخطيط من PDF.`,
+              `${project.extractedText?.message ?? "تم رفع الملف ومحاولة استخراج النص."} وتم استخراج ${projectWithLayout.layoutAssets.length} لقطة تخطيط من PDF.${intakeSummary}`,
             );
             return;
           } catch (layoutError) {
@@ -1152,8 +1166,11 @@ export function App() {
       const project = await parseExtractedQuestions(projectId);
       applyProject(project);
       setApiStatus("connected");
+      const intakeReport = project.fullExamIntakeReport;
       setLastSyncNote(
-        `تم تحويل النص إلى ${project.questions.length} بطاقة سؤال تحتاج مراجعة.`,
+        intakeReport
+          ? `تم تحويل الورقة إلى ${project.questions.length} بطاقة سؤال. حالة القبول الهيكلي: ${intakeReport.status}.`
+          : `تم تحويل النص إلى ${project.questions.length} بطاقة سؤال تحتاج مراجعة.`,
       );
     } catch (error) {
       console.error(error);
@@ -1637,6 +1654,7 @@ export function App() {
             schoolLogo={schoolLogo}
             uploadedFile={uploadedFile}
             extractedText={extractedText}
+            fullExamIntakeReport={fullExamIntakeReport}
             questions={questions}
             glossary={glossary}
             layoutAssets={layoutAssets}
@@ -1709,6 +1727,7 @@ interface StepContentProps {
   schoolLogo: SchoolLogoInfo | null;
   uploadedFile: UploadedFileInfo | null;
   extractedText: ExtractedTextInfo | null;
+  fullExamIntakeReport: FullExamIntakeReport | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   layoutAssets: PdfLayoutAssetInfo[];
@@ -1768,6 +1787,7 @@ function StepContent({
   schoolLogo,
   uploadedFile,
   extractedText,
+  fullExamIntakeReport,
   questions,
   glossary,
   layoutAssets,
@@ -1862,6 +1882,7 @@ function StepContent({
           onCropLayoutAsset={onCropQuestionLayoutAsset}
           translationProviderStatus={translationProviderStatus}
           translationBatchSummary={translationBatchSummary}
+          fullExamIntakeReport={fullExamIntakeReport}
         />
       );
     case "export":
