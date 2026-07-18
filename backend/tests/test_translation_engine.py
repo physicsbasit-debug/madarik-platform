@@ -321,7 +321,7 @@ def test_translate_questions_passes_project_and_parent_context(monkeypatch):
     assert child_context.parent_part_text == "The current in the circuit is 2 A."
     assert translated.parts[1].parent_id == "part-a"
     assert translated.translated_text.splitlines()[1].startswith("  (i) ترجمة:")
-    assert "Phase 4-A4" in (translated.review_notes or "")
+    assert "Phase 4-A5" in (translated.review_notes or "")
 
 
 def test_phase4_a3_local_fallback_uses_only_approved_glossary_terms():
@@ -384,6 +384,7 @@ def test_phase4_a4_review_note_reports_scientific_fidelity_guard(monkeypatch):
     )
     translated = translate_questions_with_glossary([question], [])[0]
 
-    assert "Phase 4-A4" in (translated.review_notes or "")
+    assert "Phase 4-A5" in (translated.review_notes or "")
     assert "حارس سلامة المحتوى العلمي" in (translated.review_notes or "")
+    assert "دفعة معزولة العناصر" in (translated.review_notes or "")
     assert "فحص الأمان العلمي" in (translated.review_notes or "")

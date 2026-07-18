@@ -32,6 +32,27 @@ class GlossaryTermSource(str, Enum):
     detected = "detected"
 
 
+
+
+class TranslationOutcomeStatus(str, Enum):
+    external_success = "external_success"
+    corrected_success = "corrected_success"
+    local_fallback = "local_fallback"
+    skipped = "skipped"
+    failed_safely = "failed_safely"
+
+
+class TranslationItemType(str, Enum):
+    question = "question"
+    part = "part"
+
+
+class TranslationBatchStatus(str, Enum):
+    completed = "completed"
+    completed_with_fallbacks = "completed_with_fallbacks"
+    completed_with_failures = "completed_with_failures"
+
+
 class StepKey(str, Enum):
     setup = "setup"
     upload = "upload"
@@ -144,6 +165,36 @@ class GlossaryTerm(BaseModel):
 
 
 
+
+
+class TranslationItemOutcome(BaseModel):
+    question_id: str
+    question_number: str = ""
+    item_type: TranslationItemType = TranslationItemType.question
+    part_id: str | None = None
+    part_label: str | None = None
+    status: TranslationOutcomeStatus
+    provider: str = "mock"
+    used_external_provider: bool = False
+    urgent_review: bool = False
+    message: str = ""
+
+
+class TranslationBatchSummary(BaseModel):
+    status: TranslationBatchStatus
+    total_questions: int = Field(default=0, ge=0)
+    active_questions: int = Field(default=0, ge=0)
+    deleted_questions: int = Field(default=0, ge=0)
+    total_items: int = Field(default=0, ge=0)
+    external_success_count: int = Field(default=0, ge=0)
+    corrected_success_count: int = Field(default=0, ge=0)
+    local_fallback_count: int = Field(default=0, ge=0)
+    skipped_count: int = Field(default=0, ge=0)
+    failed_safely_count: int = Field(default=0, ge=0)
+    urgent_review_count: int = Field(default=0, ge=0)
+    items: list[TranslationItemOutcome] = Field(default_factory=list)
+
+
 class AnswerKeyItem(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     question_id: str
@@ -199,6 +250,7 @@ class ProjectSession(BaseModel):
     answer_key: list[AnswerKeyItem] = Field(default_factory=list)
     educational_analysis: EducationalAnalysisReport | None = None
     quality_tools: EducationalQualityToolsReport | None = None
+    translation_batch_summary: TranslationBatchSummary | None = None
     current_step: StepKey = StepKey.setup
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

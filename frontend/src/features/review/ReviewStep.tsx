@@ -23,6 +23,7 @@ import type {
   QuestionPart,
   QuestionStatus,
   TranslationProviderStatus,
+  TranslationBatchSummary,
 } from "../../types/project";
 
 interface ReviewStepProps {
@@ -48,6 +49,7 @@ interface ReviewStepProps {
     crop: VisualCropRequest,
   ) => Promise<void>;
   translationProviderStatus: TranslationProviderStatus | null;
+  translationBatchSummary?: TranslationBatchSummary | null;
 }
 
 const statusLabels: Record<QuestionStatus, string> = {
@@ -67,6 +69,14 @@ function formatProviderApiMode(apiMode?: string) {
   if (apiMode === "generate_content") return "Gemini generateContent";
   if (apiMode === "chat_completions") return "Chat Completions";
   return apiMode ?? "";
+}
+
+function formatTranslationBatchStatus(
+  status: TranslationBatchSummary["status"],
+) {
+  if (status === "completed") return "اكتملت دون fallback";
+  if (status === "completed_with_fallbacks") return "اكتملت مع fallback محلي";
+  return "اكتملت مع عناصر تحتاج مراجعة عاجلة";
 }
 
 function sortQuestionParts(parts: QuestionPart[] | undefined) {
@@ -260,6 +270,7 @@ export function ReviewStep({
   onUnlinkLayoutAsset,
   onCropLayoutAsset,
   translationProviderStatus,
+  translationBatchSummary,
 }: ReviewStepProps) {
   const sortedQuestions = [...questions].sort(
     (a, b) => a.orderIndex - b.orderIndex,
@@ -473,6 +484,24 @@ export function ReviewStep({
           وتبقى مراجعة المعلم إلزامية قبل التصدير.
         </span>
       </div>
+
+      {translationBatchSummary ? (
+        <div className="notice-card translation-notice">
+          <strong>ملخص دفعة الترجمة:</strong>
+          <span>
+            {formatTranslationBatchStatus(translationBatchSummary.status)}.
+            العناصر: {translationBatchSummary.totalItems}، نجاح خارجي مباشر:{" "}
+            {translationBatchSummary.externalSuccessCount}، نجاح بعد التصحيح:{" "}
+            {translationBatchSummary.correctedSuccessCount}، fallback محلي:{" "}
+            {translationBatchSummary.localFallbackCount}، متجاوزة:{" "}
+            {translationBatchSummary.skippedCount}، فشل محفوظ بأمان:{" "}
+            {translationBatchSummary.failedSafelyCount}.
+            {translationBatchSummary.urgentReviewCount > 0
+              ? ` تحتاج ${translationBatchSummary.urgentReviewCount} عناصر إلى مراجعة عاجلة.`
+              : " لا توجد عناصر مصنفة للمراجعة العاجلة."}
+          </span>
+        </div>
+      ) : null}
 
       <div className="review-bulk-actions">
         <button

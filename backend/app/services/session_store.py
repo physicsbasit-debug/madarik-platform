@@ -18,6 +18,7 @@ from app.models.project import (
     GlossaryTerm,
     QuestionAssetInfo,
     QuestionStatus,
+    TranslationBatchSummary,
 )
 from app.services.demo_content import get_demo_glossary, get_demo_questions
 from app.services.project_repository import ProjectRepository, project_repository
@@ -91,6 +92,7 @@ class InMemoryProjectStore:
         if project is None:
             return None
         project.metadata = metadata
+        project.translation_batch_summary = None
         project.current_step = StepKey.setup
         return self.touch(project_id)
 
@@ -99,6 +101,7 @@ class InMemoryProjectStore:
         if project is None:
             return None
         project.uploaded_file = uploaded_file
+        project.translation_batch_summary = None
         if uploaded_file is None:
             project.extracted_text = None
         project.current_step = StepKey.upload
@@ -123,6 +126,7 @@ class InMemoryProjectStore:
             return None
         project.uploaded_file = uploaded_file
         project.extracted_text = extracted_text
+        project.translation_batch_summary = None
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
@@ -132,6 +136,7 @@ class InMemoryProjectStore:
             return None
         project.questions = get_demo_questions()
         project.glossary = get_demo_glossary()
+        project.translation_batch_summary = None
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
@@ -141,6 +146,7 @@ class InMemoryProjectStore:
         if project is None:
             return None
         project.questions = questions
+        project.translation_batch_summary = None
         project.current_step = StepKey.review
         return self.touch(project_id)
 
@@ -150,6 +156,7 @@ class InMemoryProjectStore:
         if project is None:
             return None
         project.glossary = glossary
+        project.translation_batch_summary = None
         project.current_step = StepKey.glossary
         return self.touch(project_id)
 
@@ -267,11 +274,17 @@ class InMemoryProjectStore:
 
         return None
 
-    def set_translated_questions(self, project_id: str, questions: list[QuestionItem]) -> ProjectSession | None:
+    def set_translated_questions(
+        self,
+        project_id: str,
+        questions: list[QuestionItem],
+        summary: TranslationBatchSummary | None = None,
+    ) -> ProjectSession | None:
         project = self.get(project_id)
         if project is None:
             return None
         project.questions = questions
+        project.translation_batch_summary = summary
         project.current_step = StepKey.review
         return self.touch(project_id)
 
@@ -286,6 +299,7 @@ class InMemoryProjectStore:
                 if "parts" in patch.model_fields_set:
                     update_data["parts"] = patch.parts or []
                 project.questions[index] = question.model_copy(update=update_data)
+                project.translation_batch_summary = None
                 project.current_step = StepKey.review
                 return self.touch(project_id)
         return None
@@ -309,6 +323,7 @@ class InMemoryProjectStore:
             updated_questions.append(question.model_copy(update={"status": status}))
 
         project.questions = updated_questions
+        project.translation_batch_summary = None
         project.current_step = StepKey.review
         return self.touch(project_id)
 
@@ -378,6 +393,7 @@ class InMemoryProjectStore:
             if term.id == term_id:
                 update_data = patch.model_dump(exclude_unset=True)
                 project.glossary[index] = term.model_copy(update=update_data)
+                project.translation_batch_summary = None
                 project.current_step = StepKey.glossary
                 return self.touch(project_id)
         return None

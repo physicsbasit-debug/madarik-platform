@@ -13,6 +13,7 @@ import type {
   StepKey,
   UploadedFileInfo,
   TranslationProviderStatus,
+  TranslationBatchSummary,
   AnswerKeyItem,
   EducationalAnalysisReport,
   EducationalQualityToolsReport,
@@ -283,6 +284,42 @@ interface ApiProjectReadinessReport {
   issues: ApiProjectReadinessIssue[];
 }
 
+interface ApiTranslationItemOutcome {
+  question_id: string;
+  question_number: string;
+  item_type: 'question' | 'part';
+  part_id?: string | null;
+  part_label?: string | null;
+  status:
+    | 'external_success'
+    | 'corrected_success'
+    | 'local_fallback'
+    | 'skipped'
+    | 'failed_safely';
+  provider: string;
+  used_external_provider: boolean;
+  urgent_review: boolean;
+  message: string;
+}
+
+interface ApiTranslationBatchSummary {
+  status:
+    | 'completed'
+    | 'completed_with_fallbacks'
+    | 'completed_with_failures';
+  total_questions: number;
+  active_questions: number;
+  deleted_questions: number;
+  total_items: number;
+  external_success_count: number;
+  corrected_success_count: number;
+  local_fallback_count: number;
+  skipped_count: number;
+  failed_safely_count: number;
+  urgent_review_count: number;
+  items: ApiTranslationItemOutcome[];
+}
+
 interface ApiProjectSession {
   id: string;
   owner_account_id: string | null;
@@ -298,6 +335,7 @@ interface ApiProjectSession {
   answer_key?: ApiAnswerKeyItem[];
   educational_analysis?: ApiEducationalAnalysisReport | null;
   quality_tools?: ApiEducationalQualityToolsReport | null;
+  translation_batch_summary?: ApiTranslationBatchSummary | null;
   current_step: StepKey;
 }
 
@@ -508,6 +546,38 @@ function fromApiReadinessReport(report: ApiProjectReadinessReport): ProjectReadi
   };
 }
 
+function fromApiTranslationBatchSummary(
+  summary: ApiTranslationBatchSummary | null | undefined,
+): TranslationBatchSummary | null {
+  if (!summary) return null;
+
+  return {
+    status: summary.status,
+    totalQuestions: summary.total_questions,
+    activeQuestions: summary.active_questions,
+    deletedQuestions: summary.deleted_questions,
+    totalItems: summary.total_items,
+    externalSuccessCount: summary.external_success_count,
+    correctedSuccessCount: summary.corrected_success_count,
+    localFallbackCount: summary.local_fallback_count,
+    skippedCount: summary.skipped_count,
+    failedSafelyCount: summary.failed_safely_count,
+    urgentReviewCount: summary.urgent_review_count,
+    items: summary.items.map((item) => ({
+      questionId: item.question_id,
+      questionNumber: item.question_number,
+      itemType: item.item_type,
+      partId: item.part_id ?? null,
+      partLabel: item.part_label ?? null,
+      status: item.status,
+      provider: item.provider,
+      usedExternalProvider: item.used_external_provider,
+      urgentReview: item.urgent_review,
+      message: item.message,
+    })),
+  };
+}
+
 function fromApiProject(project: ApiProjectSession): ProjectSession {
   return {
     id: project.id,
@@ -524,6 +594,9 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     answerKey: (project.answer_key ?? []).map(fromApiAnswerKeyItem),
     educationalAnalysis: fromApiEducationalAnalysis(project.educational_analysis),
     qualityTools: fromApiQualityTools(project.quality_tools),
+    translationBatchSummary: fromApiTranslationBatchSummary(
+      project.translation_batch_summary,
+    ),
     currentStep: project.current_step,
   };
 }

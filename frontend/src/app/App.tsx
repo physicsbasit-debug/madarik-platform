@@ -94,6 +94,7 @@ import type {
   StepKey,
   UploadedFileInfo,
   TranslationProviderStatus,
+  TranslationBatchSummary,
   VisualCropRequest,
 } from "../types/project";
 
@@ -139,6 +140,9 @@ function applyProjectSession(
     setQualityTools: (
       qualityTools: EducationalQualityToolsReport | null,
     ) => void;
+    setTranslationBatchSummary: (
+      summary: TranslationBatchSummary | null,
+    ) => void;
   },
 ) {
   setters.setProjectId(project.id);
@@ -152,6 +156,7 @@ function applyProjectSession(
   setters.setAnswerKey(project.answerKey);
   setters.setEducationalAnalysis(project.educationalAnalysis);
   setters.setQualityTools(project.qualityTools);
+  setters.setTranslationBatchSummary(project.translationBatchSummary ?? null);
 }
 
 export function App() {
@@ -180,6 +185,8 @@ export function App() {
     useState<EducationalQualityToolsReport | null>(null);
   const [translationProviderStatus, setTranslationProviderStatus] =
     useState<TranslationProviderStatus | null>(null);
+  const [translationBatchSummary, setTranslationBatchSummary] =
+    useState<TranslationBatchSummary | null>(null);
   const [projectReadiness, setProjectReadiness] =
     useState<ProjectReadinessReport | null>(null);
   const [projectLibrary, setProjectLibrary] = useState<ProjectSession[]>([]);
@@ -227,6 +234,7 @@ export function App() {
       setAnswerKey,
       setEducationalAnalysis,
       setQualityTools,
+      setTranslationBatchSummary,
     });
     window.localStorage.setItem(ACTIVE_PROJECT_STORAGE_KEY, project.id);
   }, []);
@@ -517,6 +525,7 @@ export function App() {
       setAnswerKey([]);
       setEducationalAnalysis(null);
       setQualityTools(null);
+      setTranslationBatchSummary(null);
       setTranslationProviderStatus({
         provider: "mock",
         configured: false,
@@ -1178,8 +1187,16 @@ export function App() {
       applyProject(project);
       setApiStatus("connected");
       setActiveIndex(4);
+      const summary = project.translationBatchSummary;
       setLastSyncNote(
-        "تمت ترجمة الأسئلة وأجزائها بصورة مستقلة عبر طبقة المزود مع fallback آمن وقابل للمراجعة.",
+        summary
+          ? (
+              `اكتملت دفعة الترجمة: ${summary.totalItems} عنصرًا، ` +
+              `نجاح خارجي ${summary.externalSuccessCount + summary.correctedSuccessCount}، ` +
+              `fallback محلي ${summary.localFallbackCount}، ` +
+              `فشل محفوظ بأمان ${summary.failedSafelyCount}.`
+            )
+          : "اكتملت الترجمة، لكن ملخص الدفعة غير متاح.",
       );
     } catch (error) {
       console.error(error);
@@ -1459,6 +1476,7 @@ export function App() {
       setQuestions(sampleQuestions);
       setGlossary(sampleGlossary);
       setLayoutAssets([]);
+      setTranslationBatchSummary(null);
       setLastSyncNote("تمت إعادة تحميل البيانات التجريبية محليًا.");
       return;
     }
@@ -1626,6 +1644,7 @@ export function App() {
             educationalAnalysis={educationalAnalysis}
             qualityTools={qualityTools}
             translationProviderStatus={translationProviderStatus}
+            translationBatchSummary={translationBatchSummary}
             onMetadataChange={handleMetadataChange}
             onLogoSelected={handleLogoSelected}
             onLogoRemove={handleLogoRemove}
@@ -1697,6 +1716,7 @@ interface StepContentProps {
   educationalAnalysis: EducationalAnalysisReport | null;
   qualityTools: EducationalQualityToolsReport | null;
   translationProviderStatus: TranslationProviderStatus | null;
+  translationBatchSummary: TranslationBatchSummary | null;
   projectReadiness: ProjectReadinessReport | null;
   onMetadataChange: (metadata: ProjectMetadata) => void;
   onLogoSelected: (file: File | null) => void;
@@ -1755,6 +1775,7 @@ function StepContent({
   educationalAnalysis,
   qualityTools,
   translationProviderStatus,
+  translationBatchSummary,
   projectReadiness,
   onMetadataChange,
   onLogoSelected,
@@ -1840,6 +1861,7 @@ function StepContent({
           onUnlinkLayoutAsset={onUnlinkQuestionLayoutAsset}
           onCropLayoutAsset={onCropQuestionLayoutAsset}
           translationProviderStatus={translationProviderStatus}
+          translationBatchSummary={translationBatchSummary}
         />
       );
     case "export":

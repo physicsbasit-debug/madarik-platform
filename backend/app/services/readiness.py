@@ -185,6 +185,34 @@ def build_project_readiness_report(project: ProjectSession) -> ProjectReadinessR
             )
         )
 
+    batch_summary = project.translation_batch_summary
+    if batch_summary and batch_summary.local_fallback_count:
+        issues.append(
+            ProjectReadinessIssue(
+                code="translation_batch_local_fallbacks",
+                severity=ReadinessSeverity.warning,
+                message=(
+                    "استخدمت دفعة الترجمة fallback المحلي في "
+                    f"{batch_summary.local_fallback_count} عنصرًا؛ "
+                    "راجع هذه العناصر قبل التصدير."
+                ),
+            )
+        )
+
+    if batch_summary and batch_summary.failed_safely_count:
+        issues.append(
+            ProjectReadinessIssue(
+                code="translation_batch_failed_safely",
+                severity=ReadinessSeverity.warning,
+                message=(
+                    "تعذر إكمال "
+                    f"{batch_summary.failed_safely_count} عنصرًا آليًا، "
+                    "وحُفظت الدفعة دون إسقاط بقية الأسئلة. "
+                    "تحتاج هذه العناصر إلى مراجعة عاجلة."
+                ),
+            )
+        )
+
     if missing_marks_questions:
         issues.append(
             ProjectReadinessIssue(

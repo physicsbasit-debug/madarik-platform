@@ -25,7 +25,7 @@ from app.services.text_extraction import TextExtractionError, extract_text_from_
 from app.services.ocr import OcrExtractionError, extract_text_from_image_bytes
 from app.services.pdf_ocr import PdfOcrExtractionError, extract_text_from_scanned_pdf_bytes
 from app.services.pdf_layout_assets import PdfLayoutAssetExtractionError, extract_pdf_layout_assets_from_bytes
-from app.services.translation import translate_questions_with_glossary
+from app.services.translation import translate_questions_batch_with_glossary
 from app.services.readiness import build_project_readiness_report
 from app.services.ai_provider import get_ai_provider_status
 from app.services.answer_key import build_answer_key_draft
@@ -570,18 +570,22 @@ def generate_project_glossary(project_id: str, account: AuthAccountPublic | None
 
 @router.post("/{project_id}/translate-questions")
 def translate_project_questions(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
-    """Translate parsed question cards using the reviewed glossary for Phase 1-E2."""
+    """Translate a complete paper with Phase 4-A5 batch isolation and summary."""
 
     project = _get_or_404(project_id, account)
     if not project.questions:
         raise HTTPException(status_code=400, detail="لا توجد أسئلة قابلة للترجمة.")
 
-    translated_questions = translate_questions_with_glossary(
+    batch_result = translate_questions_batch_with_glossary(
         project.questions,
         project.glossary,
         project.metadata,
     )
-    updated_project = project_store.set_translated_questions(project_id, translated_questions)
+    updated_project = project_store.set_translated_questions(
+        project_id,
+        batch_result.questions,
+        batch_result.summary,
+    )
     if updated_project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return updated_project
