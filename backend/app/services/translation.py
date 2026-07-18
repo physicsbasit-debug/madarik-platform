@@ -749,6 +749,28 @@ def translate_questions_batch_with_glossary(
     )
 
 
+def merge_translation_retry_summary(
+    questions: list[QuestionItem],
+    previous_summary: TranslationBatchSummary | None,
+    retry_result: TranslationBatchResult,
+    question_id: str,
+) -> TranslationBatchSummary:
+    """Replace one question's prior outcomes after an isolated retry."""
+
+    previous_items = (
+        previous_summary.items
+        if previous_summary is not None
+        else []
+    )
+    merged_items = [
+        item
+        for item in previous_items
+        if item.question_id != question_id
+    ]
+    merged_items.extend(retry_result.summary.items)
+    return _build_batch_summary(questions, merged_items)
+
+
 def translate_questions_with_glossary(
     questions: list[QuestionItem],
     glossary: list[GlossaryTerm],

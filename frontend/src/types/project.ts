@@ -224,6 +224,66 @@ export interface FullExamIntakeReport {
 }
 
 
+
+
+export type FullExamTranslationAcceptanceStatus =
+  | 'accepted'
+  | 'needs_review'
+  | 'incomplete'
+  | 'failed';
+
+export type FullExamTranslationQuestionStatus =
+  | 'accepted'
+  | 'needs_review'
+  | 'untranslated'
+  | 'failed'
+  | 'deleted';
+
+export interface FullExamTranslationQuestionSummary {
+  questionId: string;
+  questionNumber: string;
+  status: FullExamTranslationQuestionStatus;
+  totalItems: number;
+  translatedItems: number;
+  urgentReviewItems: number;
+  failedItems: number;
+  glossaryViolationCount: number;
+  fidelityViolationCount: number;
+  sourcePageNumbers: number[];
+  linkedLayoutAssetCount: number;
+  message: string;
+}
+
+export interface FullExamTranslationCheck {
+  code: string;
+  passed: boolean;
+  message: string;
+}
+
+export interface FullExamTranslationReport {
+  status: FullExamTranslationAcceptanceStatus;
+  totalQuestions: number;
+  activeQuestions: number;
+  deletedQuestions: number;
+  translatedQuestions: number;
+  acceptedQuestions: number;
+  needsReviewQuestions: number;
+  untranslatedQuestions: number;
+  failedQuestions: number;
+  completionPercent: number;
+  totalItems: number;
+  translatedItems: number;
+  urgentReviewItems: number;
+  glossaryViolationCount: number;
+  fidelityViolationCount: number;
+  sourcePageLinkedQuestions: number;
+  multiPageQuestions: number;
+  questions: FullExamTranslationQuestionSummary[];
+  checks: FullExamTranslationCheck[];
+  warnings: string[];
+}
+
+
 export type TranslationOutcomeStatus =
   | 'external_success'
   | 'corrected_success'
@@ -283,6 +343,7 @@ export interface ProjectSession {
   qualityTools: EducationalQualityToolsReport | null;
   translationBatchSummary?: TranslationBatchSummary | null;
   fullExamIntakeReport?: FullExamIntakeReport | null;
+  fullExamTranslationReport?: FullExamTranslationReport | null;
   currentStep: StepKey;
 }
 

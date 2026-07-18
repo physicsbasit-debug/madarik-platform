@@ -1,6 +1,7 @@
 import type {
   ExtractedTextInfo,
   FullExamIntakeReport,
+  FullExamTranslationReport,
   GlossaryTerm,
   ProjectMetadata,
   ProjectReadinessReport,
@@ -341,6 +342,56 @@ interface ApiFullExamIntakeReport {
 }
 
 
+interface ApiFullExamTranslationQuestionSummary {
+  question_id: string;
+  question_number: string;
+  status:
+    | 'accepted'
+    | 'needs_review'
+    | 'untranslated'
+    | 'failed'
+    | 'deleted';
+  total_items: number;
+  translated_items: number;
+  urgent_review_items: number;
+  failed_items: number;
+  glossary_violation_count: number;
+  fidelity_violation_count: number;
+  source_page_numbers: number[];
+  linked_layout_asset_count: number;
+  message: string;
+}
+
+interface ApiFullExamTranslationCheck {
+  code: string;
+  passed: boolean;
+  message: string;
+}
+
+interface ApiFullExamTranslationReport {
+  status: 'accepted' | 'needs_review' | 'incomplete' | 'failed';
+  total_questions: number;
+  active_questions: number;
+  deleted_questions: number;
+  translated_questions: number;
+  accepted_questions: number;
+  needs_review_questions: number;
+  untranslated_questions: number;
+  failed_questions: number;
+  completion_percent: number;
+  total_items: number;
+  translated_items: number;
+  urgent_review_items: number;
+  glossary_violation_count: number;
+  fidelity_violation_count: number;
+  source_page_linked_questions: number;
+  multi_page_questions: number;
+  questions: ApiFullExamTranslationQuestionSummary[];
+  checks: ApiFullExamTranslationCheck[];
+  warnings: string[];
+}
+
+
 interface ApiTranslationItemOutcome {
   question_id: string;
   question_number: string;
@@ -394,6 +445,7 @@ interface ApiProjectSession {
   quality_tools?: ApiEducationalQualityToolsReport | null;
   translation_batch_summary?: ApiTranslationBatchSummary | null;
   full_exam_intake_report?: ApiFullExamIntakeReport | null;
+  full_exam_translation_report?: ApiFullExamTranslationReport | null;
   current_step: StepKey;
 }
 
@@ -658,6 +710,53 @@ function fromApiFullExamIntakeReport(
 }
 
 
+function fromApiFullExamTranslationReport(
+  report: ApiFullExamTranslationReport | null | undefined,
+): FullExamTranslationReport | null {
+  if (!report) return null;
+
+  return {
+    status: report.status,
+    totalQuestions: report.total_questions,
+    activeQuestions: report.active_questions,
+    deletedQuestions: report.deleted_questions,
+    translatedQuestions: report.translated_questions,
+    acceptedQuestions: report.accepted_questions,
+    needsReviewQuestions: report.needs_review_questions,
+    untranslatedQuestions: report.untranslated_questions,
+    failedQuestions: report.failed_questions,
+    completionPercent: report.completion_percent,
+    totalItems: report.total_items,
+    translatedItems: report.translated_items,
+    urgentReviewItems: report.urgent_review_items,
+    glossaryViolationCount: report.glossary_violation_count,
+    fidelityViolationCount: report.fidelity_violation_count,
+    sourcePageLinkedQuestions: report.source_page_linked_questions,
+    multiPageQuestions: report.multi_page_questions,
+    questions: report.questions.map((question) => ({
+      questionId: question.question_id,
+      questionNumber: question.question_number,
+      status: question.status,
+      totalItems: question.total_items,
+      translatedItems: question.translated_items,
+      urgentReviewItems: question.urgent_review_items,
+      failedItems: question.failed_items,
+      glossaryViolationCount: question.glossary_violation_count,
+      fidelityViolationCount: question.fidelity_violation_count,
+      sourcePageNumbers: question.source_page_numbers,
+      linkedLayoutAssetCount: question.linked_layout_asset_count,
+      message: question.message,
+    })),
+    checks: report.checks.map((check) => ({
+      code: check.code,
+      passed: check.passed,
+      message: check.message,
+    })),
+    warnings: report.warnings,
+  };
+}
+
+
 function fromApiTranslationBatchSummary(
   summary: ApiTranslationBatchSummary | null | undefined,
 ): TranslationBatchSummary | null {
@@ -712,6 +811,9 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     fullExamIntakeReport: fromApiFullExamIntakeReport(
       project.full_exam_intake_report,
     ),
+    fullExamTranslationReport: fromApiFullExamTranslationReport(
+      project.full_exam_translation_report,
+    ),
     currentStep: project.current_step,
   };
 }
@@ -733,7 +835,6 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   return (await response.json()) as T;
 }
-
 
 
 export async function getAuthStatus(): Promise<AuthStatus> {
@@ -770,7 +871,6 @@ export async function logout(token: string): Promise<void> {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
-
 
 
 export async function listAuthAccounts(): Promise<AuthAccountPublic[]> {
@@ -934,7 +1034,6 @@ export async function uploadImageAndExtractText(projectId: string, file: File): 
 }
 
 
-
 export async function extractPdfLayoutAssets(projectId: string, file: File): Promise<ProjectSession> {
   const formData = new FormData();
   formData.append('file', file);
@@ -988,7 +1087,6 @@ export async function unlinkQuestionLayoutAsset(
 }
 
 
-
 export async function cropQuestionLayoutAsset(
   projectId: string,
   questionId: string,
@@ -1012,7 +1110,6 @@ export async function parseExtractedQuestions(projectId: string): Promise<Projec
 }
 
 
-
 export async function generateGlossaryFromQuestions(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/glossary/generate`, { method: 'POST' });
   return fromApiProject(project);
@@ -1020,6 +1117,17 @@ export async function generateGlossaryFromQuestions(projectId: string): Promise<
 
 export async function translateProjectQuestions(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/translate-questions`, { method: 'POST' });
+  return fromApiProject(project);
+}
+
+export async function retryQuestionTranslation(
+  projectId: string,
+  questionId: string,
+): Promise<ProjectSession> {
+  const project = await requestJson<ApiProjectSession>(
+    `/projects/${projectId}/questions/${questionId}/retry-translation`,
+    { method: 'POST' },
+  );
   return fromApiProject(project);
 }
 
@@ -1071,7 +1179,6 @@ export async function deleteQuestionAsset(projectId: string, questionId: string,
   });
   return fromApiProject(project);
 }
-
 
 
 export async function bulkUpdateQuestionStatus(
@@ -1146,10 +1253,6 @@ export async function getTranslationProviderStatus(): Promise<TranslationProvide
 }
 
 
-
-
-
-
 export async function generateAnswerKeyDraft(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/answer-key/draft`, {
     method: 'POST',
@@ -1165,7 +1268,6 @@ export async function clearAnswerKey(projectId: string): Promise<ProjectSession>
 }
 
 
-
 export async function generateEducationalAnalysis(projectId: string): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/educational-analysis`, {
     method: 'POST',
@@ -1179,7 +1281,6 @@ export async function clearEducationalAnalysis(projectId: string): Promise<Proje
   });
   return fromApiProject(project);
 }
-
 
 
 export async function generateQualityTools(projectId: string): Promise<ProjectSession> {

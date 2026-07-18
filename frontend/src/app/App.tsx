@@ -50,6 +50,7 @@ import {
   reorderQuestions,
   setUploadedFileInfo,
   translateProjectQuestions,
+  retryQuestionTranslation,
   uploadQuestionAsset,
   uploadPdfAndExtractText,
   uploadPdfOcrAndExtractText,
@@ -84,6 +85,7 @@ import type {
   AuthStatus,
   ExtractedTextInfo,
   FullExamIntakeReport,
+  FullExamTranslationReport,
   GlossaryTerm,
   ProjectMetadata,
   PdfLayoutAssetInfo,
@@ -134,6 +136,9 @@ function applyProjectSession(
     setFullExamIntakeReport: (
       report: FullExamIntakeReport | null,
     ) => void;
+    setFullExamTranslationReport: (
+      report: FullExamTranslationReport | null,
+    ) => void;
     setQuestions: (questions: QuestionItem[]) => void;
     setGlossary: (glossary: GlossaryTerm[]) => void;
     setLayoutAssets: (layoutAssets: PdfLayoutAssetInfo[]) => void;
@@ -155,6 +160,9 @@ function applyProjectSession(
   setters.setSchoolLogo(project.schoolLogo);
   setters.setExtractedText(project.extractedText);
   setters.setFullExamIntakeReport(project.fullExamIntakeReport ?? null);
+  setters.setFullExamTranslationReport(
+    project.fullExamTranslationReport ?? null,
+  );
   setters.setQuestions(project.questions);
   setters.setGlossary(project.glossary);
   setters.setLayoutAssets(project.layoutAssets);
@@ -182,6 +190,8 @@ export function App() {
   );
   const [fullExamIntakeReport, setFullExamIntakeReport] =
     useState<FullExamIntakeReport | null>(null);
+  const [fullExamTranslationReport, setFullExamTranslationReport] =
+    useState<FullExamTranslationReport | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>(sampleQuestions);
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
   const [layoutAssets, setLayoutAssets] = useState<PdfLayoutAssetInfo[]>([]);
@@ -236,6 +246,7 @@ export function App() {
       setSchoolLogo,
       setExtractedText,
       setFullExamIntakeReport,
+      setFullExamTranslationReport,
       setQuestions,
       setGlossary,
       setLayoutAssets,
@@ -527,6 +538,8 @@ export function App() {
       setUploadedFile(null);
       setSchoolLogo(null);
       setExtractedText(null);
+      setFullExamIntakeReport(null);
+      setFullExamTranslationReport(null);
       setQuestions(sampleQuestions);
       setGlossary(sampleGlossary);
       setLayoutAssets([]);
@@ -728,6 +741,7 @@ export function App() {
       setUploadedFile(null);
       setExtractedText(null);
       setFullExamIntakeReport(null);
+      setFullExamTranslationReport(null);
 
       if (!projectId || apiStatus === "offline") return;
       setApiStatus("syncing");
@@ -755,6 +769,7 @@ export function App() {
     setUploadedFile(fileInfo);
     setExtractedText(null);
     setFullExamIntakeReport(null);
+    setFullExamTranslationReport(null);
 
     if (!projectId || apiStatus === "offline") {
       setLastSyncNote(
@@ -1057,6 +1072,7 @@ export function App() {
       ),
     );
     setProjectReadiness(null);
+    setFullExamTranslationReport(null);
 
     if (!projectId || apiStatus === "offline") return;
     setApiStatus("syncing");
@@ -1130,6 +1146,7 @@ export function App() {
         term.id === termId ? { ...term, ...updates } : term,
       ),
     );
+    setFullExamTranslationReport(null);
 
     if (!projectId || apiStatus === "offline") return;
     setApiStatus("syncing");
@@ -1220,6 +1237,42 @@ export function App() {
       setApiStatus("connected");
       setLastSyncNote(
         "تعذر تشغيل ترجمة الأسئلة وأجزائها. تحقق من وجود أسئلة محللة ثم أعد المحاولة.",
+      );
+    }
+  }
+
+  async function retryQuestionTranslationForReview(
+    questionId: string,
+  ) {
+    if (!projectId || apiStatus === "offline") {
+      setLastSyncNote(
+        "لا يمكن إعادة ترجمة السؤال دون اتصال Backend.",
+      );
+      return;
+    }
+
+    setApiStatus("syncing");
+    try {
+      const project = await retryQuestionTranslation(
+        projectId,
+        questionId,
+      );
+      applyProject(project);
+      setApiStatus("connected");
+      const report = project.fullExamTranslationReport;
+      setLastSyncNote(
+        report
+          ? (
+              `أعيدت ترجمة السؤال. اكتمال الورقة ${report.completionPercent}%، ` +
+              `والأسئلة الفاشلة ${report.failedQuestions}.`
+            )
+          : "أعيدت ترجمة السؤال، لكن تقرير القبول غير متاح.",
+      );
+    } catch (error) {
+      console.error(error);
+      setApiStatus("connected");
+      setLastSyncNote(
+        "تعذرت إعادة ترجمة السؤال منفردًا. بقيت بقية الورقة دون تغيير.",
       );
     }
   }
@@ -1494,6 +1547,8 @@ export function App() {
       setGlossary(sampleGlossary);
       setLayoutAssets([]);
       setTranslationBatchSummary(null);
+      setFullExamIntakeReport(null);
+      setFullExamTranslationReport(null);
       setLastSyncNote("تمت إعادة تحميل البيانات التجريبية محليًا.");
       return;
     }
@@ -1655,6 +1710,7 @@ export function App() {
             uploadedFile={uploadedFile}
             extractedText={extractedText}
             fullExamIntakeReport={fullExamIntakeReport}
+            fullExamTranslationReport={fullExamTranslationReport}
             questions={questions}
             glossary={glossary}
             layoutAssets={layoutAssets}
@@ -1672,6 +1728,7 @@ export function App() {
             onUpdateGlossaryTerm={updateGlossaryTerm}
             onGenerateGlossary={generateGlossaryFromQuestionCards}
             onTranslateQuestions={translateQuestions}
+            onRetryQuestionTranslation={retryQuestionTranslationForReview}
             onBulkUpdateStatus={bulkUpdateReviewStatus}
             onUploadQuestionAsset={handleQuestionAssetUpload}
             onDeleteQuestionAsset={handleQuestionAssetDelete}
@@ -1728,6 +1785,7 @@ interface StepContentProps {
   uploadedFile: UploadedFileInfo | null;
   extractedText: ExtractedTextInfo | null;
   fullExamIntakeReport: FullExamIntakeReport | null;
+  fullExamTranslationReport: FullExamTranslationReport | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   layoutAssets: PdfLayoutAssetInfo[];
@@ -1752,6 +1810,7 @@ interface StepContentProps {
   ) => void;
   onGenerateGlossary: () => void;
   onTranslateQuestions: () => void;
+  onRetryQuestionTranslation: (questionId: string) => void;
   onBulkUpdateStatus: (
     status: QuestionStatus,
     includeDeleted?: boolean,
@@ -1788,6 +1847,7 @@ function StepContent({
   uploadedFile,
   extractedText,
   fullExamIntakeReport,
+  fullExamTranslationReport,
   questions,
   glossary,
   layoutAssets,
@@ -1806,6 +1866,7 @@ function StepContent({
   onUpdateGlossaryTerm,
   onGenerateGlossary,
   onTranslateQuestions,
+  onRetryQuestionTranslation,
   onBulkUpdateStatus,
   onUploadQuestionAsset,
   onDeleteQuestionAsset,
@@ -1874,6 +1935,7 @@ function StepContent({
           onUpdateQuestion={onUpdateQuestion}
           onMoveQuestion={onMoveQuestion}
           onTranslateQuestions={onTranslateQuestions}
+          onRetryQuestionTranslation={onRetryQuestionTranslation}
           onBulkUpdateStatus={onBulkUpdateStatus}
           onUploadQuestionAsset={onUploadQuestionAsset}
           onDeleteQuestionAsset={onDeleteQuestionAsset}
@@ -1883,6 +1945,7 @@ function StepContent({
           translationProviderStatus={translationProviderStatus}
           translationBatchSummary={translationBatchSummary}
           fullExamIntakeReport={fullExamIntakeReport}
+          fullExamTranslationReport={fullExamTranslationReport}
         />
       );
     case "export":

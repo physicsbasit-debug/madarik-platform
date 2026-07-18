@@ -6,6 +6,7 @@ from app.models.project import (
     EducationalAnalysisReport,
     EducationalQualityToolsReport,
     FullExamIntakeReport,
+    FullExamTranslationReport,
     GlossaryTermPatch,
     StepKey,
     ProjectMetadata,
@@ -25,6 +26,9 @@ from app.services.demo_content import get_demo_glossary, get_demo_questions
 from app.services.full_exam_intake import (
     build_full_exam_intake_report,
     link_layout_assets_to_page_aware_questions,
+)
+from app.services.full_exam_translation import (
+    build_full_exam_translation_report,
 )
 from app.services.project_repository import ProjectRepository, project_repository
 
@@ -92,12 +96,32 @@ class InMemoryProjectStore:
         self._repository.save(project)
         return project
 
+
+    @staticmethod
+    def _refresh_full_exam_translation_report(
+        project: ProjectSession,
+        summary: TranslationBatchSummary | None = None,
+    ) -> None:
+        if not project.questions:
+            project.full_exam_translation_report = None
+            return
+
+        project.full_exam_translation_report = (
+            build_full_exam_translation_report(
+                project.questions,
+                project.glossary,
+                summary,
+                project.full_exam_intake_report,
+            )
+        )
+
     def update_metadata(self, project_id: str, metadata: ProjectMetadata) -> ProjectSession | None:
         project = self.get(project_id)
         if project is None:
             return None
         project.metadata = metadata
         project.translation_batch_summary = None
+        project.full_exam_translation_report = None
         project.current_step = StepKey.setup
         return self.touch(project_id)
 
@@ -108,6 +132,7 @@ class InMemoryProjectStore:
         project.uploaded_file = uploaded_file
         project.translation_batch_summary = None
         project.full_exam_intake_report = None
+        project.full_exam_translation_report = None
         if uploaded_file is None:
             project.extracted_text = None
         project.current_step = StepKey.upload
@@ -135,6 +160,7 @@ class InMemoryProjectStore:
         project.extracted_text = extracted_text
         project.translation_batch_summary = None
         project.full_exam_intake_report = full_exam_intake_report
+        project.full_exam_translation_report = None
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
@@ -146,6 +172,7 @@ class InMemoryProjectStore:
         project.glossary = get_demo_glossary()
         project.translation_batch_summary = None
         project.full_exam_intake_report = None
+        self._refresh_full_exam_translation_report(project)
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
@@ -161,8 +188,8 @@ class InMemoryProjectStore:
             return None
         project.questions = questions
         project.translation_batch_summary = None
-        if full_exam_intake_report is not None:
-            project.full_exam_intake_report = full_exam_intake_report
+        project.full_exam_intake_report = full_exam_intake_report
+        self._refresh_full_exam_translation_report(project)
         project.current_step = StepKey.review
         return self.touch(project_id)
 
@@ -173,6 +200,7 @@ class InMemoryProjectStore:
             return None
         project.glossary = glossary
         project.translation_batch_summary = None
+        self._refresh_full_exam_translation_report(project)
         project.current_step = StepKey.glossary
         return self.touch(project_id)
 
@@ -204,6 +232,10 @@ class InMemoryProjectStore:
                 project.extracted_text.pages,
                 questions=project.questions,
             )
+        self._refresh_full_exam_translation_report(
+            project,
+            project.translation_batch_summary,
+        )
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
@@ -237,6 +269,10 @@ class InMemoryProjectStore:
                 project.extracted_text.pages,
                 questions=project.questions,
             )
+        self._refresh_full_exam_translation_report(
+            project,
+            project.translation_batch_summary,
+        )
         project.current_step = StepKey.extract
         return self.touch(project_id)
 
@@ -273,6 +309,10 @@ class InMemoryProjectStore:
                     project.extracted_text.pages,
                     questions=project.questions,
                 )
+            self._refresh_full_exam_translation_report(
+                project,
+                project.translation_batch_summary,
+            )
             project.current_step = StepKey.review
             return self.touch(project_id)
 
@@ -309,6 +349,10 @@ class InMemoryProjectStore:
                     project.extracted_text.pages,
                     questions=project.questions,
                 )
+            self._refresh_full_exam_translation_report(
+                project,
+                project.translation_batch_summary,
+            )
             project.current_step = StepKey.review
             return self.touch(project_id)
 
@@ -319,12 +363,18 @@ class InMemoryProjectStore:
         project_id: str,
         questions: list[QuestionItem],
         summary: TranslationBatchSummary | None = None,
+        full_exam_translation_report: FullExamTranslationReport | None = None,
     ) -> ProjectSession | None:
         project = self.get(project_id)
         if project is None:
             return None
         project.questions = questions
         project.translation_batch_summary = summary
+        project.full_exam_translation_report = (
+            full_exam_translation_report
+        )
+        if project.full_exam_translation_report is None:
+            self._refresh_full_exam_translation_report(project, summary)
         project.current_step = StepKey.review
         return self.touch(project_id)
 
@@ -340,6 +390,7 @@ class InMemoryProjectStore:
                     update_data["parts"] = patch.parts or []
                 project.questions[index] = question.model_copy(update=update_data)
                 project.translation_batch_summary = None
+                self._refresh_full_exam_translation_report(project)
                 project.current_step = StepKey.review
                 return self.touch(project_id)
         return None
@@ -364,6 +415,7 @@ class InMemoryProjectStore:
 
         project.questions = updated_questions
         project.translation_batch_summary = None
+        self._refresh_full_exam_translation_report(project)
         project.current_step = StepKey.review
         return self.touch(project_id)
 
@@ -380,6 +432,10 @@ class InMemoryProjectStore:
         project.questions = [
             question.model_copy(update={"order_index": order_lookup[question.id]}) for question in project.questions
         ]
+        self._refresh_full_exam_translation_report(
+            project,
+            project.translation_batch_summary,
+        )
         project.current_step = StepKey.review
         return self.touch(project_id)
 
@@ -434,6 +490,7 @@ class InMemoryProjectStore:
                 update_data = patch.model_dump(exclude_unset=True)
                 project.glossary[index] = term.model_copy(update=update_data)
                 project.translation_batch_summary = None
+                self._refresh_full_exam_translation_report(project)
                 project.current_step = StepKey.glossary
                 return self.touch(project_id)
         return None
