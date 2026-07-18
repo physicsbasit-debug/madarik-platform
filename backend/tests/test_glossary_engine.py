@@ -65,3 +65,36 @@ def test_generate_glossary_endpoint_requires_questions() -> None:
     response = client.post(f"/api/projects/{project_id}/glossary/generate")
 
     assert response.status_code == 400
+
+
+def test_glossary_status_update_persists_after_project_reload() -> None:
+    client = TestClient(app)
+    project_id = client.post("/api/projects", json={}).json()["id"]
+    client.post(f"/api/projects/{project_id}/demo-content")
+    generated = client.post(
+        f"/api/projects/{project_id}/glossary/generate"
+    )
+    assert generated.status_code == 200
+
+    term = generated.json()["glossary"][0]
+    update_response = client.patch(
+        f"/api/projects/{project_id}/glossary/{term['id']}",
+        json={"status": "approved"},
+    )
+
+    assert update_response.status_code == 200
+    updated_term = next(
+        item
+        for item in update_response.json()["glossary"]
+        if item["id"] == term["id"]
+    )
+    assert updated_term["status"] == "approved"
+
+    reload_response = client.get(f"/api/projects/{project_id}")
+    assert reload_response.status_code == 200
+    reloaded_term = next(
+        item
+        for item in reload_response.json()["glossary"]
+        if item["id"] == term["id"]
+    )
+    assert reloaded_term["status"] == "approved"

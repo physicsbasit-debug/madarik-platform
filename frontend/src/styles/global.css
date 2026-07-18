@@ -2163,3 +2163,110 @@ button:disabled {
     width: 100%;
   }
 }
+
+/* Phase 4-A6d Fix 4: one shared PDF snapshot gallery for all questions */
+.layout-asset-library {
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+  border: 1px solid #b9d9d1;
+  border-radius: 20px;
+  background: #f2fbf8;
+}
+
+.layout-asset-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.layout-asset-library-card {
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 180px auto;
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.layout-asset-library-card > img {
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  padding: 0.5rem;
+  background: #eef4f6;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.layout-asset-library-body {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.9rem;
+}
+
+.layout-asset-library-body > div:first-child {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.layout-asset-library-body span {
+  color: #64748b;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.layout-asset-library-body label {
+  display: grid;
+  gap: 0.4rem;
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.layout-asset-library-body select {
+  width: 100%;
+}
+
+.layout-asset-library-body > button {
+  width: 100%;
+  justify-content: center;
+}
+
+.layout-asset-linked-questions {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.layout-asset-linked-questions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.linked-question-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid #9fcbbb;
+  border-radius: 999px;
+  padding: 0.4rem 0.65rem;
+  background: #ecfdf5;
+  color: #166534;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.linked-question-chip:hover {
+  background: #dcfce7;
+}
+
+@media (max-width: 640px) {
+  .layout-asset-library-grid {
+    grid-template-columns: 1fr;
+  }
+}

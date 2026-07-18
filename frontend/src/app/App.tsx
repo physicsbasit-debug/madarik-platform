@@ -9,7 +9,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StepNavigation } from "../components/StepNavigation";
 import { steps } from "../constants/steps";
 import {
@@ -238,6 +238,12 @@ export function App() {
   );
   const [authAccounts, setAuthAccounts] = useState<AuthAccountPublic[]>([]);
   const [authAccountsLoading, setAuthAccountsLoading] = useState(false);
+  const glossaryUpdateQueuesRef = useRef(
+    new Map<string, Promise<void>>(),
+  );
+  const glossaryUpdateVersionsRef = useRef(
+    new Map<string, number>(),
+  );
 
   const activeStep = steps[activeIndex];
   const progressLabel = useMemo(
@@ -267,7 +273,20 @@ export function App() {
       setFullExamExportReport,
       setFullExamEndToEndReport,
       setQuestions,
-      setGlossary,
+      setGlossary: (serverGlossary) => {
+        const pendingTermIds = new Set(
+          glossaryUpdateQueuesRef.current.keys(),
+        );
+        setGlossary((currentGlossary) =>
+          serverGlossary.map((serverTerm) => {
+            if (!pendingTermIds.has(serverTerm.id)) return serverTerm;
+            return (
+              currentGlossary.find((term) => term.id === serverTerm.id) ??
+              serverTerm
+            );
+          }),
+        );
+      },
       setLayoutAssets,
       setAnswerKey,
       setEducationalAnalysis,
@@ -1178,18 +1197,65 @@ export function App() {
     setFullExamEndToEndReport(null);
 
     if (!projectId || apiStatus === "offline") return;
-    setApiStatus("syncing");
-    updateGlossaryTermOnServer(projectId, termId, updates)
-      .then((project) => {
-        applyProject(project);
+
+    const version =
+      (glossaryUpdateVersionsRef.current.get(termId) ?? 0) + 1;
+    glossaryUpdateVersionsRef.current.set(termId, version);
+
+    const previousQueue =
+      glossaryUpdateQueuesRef.current.get(termId) ?? Promise.resolve();
+
+    const queuedUpdate: Promise<void> = previousQueue
+      .catch(() => undefined)
+      .then(async () => {
+        setApiStatus("syncing");
+        const project = await updateGlossaryTermOnServer(
+          projectId,
+          termId,
+          updates,
+        );
+
+        if (glossaryUpdateVersionsRef.current.get(termId) !== version) {
+          return;
+        }
+
+        const savedTerm = project.glossary.find(
+          (term) => term.id === termId,
+        );
+        if (savedTerm) {
+          setGlossary((currentGlossary) =>
+            currentGlossary.map((term) =>
+              term.id === termId ? savedTerm : term,
+            ),
+          );
+        }
+
+        setFullExamTranslationReport(
+          project.fullExamTranslationReport ?? null,
+        );
+        setFullExamExportReport(project.fullExamExportReport ?? null);
+        setFullExamEndToEndReport(
+          project.fullExamEndToEndReport ?? null,
+        );
         setApiStatus("connected");
-        setLastSyncNote("تمت مزامنة قاموس الورقة مع Backend.");
+        setLastSyncNote("تم حفظ حالة مصطلح القاموس.");
       })
       .catch((error: unknown) => {
         console.error(error);
-        setApiStatus("offline");
-        setLastSyncNote("فشلت مزامنة قاموس الورقة. بقي التعديل محليًا.");
+        if (glossaryUpdateVersionsRef.current.get(termId) === version) {
+          setApiStatus("connected");
+          setLastSyncNote(
+            "تعذر حفظ مصطلح القاموس. بقي الاختيار ظاهرًا محليًا ولم يُعتمد في الخادم.",
+          );
+        }
+      })
+      .finally(() => {
+        if (glossaryUpdateQueuesRef.current.get(termId) === queuedUpdate) {
+          glossaryUpdateQueuesRef.current.delete(termId);
+        }
       });
+
+    glossaryUpdateQueuesRef.current.set(termId, queuedUpdate);
   }
 
   async function parseQuestionsFromExtractedText() {

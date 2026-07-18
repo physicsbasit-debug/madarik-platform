@@ -9,6 +9,10 @@ from app.models.project import (
     QuestionStatus,
     ReadinessSeverity,
 )
+from app.services.export_review import (
+    missing_visual_asset_question_numbers,
+    parse_declared_total_marks,
+)
 
 
 def _question_parts_total_marks(question: QuestionItem) -> int | None:
@@ -260,6 +264,43 @@ def build_project_readiness_report(project: ProjectSession) -> ProjectReadinessR
         _question_effective_marks(question) or 0
         for question in active_questions
     )
+
+    declared_total_marks = parse_declared_total_marks(
+        project.metadata.total_marks
+    )
+    if (
+        declared_total_marks is not None
+        and declared_total_marks != total_marks
+    ):
+        issues.append(
+            ProjectReadinessIssue(
+                code="paper_total_marks_mismatch",
+                severity=ReadinessSeverity.warning,
+                message=(
+                    f"الدرجة المعلنة للورقة ({declared_total_marks}) لا تطابق "
+                    f"مجموع درجات الأسئلة ({total_marks}). "
+                    "سيبقى التصدير متاحًا، لكن القبول النهائي يحتاج مراجعة."
+                ),
+            )
+        )
+
+    missing_visual_questions = missing_visual_asset_question_numbers(
+        active_questions
+    )
+    if missing_visual_questions:
+        issues.append(
+            ProjectReadinessIssue(
+                code="visual_questions_missing_assets",
+                severity=ReadinessSeverity.warning,
+                message=(
+                    "توجد أسئلة تعتمد على رسم أو مخطط دون مرفق بصري "
+                    "جاهز للتصدير: "
+                    + "، ".join(missing_visual_questions)
+                    + ". اربط اللقطة ثم قص الشكل أو ارفع صورة للسؤال."
+                ),
+            )
+        )
+
     has_blocking_errors = any(
         issue.severity == ReadinessSeverity.error
         for issue in issues
