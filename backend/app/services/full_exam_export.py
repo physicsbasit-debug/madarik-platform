@@ -26,6 +26,10 @@ from app.models.project import (
     QuestionPart,
     QuestionStatus,
 )
+from app.services.export_review import (
+    missing_visual_asset_question_numbers,
+    parse_declared_total_marks,
+)
 
 
 EXPORT_MANIFEST_PREFIX = "MADARIK-A6C-V1"
@@ -191,13 +195,17 @@ def _valid_logo_count(project: ProjectSession) -> int:
     return int(_is_valid_image_payload(project.school_logo.data_base64))
 
 
-def _valid_attachment_count(project: ProjectSession) -> int:
-    return sum(
-        1
+def _valid_attachment_ids(project: ProjectSession) -> set[str]:
+    return {
+        attachment.id
         for question in _active_questions(project)
         for attachment in question.attachments
         if _is_valid_image_payload(attachment.data_base64)
-    )
+    }
+
+
+def _valid_attachment_count(project: ProjectSession) -> int:
+    return len(_valid_attachment_ids(project))
 
 
 def _docx_text(document: Document) -> str:
@@ -352,7 +360,12 @@ def _inspect_docx(
     checks.extend(_manifest_checks(project, manifest))
     expected = _expected_structure(project)
     expected_order = list(range(1, int(expected["questions"]) + 1))
-    valid_attachments = _valid_attachment_count(project)
+    valid_attachment_ids = _valid_attachment_ids(project)
+    valid_attachments = len(valid_attachment_ids)
+    missing_visual_questions = missing_visual_asset_question_numbers(
+        _active_questions(project),
+        valid_attachment_ids=valid_attachment_ids,
+    )
 
     checks.extend(
         [
@@ -389,6 +402,18 @@ def _inspect_docx(
                     else (
                         f"عدد صور الأسئلة داخل Word ({exported_images}) لا يطابق "
                         f"المرفقات الصالحة ({valid_attachments})."
+                    )
+                ),
+            ),
+            FullExamExportCheck(
+                code="docx_visual_question_coverage",
+                passed=not missing_visual_questions,
+                message=(
+                    "كل سؤال يعتمد على رسم أو مخطط يملك مرفقًا بصريًا صالحًا في Word."
+                    if not missing_visual_questions
+                    else (
+                        "توجد أسئلة تعتمد على رسم أو مخطط دون مرفق بصري صالح في Word: "
+                        + "، ".join(missing_visual_questions)
                     )
                 ),
             ),
@@ -484,7 +509,12 @@ def _inspect_pdf(
 
     checks.extend(_manifest_checks(project, manifest))
     expected = _expected_structure(project)
-    valid_attachments = _valid_attachment_count(project)
+    valid_attachment_ids = _valid_attachment_ids(project)
+    valid_attachments = len(valid_attachment_ids)
+    missing_visual_questions = missing_visual_asset_question_numbers(
+        _active_questions(project),
+        valid_attachment_ids=valid_attachment_ids,
+    )
 
     checks.extend(
         [
@@ -528,6 +558,18 @@ def _inspect_pdf(
                     else (
                         f"عدد صور الأسئلة داخل PDF ({exported_images}) لا يطابق "
                         f"المرفقات الصالحة ({valid_attachments})."
+                    )
+                ),
+            ),
+            FullExamExportCheck(
+                code="pdf_visual_question_coverage",
+                passed=not missing_visual_questions,
+                message=(
+                    "كل سؤال يعتمد على رسم أو مخطط يملك مرفقًا بصريًا صالحًا في PDF."
+                    if not missing_visual_questions
+                    else (
+                        "توجد أسئلة تعتمد على رسم أو مخطط دون مرفق بصري صالح في PDF: "
+                        + "، ".join(missing_visual_questions)
                     )
                 ),
             ),
@@ -597,11 +639,6 @@ def _unique_formats(formats: Iterable[ExportFormat]) -> list[ExportFormat]:
     return result
 
 
-def _parse_reported_marks(value: str) -> int | None:
-    match = re.search(r"\d+", value or "")
-    return int(match.group(0)) if match else None
-
-
 def build_full_exam_export_report(
     project: ProjectSession,
     artifact_format: ExportFormat,
@@ -649,7 +686,7 @@ def build_full_exam_export_report(
 
     questions = _active_questions(project)
     expected = _expected_structure(project)
-    reported_marks = _parse_reported_marks(project.metadata.total_marks)
+    reported_marks = parse_declared_total_marks(project.metadata.total_marks)
     missing_formats = [
         item
         for item in requested_formats

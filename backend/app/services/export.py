@@ -35,6 +35,7 @@ from app.models.project import (
     QuestionStatus,
 )
 from app.services.full_exam_export import build_full_exam_export_manifest
+from app.services.scientific_text import normalise_scientific_text, protect_scientific_bidi
 
 DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_MIME_TYPE = "application/pdf"
@@ -45,6 +46,9 @@ ENGLISH_FONT_NAME = "Helvetica"
 _STALE_ATTACHMENT_NOTE_SNIPPETS = (
     "لم يتم ربط الصور والجداول",
     "هذه الوظيفة مؤجلة",
+    "تم ربط",
+    "تُربط لقطات صفحات PDF",
+    "استخدم القص البصري",
 )
 
 _SUBQUESTION_MARKER_RE = re.compile(
@@ -108,7 +112,7 @@ def _clean_export_text(
 ) -> str:
     """Clean OCR text for DOCX XML and ReportLab paragraphs."""
 
-    raw = str(value or "")
+    raw = normalise_scientific_text(str(value or ""))
     raw = raw.replace("\r\n", "\n").replace("\r", "\n")
 
     cleaned = "".join(
@@ -188,7 +192,7 @@ def _attachment_note_for_export(
     if not note:
         return ""
 
-    if question.attachments and any(
+    if any(
         snippet in note
         for snippet in _STALE_ATTACHMENT_NOTE_SNIPPETS
     ):
@@ -227,8 +231,12 @@ def _add_docx_text_blocks(
                 0.2 + (0.2 * safe_indent_level)
             )
 
+        prepared_block = _clean_export_text(block)
+        if rtl:
+            prepared_block = protect_scientific_bidi(prepared_block)
+
         run = paragraph.add_run(
-            _clean_export_text(block),
+            prepared_block,
         )
         run.font.size = Pt(font_size)
         _set_run_rtl(run, rtl=rtl)
@@ -927,6 +935,9 @@ def _pdf_paragraph(
     rtl: bool = True,
 ) -> Paragraph:
     cleaned = _clean_export_text(text)
+
+    if rtl:
+        cleaned = protect_scientific_bidi(cleaned)
 
     prepared = (
         _shape_arabic(cleaned)
