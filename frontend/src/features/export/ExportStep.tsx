@@ -1,6 +1,6 @@
 import { AlertTriangle, BarChart3, CheckCircle2, Download, FileText, GitBranch, KeyRound, Loader2, Radar, ShieldCheck, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import type { AnswerKeyItem, EducationalAnalysisReport, EducationalQualityToolsReport, GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
+import type { AnswerKeyItem, EducationalAnalysisReport, EducationalQualityToolsReport, FullExamExportReport, GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
 import { MetricCard } from '../../components/MetricCard';
 
 interface ExportStepProps {
@@ -11,6 +11,7 @@ interface ExportStepProps {
   educationalAnalysis: EducationalAnalysisReport | null;
   qualityTools: EducationalQualityToolsReport | null;
   readiness: ProjectReadinessReport | null;
+  fullExamExportReport: FullExamExportReport | null;
   canExportDocx: boolean;
   canExportPdf: boolean;
   onExportDocx: () => Promise<void>;
@@ -24,6 +25,24 @@ interface ExportStepProps {
   onClearQualityTools: () => Promise<void>;
 }
 
+function exportAcceptanceLabel(status: FullExamExportReport['status']) {
+  switch (status) {
+    case 'accepted':
+      return 'مقبول';
+    case 'needs_review':
+      return 'يحتاج مراجعة';
+    case 'incomplete':
+      return 'غير مكتمل';
+    case 'failed':
+      return 'فشل';
+  }
+}
+
+function formatLabel(format: 'docx' | 'pdf') {
+  return format.toUpperCase();
+}
+
+
 export function ExportStep({
   metadata,
   questions,
@@ -32,6 +51,7 @@ export function ExportStep({
   educationalAnalysis,
   qualityTools,
   readiness,
+  fullExamExportReport,
   canExportDocx,
   canExportPdf,
   onExportDocx,
@@ -245,6 +265,86 @@ export function ExportStep({
       </section>
 
 
+
+
+      <section className="form-card wide-card export-acceptance-panel">
+        <div className="section-heading">
+          <p className="eyebrow">Phase 4-A6c</p>
+          <h3>قبول تصدير الامتحان الكامل</h3>
+          <p>
+            يفحص هذا التقرير ملفات Word وPDF الناتجة فعليًا، بما يشمل بصمة البنية،
+            ترتيب الأسئلة، مجموع الدرجات، الأجزاء، والمرفقات المدرجة مرة واحدة.
+          </p>
+        </div>
+
+        {fullExamExportReport ? (
+          <>
+            <div className={`export-acceptance-status export-acceptance-${fullExamExportReport.status}`}>
+              {fullExamExportReport.status === 'accepted' ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
+              <div>
+                <strong>{exportAcceptanceLabel(fullExamExportReport.status)}</strong>
+                <p>
+                  الصيغ المنشأة: {fullExamExportReport.generatedFormats.map(formatLabel).join('، ') || 'لا توجد'}
+                  {' '}من أصل {fullExamExportReport.requestedFormats.map(formatLabel).join('، ')}.
+                </p>
+              </div>
+            </div>
+
+            <div className="metrics-row">
+              <MetricCard label="الأسئلة" value={fullExamExportReport.activeQuestionCount} hint="الأسئلة النشطة" />
+              <MetricCard label="مجموع الدرجات" value={fullExamExportReport.expectedTotalMarks} hint="دون تكرار درجات الأجزاء" />
+              <MetricCard label="الأجزاء" value={fullExamExportReport.expectedPartCount} hint="البنية المتعددة" />
+              <MetricCard label="المرفقات" value={fullExamExportReport.expectedAttachmentCount} hint="صور السؤال المقصوصة" />
+              <MetricCard label="أسئلة مرتبطة بصفحات" value={fullExamExportReport.sourcePageLinkedQuestions} hint="من ورقة المصدر" />
+              <MetricCard label="أسئلة متعددة الصفحات" value={fullExamExportReport.multiPageQuestions} hint="استمرارية المصدر" />
+            </div>
+
+            <div className="export-format-grid">
+              {fullExamExportReport.formats.map((format) => (
+                <article key={format.format} className={`export-format-card export-format-${format.status}`}>
+                  <div className="export-format-card-header">
+                    <strong>{formatLabel(format.format)}</strong>
+                    <span>{format.status === 'accepted' ? 'مقبول' : format.status === 'needs_review' ? 'يحتاج مراجعة' : 'فشل'}</span>
+                  </div>
+                  <dl>
+                    <div><dt>الحجم</dt><dd>{Math.max(1, Math.round(format.byteSize / 1024))} KB</dd></div>
+                    <div><dt>الصفحات</dt><dd>{format.pageCount ?? 'غير محسوب'}</dd></div>
+                    <div><dt>الأسئلة</dt><dd>{format.exportedQuestionCount}</dd></div>
+                    <div><dt>الأجزاء</dt><dd>{format.exportedPartCount}</dd></div>
+                    <div><dt>المرفقات</dt><dd>{format.exportedAttachmentCount}</dd></div>
+                    <div><dt>الدرجات</dt><dd>{format.detectedTotalMarks}</dd></div>
+                  </dl>
+                  <ul className="export-check-list">
+                    {format.checks.map((check) => (
+                      <li key={`${format.format}-${check.code}`} className={check.passed ? 'check-pass' : 'check-fail'}>
+                        {check.passed ? '✓' : '!'} {check.message}
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+
+            {fullExamExportReport.warnings.length ? (
+              <div className="analysis-note warning-card">
+                <strong>تنبيهات قبول التصدير</strong>
+                <ul>
+                  {fullExamExportReport.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                </ul>
+              </div>
+            ) : (
+              <div className="notice-card success-card">
+                <ShieldCheck size={22} />
+                <span>لم تُسجّل تحذيرات في آخر ملفات التصدير المنشأة.</span>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="empty-state">
+            لم يُنشأ تقرير قبول التصدير بعد. حمّل Word أو PDF ليُفحص الملف الناتج فعليًا.
+          </div>
+        )}
+      </section>
 
 
       <section className="form-card wide-card">

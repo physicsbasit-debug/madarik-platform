@@ -84,6 +84,7 @@ import type {
   AuthAccountPublic,
   AuthStatus,
   ExtractedTextInfo,
+  FullExamExportReport,
   FullExamIntakeReport,
   FullExamTranslationReport,
   GlossaryTerm,
@@ -139,6 +140,9 @@ function applyProjectSession(
     setFullExamTranslationReport: (
       report: FullExamTranslationReport | null,
     ) => void;
+    setFullExamExportReport: (
+      report: FullExamExportReport | null,
+    ) => void;
     setQuestions: (questions: QuestionItem[]) => void;
     setGlossary: (glossary: GlossaryTerm[]) => void;
     setLayoutAssets: (layoutAssets: PdfLayoutAssetInfo[]) => void;
@@ -163,6 +167,7 @@ function applyProjectSession(
   setters.setFullExamTranslationReport(
     project.fullExamTranslationReport ?? null,
   );
+  setters.setFullExamExportReport(project.fullExamExportReport ?? null);
   setters.setQuestions(project.questions);
   setters.setGlossary(project.glossary);
   setters.setLayoutAssets(project.layoutAssets);
@@ -192,6 +197,8 @@ export function App() {
     useState<FullExamIntakeReport | null>(null);
   const [fullExamTranslationReport, setFullExamTranslationReport] =
     useState<FullExamTranslationReport | null>(null);
+  const [fullExamExportReport, setFullExamExportReport] =
+    useState<FullExamExportReport | null>(null);
   const [questions, setQuestions] = useState<QuestionItem[]>(sampleQuestions);
   const [glossary, setGlossary] = useState<GlossaryTerm[]>(sampleGlossary);
   const [layoutAssets, setLayoutAssets] = useState<PdfLayoutAssetInfo[]>([]);
@@ -247,6 +254,7 @@ export function App() {
       setExtractedText,
       setFullExamIntakeReport,
       setFullExamTranslationReport,
+      setFullExamExportReport,
       setQuestions,
       setGlossary,
       setLayoutAssets,
@@ -540,6 +548,7 @@ export function App() {
       setExtractedText(null);
       setFullExamIntakeReport(null);
       setFullExamTranslationReport(null);
+      setFullExamExportReport(null);
       setQuestions(sampleQuestions);
       setGlossary(sampleGlossary);
       setLayoutAssets([]);
@@ -742,6 +751,7 @@ export function App() {
       setExtractedText(null);
       setFullExamIntakeReport(null);
       setFullExamTranslationReport(null);
+      setFullExamExportReport(null);
 
       if (!projectId || apiStatus === "offline") return;
       setApiStatus("syncing");
@@ -770,6 +780,7 @@ export function App() {
     setExtractedText(null);
     setFullExamIntakeReport(null);
     setFullExamTranslationReport(null);
+    setFullExamExportReport(null);
 
     if (!projectId || apiStatus === "offline") {
       setLastSyncNote(
@@ -1073,6 +1084,7 @@ export function App() {
     );
     setProjectReadiness(null);
     setFullExamTranslationReport(null);
+    setFullExamExportReport(null);
 
     if (!projectId || apiStatus === "offline") return;
     setApiStatus("syncing");
@@ -1147,6 +1159,7 @@ export function App() {
       ),
     );
     setFullExamTranslationReport(null);
+    setFullExamExportReport(null);
 
     if (!projectId || apiStatus === "offline") return;
     setApiStatus("syncing");
@@ -1485,8 +1498,10 @@ export function App() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      const refreshedProject = await getProject(projectId);
+      applyProject(refreshedProject);
       setApiStatus("connected");
-      setLastSyncNote("تم إنشاء ملف Word عبر Backend بنجاح.");
+      setLastSyncNote("تم إنشاء ملف Word وتحديث تقرير قبول التصدير.");
     } catch (error) {
       console.error(error);
       setApiStatus("connected");
@@ -1529,8 +1544,10 @@ export function App() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      const refreshedProject = await getProject(projectId);
+      applyProject(refreshedProject);
       setApiStatus("connected");
-      setLastSyncNote("تم إنشاء ملف PDF عبر Backend بنجاح.");
+      setLastSyncNote("تم إنشاء ملف PDF وتحديث تقرير قبول التصدير.");
     } catch (error) {
       console.error(error);
       setApiStatus("connected");
@@ -1549,6 +1566,7 @@ export function App() {
       setTranslationBatchSummary(null);
       setFullExamIntakeReport(null);
       setFullExamTranslationReport(null);
+      setFullExamExportReport(null);
       setLastSyncNote("تمت إعادة تحميل البيانات التجريبية محليًا.");
       return;
     }
@@ -1711,6 +1729,7 @@ export function App() {
             extractedText={extractedText}
             fullExamIntakeReport={fullExamIntakeReport}
             fullExamTranslationReport={fullExamTranslationReport}
+            fullExamExportReport={fullExamExportReport}
             questions={questions}
             glossary={glossary}
             layoutAssets={layoutAssets}
@@ -1786,6 +1805,7 @@ interface StepContentProps {
   extractedText: ExtractedTextInfo | null;
   fullExamIntakeReport: FullExamIntakeReport | null;
   fullExamTranslationReport: FullExamTranslationReport | null;
+  fullExamExportReport: FullExamExportReport | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   layoutAssets: PdfLayoutAssetInfo[];
@@ -1848,6 +1868,7 @@ function StepContent({
   extractedText,
   fullExamIntakeReport,
   fullExamTranslationReport,
+  fullExamExportReport,
   questions,
   glossary,
   layoutAssets,
@@ -1958,6 +1979,7 @@ function StepContent({
           educationalAnalysis={educationalAnalysis}
           qualityTools={qualityTools}
           readiness={projectReadiness}
+          fullExamExportReport={fullExamExportReport}
           canExportDocx={canExportDocx}
           onExportDocx={onExportDocx}
           onExportPdf={onExportPdf}

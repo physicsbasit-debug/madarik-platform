@@ -34,6 +34,7 @@ from app.models.project import (
     QuestionPart,
     QuestionStatus,
 )
+from app.services.full_exam_export import build_full_exam_export_manifest
 
 DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_MIME_TYPE = "application/pdf"
@@ -850,6 +851,10 @@ def build_project_docx_bytes(project: ProjectSession) -> bytes:
 
     document = Document()
     _configure_document(document)
+    document.core_properties.subject = build_full_exam_export_manifest(project)
+    document.core_properties.keywords = (
+        "Madarik Phase 4-A6c full exam export acceptance"
+    )
 
     marks_total = sum(_question_total_marks(question) or 0 for question in questions)
     _add_docx_logo(document, project)
@@ -1314,6 +1319,8 @@ def build_project_pdf_bytes(project: ProjectSession) -> bytes:
         bottomMargin=1.8 * cm,
         title=project.metadata.paper_title or "Madarik Export",
         author="Madarik Platform",
+        subject=build_full_exam_export_manifest(project),
+        keywords="Madarik Phase 4-A6c full exam export acceptance",
     )
     styles = _pdf_styles()
     story: list = []

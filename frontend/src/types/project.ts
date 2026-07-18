@@ -284,6 +284,56 @@ export interface FullExamTranslationReport {
 }
 
 
+export type FullExamExportAcceptanceStatus =
+  | 'accepted'
+  | 'needs_review'
+  | 'incomplete'
+  | 'failed';
+
+export type FullExamExportArtifactStatus =
+  | 'accepted'
+  | 'needs_review'
+  | 'failed';
+
+export interface FullExamExportCheck {
+  code: string;
+  passed: boolean;
+  message: string;
+}
+
+export interface FullExamExportFormatSummary {
+  format: ExportFormat;
+  status: FullExamExportArtifactStatus;
+  byteSize: number;
+  pageCount: number | null;
+  exportedQuestionCount: number;
+  exportedPartCount: number;
+  exportedAttachmentCount: number;
+  detectedTotalMarks: number;
+  questionOrder: string[];
+  checks: FullExamExportCheck[];
+  warnings: string[];
+}
+
+export interface FullExamExportReport {
+  status: FullExamExportAcceptanceStatus;
+  requestedFormats: ExportFormat[];
+  generatedFormats: ExportFormat[];
+  acceptedFormats: ExportFormat[];
+  needsReviewFormats: ExportFormat[];
+  failedFormats: ExportFormat[];
+  activeQuestionCount: number;
+  expectedTotalMarks: number;
+  expectedPartCount: number;
+  expectedAttachmentCount: number;
+  sourcePageLinkedQuestions: number;
+  multiPageQuestions: number;
+  formats: FullExamExportFormatSummary[];
+  checks: FullExamExportCheck[];
+  warnings: string[];
+}
+
+
 export type TranslationOutcomeStatus =
   | 'external_success'
   | 'corrected_success'
@@ -344,6 +394,7 @@ export interface ProjectSession {
   translationBatchSummary?: TranslationBatchSummary | null;
   fullExamIntakeReport?: FullExamIntakeReport | null;
   fullExamTranslationReport?: FullExamTranslationReport | null;
+  fullExamExportReport?: FullExamExportReport | null;
   currentStep: StepKey;
 }
 

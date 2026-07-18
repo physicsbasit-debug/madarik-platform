@@ -5,6 +5,7 @@ from app.models.project import (
     AnswerKeyItem,
     EducationalAnalysisReport,
     EducationalQualityToolsReport,
+    FullExamExportReport,
     FullExamIntakeReport,
     FullExamTranslationReport,
     GlossaryTermPatch,
@@ -66,6 +67,7 @@ class InMemoryProjectStore:
                 "created_at": now,
                 "updated_at": now,
                 "owner_account_id": owner_account_id,
+                "full_exam_export_report": None,
             },
             deep=True,
         )
@@ -98,10 +100,15 @@ class InMemoryProjectStore:
 
 
     @staticmethod
+    def _invalidate_full_exam_export_report(project: ProjectSession) -> None:
+        project.full_exam_export_report = None
+
+    @staticmethod
     def _refresh_full_exam_translation_report(
         project: ProjectSession,
         summary: TranslationBatchSummary | None = None,
     ) -> None:
+        InMemoryProjectStore._invalidate_full_exam_export_report(project)
         if not project.questions:
             project.full_exam_translation_report = None
             return
@@ -121,6 +128,7 @@ class InMemoryProjectStore:
             return None
         project.metadata = metadata
         project.translation_batch_summary = None
+        self._invalidate_full_exam_export_report(project)
         project.full_exam_translation_report = None
         project.current_step = StepKey.setup
         return self.touch(project_id)
@@ -131,6 +139,7 @@ class InMemoryProjectStore:
             return None
         project.uploaded_file = uploaded_file
         project.translation_batch_summary = None
+        self._invalidate_full_exam_export_report(project)
         project.full_exam_intake_report = None
         project.full_exam_translation_report = None
         if uploaded_file is None:
@@ -143,6 +152,7 @@ class InMemoryProjectStore:
         if project is None:
             return None
         project.school_logo = school_logo
+        self._invalidate_full_exam_export_report(project)
         project.current_step = StepKey.setup
         return self.touch(project_id)
 
@@ -159,6 +169,7 @@ class InMemoryProjectStore:
         project.uploaded_file = uploaded_file
         project.extracted_text = extracted_text
         project.translation_batch_summary = None
+        self._invalidate_full_exam_export_report(project)
         project.full_exam_intake_report = full_exam_intake_report
         project.full_exam_translation_report = None
         project.current_step = StepKey.extract
@@ -370,6 +381,7 @@ class InMemoryProjectStore:
             return None
         project.questions = questions
         project.translation_batch_summary = summary
+        self._invalidate_full_exam_export_report(project)
         project.full_exam_translation_report = (
             full_exam_translation_report
         )
@@ -453,6 +465,7 @@ class InMemoryProjectStore:
                         "attachment_note": note,
                     }
                 )
+                self._invalidate_full_exam_export_report(project)
                 project.current_step = StepKey.review
                 return self.touch(project_id)
         return None
@@ -476,6 +489,7 @@ class InMemoryProjectStore:
                         "attachment_note": note,
                     }
                 )
+                self._invalidate_full_exam_export_report(project)
                 project.current_step = StepKey.review
                 return self.touch(project_id)
         return None
@@ -494,6 +508,19 @@ class InMemoryProjectStore:
                 project.current_step = StepKey.glossary
                 return self.touch(project_id)
         return None
+
+    def set_full_exam_export_report(
+        self,
+        project_id: str,
+        report: FullExamExportReport,
+    ) -> ProjectSession | None:
+        project = self.get(project_id)
+        if project is None:
+            return None
+        project.full_exam_export_report = report
+        project.current_step = StepKey.export
+        return self.touch(project_id)
+
 
     def set_answer_key(self, project_id: str, answer_key: list[AnswerKeyItem]) -> ProjectSession | None:
         project = self.get(project_id)
