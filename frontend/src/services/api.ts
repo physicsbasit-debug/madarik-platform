@@ -1,5 +1,6 @@
 import type {
   ExtractedTextInfo,
+  FullExamExportReport,
   FullExamIntakeReport,
   FullExamTranslationReport,
   GlossaryTerm,
@@ -392,6 +393,45 @@ interface ApiFullExamTranslationReport {
 }
 
 
+interface ApiFullExamExportCheck {
+  code: string;
+  passed: boolean;
+  message: string;
+}
+
+interface ApiFullExamExportFormatSummary {
+  format: 'docx' | 'pdf';
+  status: 'accepted' | 'needs_review' | 'failed';
+  byte_size: number;
+  page_count: number | null;
+  exported_question_count: number;
+  exported_part_count: number;
+  exported_attachment_count: number;
+  detected_total_marks: number;
+  question_order: string[];
+  checks: ApiFullExamExportCheck[];
+  warnings: string[];
+}
+
+interface ApiFullExamExportReport {
+  status: 'accepted' | 'needs_review' | 'incomplete' | 'failed';
+  requested_formats: Array<'docx' | 'pdf'>;
+  generated_formats: Array<'docx' | 'pdf'>;
+  accepted_formats: Array<'docx' | 'pdf'>;
+  needs_review_formats: Array<'docx' | 'pdf'>;
+  failed_formats: Array<'docx' | 'pdf'>;
+  active_question_count: number;
+  expected_total_marks: number;
+  expected_part_count: number;
+  expected_attachment_count: number;
+  source_page_linked_questions: number;
+  multi_page_questions: number;
+  formats: ApiFullExamExportFormatSummary[];
+  checks: ApiFullExamExportCheck[];
+  warnings: string[];
+}
+
+
 interface ApiTranslationItemOutcome {
   question_id: string;
   question_number: string;
@@ -446,6 +486,7 @@ interface ApiProjectSession {
   translation_batch_summary?: ApiTranslationBatchSummary | null;
   full_exam_intake_report?: ApiFullExamIntakeReport | null;
   full_exam_translation_report?: ApiFullExamTranslationReport | null;
+  full_exam_export_report?: ApiFullExamExportReport | null;
   current_step: StepKey;
 }
 
@@ -757,6 +798,51 @@ function fromApiFullExamTranslationReport(
 }
 
 
+function fromApiFullExamExportReport(
+  report: ApiFullExamExportReport | null | undefined,
+): FullExamExportReport | null {
+  if (!report) return null;
+
+  return {
+    status: report.status,
+    requestedFormats: report.requested_formats,
+    generatedFormats: report.generated_formats,
+    acceptedFormats: report.accepted_formats,
+    needsReviewFormats: report.needs_review_formats,
+    failedFormats: report.failed_formats,
+    activeQuestionCount: report.active_question_count,
+    expectedTotalMarks: report.expected_total_marks,
+    expectedPartCount: report.expected_part_count,
+    expectedAttachmentCount: report.expected_attachment_count,
+    sourcePageLinkedQuestions: report.source_page_linked_questions,
+    multiPageQuestions: report.multi_page_questions,
+    formats: report.formats.map((format) => ({
+      format: format.format,
+      status: format.status,
+      byteSize: format.byte_size,
+      pageCount: format.page_count,
+      exportedQuestionCount: format.exported_question_count,
+      exportedPartCount: format.exported_part_count,
+      exportedAttachmentCount: format.exported_attachment_count,
+      detectedTotalMarks: format.detected_total_marks,
+      questionOrder: format.question_order,
+      checks: format.checks.map((check) => ({
+        code: check.code,
+        passed: check.passed,
+        message: check.message,
+      })),
+      warnings: format.warnings,
+    })),
+    checks: report.checks.map((check) => ({
+      code: check.code,
+      passed: check.passed,
+      message: check.message,
+    })),
+    warnings: report.warnings,
+  };
+}
+
+
 function fromApiTranslationBatchSummary(
   summary: ApiTranslationBatchSummary | null | undefined,
 ): TranslationBatchSummary | null {
@@ -813,6 +899,9 @@ function fromApiProject(project: ApiProjectSession): ProjectSession {
     ),
     fullExamTranslationReport: fromApiFullExamTranslationReport(
       project.full_exam_translation_report,
+    ),
+    fullExamExportReport: fromApiFullExamExportReport(
+      project.full_exam_export_report,
     ),
     currentStep: project.current_step,
   };
@@ -1216,6 +1305,16 @@ export async function updateGlossaryTerm(
   });
   return fromApiProject(project);
 }
+
+export async function getFullExamExportAcceptance(
+  projectId: string,
+): Promise<FullExamExportReport | null> {
+  const report = await requestJson<ApiFullExamExportReport | null>(
+    `/projects/${projectId}/export/acceptance`,
+  );
+  return fromApiFullExamExportReport(report);
+}
+
 
 export async function exportProjectDocx(projectId: string): Promise<Blob> {
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/export/docx`, {

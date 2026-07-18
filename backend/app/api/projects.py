@@ -4,7 +4,9 @@ from fastapi.responses import Response
 
 from app.models.auth import AccountRole, AuthAccountPublic
 from app.models.project import (
+    ExportFormat,
     ExtractedPdfPageInfo,
+    FullExamExportReport,
     ExtractedTextInfo,
     GlossaryTermPatch,
     ProjectMetadata,
@@ -44,6 +46,7 @@ from app.services.ai_provider import get_ai_provider_status
 from app.services.answer_key import build_answer_key_draft
 from app.services.educational_analysis import build_educational_analysis
 from app.services.quality_tools import build_quality_tools_report
+from app.services.full_exam_export import build_full_exam_export_report
 from app.services.export import (
     DOCX_MIME_TYPE,
     PDF_MIME_TYPE,
@@ -814,9 +817,20 @@ def get_project_readiness(project_id: str, account: AuthAccountPublic | None = D
     return build_project_readiness_report(project)
 
 
+@router.get("/{project_id}/export/acceptance")
+def get_full_exam_export_acceptance(
+    project_id: str,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> FullExamExportReport | None:
+    """Return the persisted Phase 4-A6c artifact acceptance report."""
+
+    project = _get_or_404(project_id, account)
+    return project.full_exam_export_report
+
+
 @router.post("/{project_id}/export/docx")
 def export_project_docx(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> Response:
-    """Generate a real RTL DOCX file for Phase 1-F1."""
+    """Generate a real RTL DOCX and persist its Phase 4-A6c acceptance result."""
 
     project = _get_or_404(project_id, account)
     try:
@@ -824,18 +838,31 @@ def export_project_docx(project_id: str, account: AuthAccountPublic | None = Dep
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    filename = safe_docx_filename(project)
+    export_report = build_full_exam_export_report(
+        project,
+        ExportFormat.docx,
+        docx_bytes,
+        project.full_exam_export_report,
+    )
+    updated_project = project_store.set_full_exam_export_report(
+        project_id,
+        export_report,
+    )
+    if updated_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    filename = safe_docx_filename(updated_project)
     headers = {
         "Content-Disposition": f'attachment; filename="{filename}"',
         "Cache-Control": "no-store",
+        "X-Madarik-Export-Acceptance": export_report.status.value,
     }
     return Response(content=docx_bytes, media_type=DOCX_MIME_TYPE, headers=headers)
 
 
-
 @router.post("/{project_id}/export/pdf")
 def export_project_pdf(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> Response:
-    """Generate a real RTL PDF file for Phase 1-F2."""
+    """Generate a real RTL PDF and persist its Phase 4-A6c acceptance result."""
 
     project = _get_or_404(project_id, account)
     try:
@@ -843,10 +870,24 @@ def export_project_pdf(project_id: str, account: AuthAccountPublic | None = Depe
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    filename = safe_pdf_filename(project)
+    export_report = build_full_exam_export_report(
+        project,
+        ExportFormat.pdf,
+        pdf_bytes,
+        project.full_exam_export_report,
+    )
+    updated_project = project_store.set_full_exam_export_report(
+        project_id,
+        export_report,
+    )
+    if updated_project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    filename = safe_pdf_filename(updated_project)
     headers = {
         "Content-Disposition": f'attachment; filename="{filename}"',
         "Cache-Control": "no-store",
+        "X-Madarik-Export-Acceptance": export_report.status.value,
     }
     return Response(content=pdf_bytes, media_type=PDF_MIME_TYPE, headers=headers)
 

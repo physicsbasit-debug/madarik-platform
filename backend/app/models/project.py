@@ -72,6 +72,19 @@ class FullExamTranslationQuestionStatus(str, Enum):
     deleted = "deleted"
 
 
+class FullExamExportAcceptanceStatus(str, Enum):
+    accepted = "accepted"
+    needs_review = "needs_review"
+    incomplete = "incomplete"
+    failed = "failed"
+
+
+class FullExamExportArtifactStatus(str, Enum):
+    accepted = "accepted"
+    needs_review = "needs_review"
+    failed = "failed"
+
+
 class PdfPageKind(str, Enum):
     cover = "cover"
     question = "question"
@@ -274,6 +287,44 @@ class FullExamTranslationReport(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class FullExamExportCheck(BaseModel):
+    code: str
+    passed: bool
+    message: str
+
+
+class FullExamExportFormatSummary(BaseModel):
+    format: ExportFormat
+    status: FullExamExportArtifactStatus
+    byte_size: int = Field(default=0, ge=0)
+    page_count: int | None = Field(default=None, ge=1)
+    exported_question_count: int = Field(default=0, ge=0)
+    exported_part_count: int = Field(default=0, ge=0)
+    exported_attachment_count: int = Field(default=0, ge=0)
+    detected_total_marks: int = Field(default=0, ge=0)
+    question_order: list[str] = Field(default_factory=list)
+    checks: list[FullExamExportCheck] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class FullExamExportReport(BaseModel):
+    status: FullExamExportAcceptanceStatus
+    requested_formats: list[ExportFormat] = Field(default_factory=list)
+    generated_formats: list[ExportFormat] = Field(default_factory=list)
+    accepted_formats: list[ExportFormat] = Field(default_factory=list)
+    needs_review_formats: list[ExportFormat] = Field(default_factory=list)
+    failed_formats: list[ExportFormat] = Field(default_factory=list)
+    active_question_count: int = Field(default=0, ge=0)
+    expected_total_marks: int = Field(default=0, ge=0)
+    expected_part_count: int = Field(default=0, ge=0)
+    expected_attachment_count: int = Field(default=0, ge=0)
+    source_page_linked_questions: int = Field(default=0, ge=0)
+    multi_page_questions: int = Field(default=0, ge=0)
+    formats: list[FullExamExportFormatSummary] = Field(default_factory=list)
+    checks: list[FullExamExportCheck] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class FullExamPageSummary(BaseModel):
     page_number: int = Field(ge=1)
     kind: PdfPageKind
@@ -374,6 +425,7 @@ class ProjectSession(BaseModel):
     translation_batch_summary: TranslationBatchSummary | None = None
     full_exam_intake_report: FullExamIntakeReport | None = None
     full_exam_translation_report: FullExamTranslationReport | None = None
+    full_exam_export_report: FullExamExportReport | None = None
     current_step: StepKey = StepKey.setup
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

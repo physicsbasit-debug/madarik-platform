@@ -1868,3 +1868,159 @@ button:disabled {
     justify-content: flex-start;
   }
 }
+
+/* Phase 4-A6c: full exam export acceptance */
+.export-acceptance-panel {
+  border-color: #c7d2fe;
+  background:
+    linear-gradient(180deg, rgba(238, 242, 255, 0.72), rgba(255, 255, 255, 0.96));
+}
+
+.export-acceptance-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.export-acceptance-status > div {
+  display: grid;
+  gap: 4px;
+}
+
+.export-acceptance-status p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.export-acceptance-accepted {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.export-acceptance-needs_review,
+.export-acceptance-incomplete {
+  border-color: #f3cf78;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.export-acceptance-failed {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.export-format-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.export-format-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.export-format-accepted {
+  border-color: #86efac;
+}
+
+.export-format-needs_review {
+  border-color: #f3cf78;
+}
+
+.export-format-failed {
+  border-color: #fecaca;
+}
+
+.export-format-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.export-format-card-header strong {
+  color: #0f3b67;
+  font-size: 1.05rem;
+}
+
+.export-format-card-header span {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.export-format-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+}
+
+.export-format-card dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.export-format-card dt {
+  color: #64748b;
+}
+
+.export-format-card dd {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.export-check-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.export-check-list li {
+  padding: 9px 11px;
+  border-radius: 10px;
+  line-height: 1.6;
+  font-size: 0.9rem;
+}
+
+.export-check-list .check-pass {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.export-check-list .check-fail {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+@media (max-width: 720px) {
+  .export-format-card dl {
+    grid-template-columns: 1fr;
+  }
+
+  .export-format-card-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
