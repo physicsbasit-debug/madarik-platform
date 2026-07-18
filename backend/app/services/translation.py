@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import re
 from uuid import uuid4
 
@@ -8,8 +9,17 @@ from app.models.project import (
     QuestionItem,
     QuestionPart,
     QuestionStatus,
+    TranslationBatchStatus,
+    TranslationBatchSummary,
+    TranslationItemOutcome,
+    TranslationItemType,
+    TranslationOutcomeStatus,
 )
-from app.services.ai_provider import TranslationPromptContext, translate_with_optional_external_provider
+from app.services.ai_provider import (
+    TranslationPromptContext,
+    TranslationProviderResult,
+    translate_with_optional_external_provider,
+)
 
 
 COMMAND_TRANSLATIONS: list[tuple[str, str]] = [
@@ -201,12 +211,20 @@ def translate_question_text(original_text: str, glossary: list[GlossaryTerm]) ->
     return translated
 
 
+@dataclass(frozen=True)
+class TranslationBatchResult:
+    """Translated questions plus a persisted Phase 4-A5 batch summary."""
+
+    questions: list[QuestionItem]
+    summary: TranslationBatchSummary
+
+
 def _translate_text_with_provider(
     original_text: str,
     glossary: list[GlossaryTerm],
     *,
     context: TranslationPromptContext | None = None,
-):
+) -> TranslationProviderResult:
     """Translate one text block through the configured provider with fallback."""
 
     fallback_translation = translate_question_text(original_text, glossary)
@@ -216,6 +234,75 @@ def _translate_text_with_provider(
         fallback_translation=fallback_translation,
         context=context,
     )
+
+
+def _minimal_safe_translation(
+    original_text: str,
+    current_translation: str = "",
+) -> str:
+    """Preserve prior work or expose the source safely when every translator fails."""
+
+    existing = current_translation.strip()
+    if existing:
+        return existing
+
+    source = original_text.strip()
+    return (
+        f"ترجمة أولية تحتاج مراجعة عاجلة: {source}"
+        if source
+        else "ترجمة غير متاحة؛ يحتاج هذا العنصر إلى مراجعة عاجلة."
+    )
+
+
+def _translate_text_safely(
+    original_text: str,
+    glossary: list[GlossaryTerm],
+    *,
+    current_translation: str = "",
+    context: TranslationPromptContext | None = None,
+) -> TranslationProviderResult:
+    """Isolate one provider/local failure so the remaining batch can continue."""
+
+    try:
+        return _translate_text_with_provider(
+            original_text,
+            glossary,
+            context=context,
+        )
+    except Exception as provider_error:
+        try:
+            fallback_translation = translate_question_text(
+                original_text,
+                glossary,
+            )
+        except Exception as fallback_error:
+            return TranslationProviderResult(
+                translated_text=_minimal_safe_translation(
+                    original_text,
+                    current_translation,
+                ),
+                provider="mock",
+                used_external_provider=False,
+                note=(
+                    "تعذر إكمال هذا العنصر عبر المزود والترجمة المحلية، "
+                    "فتم حفظه دون إسقاط بقية الدفعة. "
+                    f"الأخطاء: {provider_error.__class__.__name__} / "
+                    f"{fallback_error.__class__.__name__}."
+                ),
+                outcome=TranslationOutcomeStatus.failed_safely,
+            )
+
+        return TranslationProviderResult(
+            translated_text=fallback_translation,
+            provider="mock",
+            used_external_provider=False,
+            note=(
+                "حدث خطأ غير متوقع في طبقة المزود لهذا العنصر، "
+                "فتم عزله واستخدام fallback المحلي دون إيقاف بقية الدفعة. "
+                f"السبب: {provider_error.__class__.__name__}."
+            ),
+            outcome=TranslationOutcomeStatus.local_fallback,
+        )
 
 
 def _build_prompt_context(
@@ -237,43 +324,101 @@ def _build_prompt_context(
     )
 
 
+def _build_item_outcome(
+    *,
+    question: QuestionItem,
+    result: TranslationProviderResult | None = None,
+    item_type: TranslationItemType = TranslationItemType.question,
+    part: QuestionPart | None = None,
+    status: TranslationOutcomeStatus | None = None,
+    message: str = "",
+) -> TranslationItemOutcome:
+    resolved_status = status or (
+        result.outcome
+        if result is not None
+        else TranslationOutcomeStatus.skipped
+    )
+    urgent_review = resolved_status in {
+        TranslationOutcomeStatus.local_fallback,
+        TranslationOutcomeStatus.failed_safely,
+    }
+
+    return TranslationItemOutcome(
+        question_id=question.id,
+        question_number=question.original_number,
+        item_type=item_type,
+        part_id=part.id if part else None,
+        part_label=part.label if part else None,
+        status=resolved_status,
+        provider=result.provider if result is not None else "mock",
+        used_external_provider=(
+            result.used_external_provider
+            if result is not None
+            else False
+        ),
+        urgent_review=urgent_review,
+        message=(
+            result.note
+            if result is not None and result.note
+            else message
+        ),
+    )
+
+
 def _translate_question_parts(
-    parts: list[QuestionPart],
+    question: QuestionItem,
     glossary: list[GlossaryTerm],
     *,
     metadata: ProjectMetadata | None = None,
-    question_number: str = "",
-    question_stem: str = "",
-) -> tuple[list[QuestionPart], list[str], list[str]]:
-    """Translate multipart-question parts independently and preserve structure.
-
-    Each part is sent through the provider separately. This keeps command words,
-    units, marks, and fallback behaviour isolated per part instead of asking one
-    remote response to untangle an entire OCR-heavy multipart question.
-    """
+) -> tuple[
+    list[QuestionPart],
+    list[str],
+    list[str],
+    list[TranslationItemOutcome],
+]:
+    """Translate every part independently and isolate failures per part."""
 
     translated_parts: list[QuestionPart] = []
     providers: list[str] = []
     notes: list[str] = []
-    parts_by_id = {part.id: part for part in parts}
+    outcomes: list[TranslationItemOutcome] = []
+    parts_by_id = {part.id: part for part in question.parts}
 
-    for part in sorted(parts, key=lambda item: item.order_index):
+    for part in sorted(question.parts, key=lambda item: item.order_index):
         original_text = part.original_text.strip()
         if not original_text:
             translated_parts.append(part)
+            outcomes.append(
+                _build_item_outcome(
+                    question=question,
+                    item_type=TranslationItemType.part,
+                    part=part,
+                    status=TranslationOutcomeStatus.skipped,
+                    message="تم تجاوز جزء فارغ مع الحفاظ على موقعه الهرمي.",
+                )
+            )
             continue
 
-        parent_part = parts_by_id.get(part.parent_id) if part.parent_id else None
+        parent_part = (
+            parts_by_id.get(part.parent_id)
+            if part.parent_id
+            else None
+        )
         context = _build_prompt_context(
             metadata,
-            question_number=question_number,
+            question_number=question.original_number,
             part_label=part.label,
-            question_stem=question_stem,
-            parent_part_text=parent_part.original_text if parent_part else "",
+            question_stem=question.original_text,
+            parent_part_text=(
+                parent_part.original_text
+                if parent_part
+                else ""
+            ),
         )
-        provider_result = _translate_text_with_provider(
+        provider_result = _translate_text_safely(
             original_text,
             glossary,
+            current_translation=part.translated_text,
             context=context,
         )
         translated_parts.append(
@@ -286,8 +431,16 @@ def _translate_question_parts(
         providers.append(provider_result.provider)
         if provider_result.note:
             notes.append(provider_result.note)
+        outcomes.append(
+            _build_item_outcome(
+                question=question,
+                result=provider_result,
+                item_type=TranslationItemType.part,
+                part=part,
+            )
+        )
 
-    return translated_parts, providers, notes
+    return translated_parts, providers, notes, outcomes
 
 
 def _question_part_depth(
@@ -318,12 +471,7 @@ def _question_part_depth(
 
 
 def _build_combined_parts_translation(parts: list[QuestionPart]) -> str:
-    """Build a readable question-level translation from translated parts.
-
-    The canonical editable data remains ``QuestionItem.parts``. The combined
-    value keeps older readiness/UI paths compatible without translating the same
-    multipart question twice.
-    """
+    """Build a readable question-level translation from translated parts."""
 
     lines: list[str] = []
     parent_ids = {
@@ -349,39 +497,209 @@ def _build_combined_parts_translation(parts: list[QuestionPart]) -> str:
     return "\n".join(lines)
 
 
-def translate_questions_with_glossary(
+def _question_review_note(
+    *,
+    question: QuestionItem,
+    providers: list[str],
+    provider_notes: list[str],
+    translated_parts: list[QuestionPart],
+) -> str:
+    providers_used = sorted(set(providers)) or ["mock"]
+    translated_part_count = sum(
+        1
+        for part in translated_parts
+        if part.original_text.strip() and part.translated_text.strip()
+    )
+    parts_note = (
+        " تمت ترجمة أجزاء السؤال بصورة مستقلة "
+        f"(العدد: {translated_part_count})."
+        if translated_part_count
+        else ""
+    )
+
+    review_note = (
+        "ترجمة Phase 4-A5 بدفعة معزولة العناصر، "
+        "مع فرض القاموس وحارس سلامة المحتوى العلمي. "
+        f"المزود المستخدم: {', '.join(providers_used)}."
+        f"{parts_note} "
+        "راجع الترجمة قبل التصدير."
+    )
+    for provider_note in dict.fromkeys(provider_notes):
+        review_note = f"{review_note}\n{provider_note}"
+    if question.review_notes:
+        review_note = f"{question.review_notes}\n{review_note}"
+    return review_note
+
+
+def _build_batch_summary(
+    questions: list[QuestionItem],
+    outcomes: list[TranslationItemOutcome],
+) -> TranslationBatchSummary:
+    counts = {
+        status: sum(1 for item in outcomes if item.status == status)
+        for status in TranslationOutcomeStatus
+    }
+    failed_count = counts[TranslationOutcomeStatus.failed_safely]
+    fallback_count = counts[TranslationOutcomeStatus.local_fallback]
+
+    if failed_count:
+        batch_status = TranslationBatchStatus.completed_with_failures
+    elif fallback_count:
+        batch_status = TranslationBatchStatus.completed_with_fallbacks
+    else:
+        batch_status = TranslationBatchStatus.completed
+
+    return TranslationBatchSummary(
+        status=batch_status,
+        total_questions=len(questions),
+        active_questions=sum(
+            1
+            for question in questions
+            if question.status != QuestionStatus.deleted
+        ),
+        deleted_questions=sum(
+            1
+            for question in questions
+            if question.status == QuestionStatus.deleted
+        ),
+        total_items=len(outcomes),
+        external_success_count=counts[
+            TranslationOutcomeStatus.external_success
+        ],
+        corrected_success_count=counts[
+            TranslationOutcomeStatus.corrected_success
+        ],
+        local_fallback_count=fallback_count,
+        skipped_count=counts[TranslationOutcomeStatus.skipped],
+        failed_safely_count=failed_count,
+        urgent_review_count=sum(
+            1
+            for item in outcomes
+            if item.urgent_review
+        ),
+        items=outcomes,
+    )
+
+
+def _failed_question_after_unexpected_error(
+    question: QuestionItem,
+    error: Exception,
+) -> tuple[QuestionItem, TranslationItemOutcome]:
+    """Preserve one question safely if orchestration itself raises."""
+
+    preserved_parts = question.parts
+    try:
+        combined_existing = _build_combined_parts_translation(
+            preserved_parts
+        ).strip()
+    except Exception:
+        combined_existing = ""
+
+    translated_text = (
+        question.translated_text.strip()
+        or combined_existing
+        or _minimal_safe_translation(question.original_text)
+    )
+    failure_note = (
+        "تعذر إكمال هذا السؤال بسبب خطأ غير متوقع في تنسيق الدفعة، "
+        "فتم حفظه للمراجعة دون إسقاط الأسئلة الأخرى. "
+        f"السبب: {error.__class__.__name__}."
+    )
+    review_note = (
+        f"{question.review_notes}\n{failure_note}"
+        if question.review_notes
+        else failure_note
+    )
+    updated_question = question.model_copy(
+        update={
+            "translated_text": translated_text,
+            "status": QuestionStatus.needs_review,
+            "review_notes": review_note,
+        }
+    )
+    outcome = TranslationItemOutcome(
+        question_id=question.id,
+        question_number=question.original_number,
+        item_type=TranslationItemType.question,
+        status=TranslationOutcomeStatus.failed_safely,
+        provider="mock",
+        used_external_provider=False,
+        urgent_review=True,
+        message=failure_note,
+    )
+    return updated_question, outcome
+
+
+def translate_questions_batch_with_glossary(
     questions: list[QuestionItem],
     glossary: list[GlossaryTerm],
     metadata: ProjectMetadata | None = None,
-) -> list[QuestionItem]:
-    """Translate questions with Phase 4-A4 glossary and scientific fidelity guards."""
+) -> TranslationBatchResult:
+    """Translate a complete paper without letting one item abort the batch."""
 
     translated_questions: list[QuestionItem] = []
+    outcomes: list[TranslationItemOutcome] = []
+
     for question in questions:
         if question.status == QuestionStatus.deleted:
             translated_questions.append(question)
+            outcomes.append(
+                _build_item_outcome(
+                    question=question,
+                    status=TranslationOutcomeStatus.skipped,
+                    message="تم تجاوز السؤال المحذوف دون إرسال أي طلب خارجي.",
+                )
+            )
             continue
 
-        translated_parts: list[QuestionPart] = []
-        provider_names: list[str] = []
-        provider_notes: list[str] = []
+        try:
+            translated_parts: list[QuestionPart] = []
+            provider_names: list[str] = []
+            provider_notes: list[str] = []
+            question_outcomes: list[TranslationItemOutcome] = []
 
-        if question.parts:
-            translated_parts, provider_names, provider_notes = _translate_question_parts(
-                question.parts,
-                glossary,
-                metadata=metadata,
-                question_number=question.original_number,
-                question_stem=question.original_text,
-            )
-            translated_text = _build_combined_parts_translation(translated_parts)
+            if question.parts:
+                (
+                    translated_parts,
+                    provider_names,
+                    provider_notes,
+                    question_outcomes,
+                ) = _translate_question_parts(
+                    question,
+                    glossary,
+                    metadata=metadata,
+                )
+                translated_text = _build_combined_parts_translation(
+                    translated_parts
+                )
 
-            # A malformed/manual empty parts list must not erase the established
-            # whole-question translation path.
-            if not translated_text:
-                provider_result = _translate_text_with_provider(
+                # Preserve the established whole-question fallback when every
+                # structured part is only a blank heading.
+                if not translated_text:
+                    provider_result = _translate_text_safely(
+                        question.original_text,
+                        glossary,
+                        current_translation=question.translated_text,
+                        context=_build_prompt_context(
+                            metadata,
+                            question_number=question.original_number,
+                        ),
+                    )
+                    translated_text = provider_result.translated_text
+                    provider_names.append(provider_result.provider)
+                    if provider_result.note:
+                        provider_notes.append(provider_result.note)
+                    question_outcomes.append(
+                        _build_item_outcome(
+                            question=question,
+                            result=provider_result,
+                        )
+                    )
+            else:
+                provider_result = _translate_text_safely(
                     question.original_text,
                     glossary,
+                    current_translation=question.translated_text,
                     context=_build_prompt_context(
                         metadata,
                         question_number=question.original_number,
@@ -391,58 +709,58 @@ def translate_questions_with_glossary(
                 provider_names.append(provider_result.provider)
                 if provider_result.note:
                     provider_notes.append(provider_result.note)
-        else:
-            provider_result = _translate_text_with_provider(
-                question.original_text,
-                glossary,
-                context=_build_prompt_context(
-                    metadata,
-                    question_number=question.original_number,
+                question_outcomes.append(
+                    _build_item_outcome(
+                        question=question,
+                        result=provider_result,
+                    )
+                )
+
+            update_data: dict[str, object] = {
+                "translated_text": translated_text,
+                "status": QuestionStatus.needs_review,
+                "review_notes": _question_review_note(
+                    question=question,
+                    providers=provider_names,
+                    provider_notes=provider_notes,
+                    translated_parts=translated_parts,
                 ),
+            }
+            if question.parts:
+                update_data["parts"] = translated_parts
+
+            translated_questions.append(
+                question.model_copy(update=update_data)
             )
-            translated_text = provider_result.translated_text
-            provider_names.append(provider_result.provider)
-            if provider_result.note:
-                provider_notes.append(provider_result.note)
-
-        providers_used = sorted(set(provider_names)) or ["mock"]
-        translated_part_count = sum(
-            1
-            for part in translated_parts
-            if part.original_text.strip() and part.translated_text.strip()
-        )
-        parts_note = (
-            " تمت ترجمة أجزاء السؤال بصورة مستقلة "
-            f"(العدد: {translated_part_count})."
-            if translated_part_count
-            else ""
-        )
-
-        review_note = (
-            "ترجمة Phase 4-A4 مع فرض القاموس وحارس سلامة المحتوى العلمي. "
-            f"المزود المستخدم: {', '.join(providers_used)}."
-            f"{parts_note} "
-            "راجع الترجمة قبل التصدير."
-        )
-        for provider_note in dict.fromkeys(provider_notes):
-            review_note = f"{review_note}\n{provider_note}"
-        if question.review_notes:
-            review_note = f"{question.review_notes}\n{review_note}"
-
-        update_data: dict[str, object] = {
-            "translated_text": translated_text,
-            "status": QuestionStatus.needs_review,
-            "review_notes": review_note,
-        }
-        if question.parts:
-            update_data["parts"] = translated_parts
-
-        translated_questions.append(
-            question.model_copy(
-                update=update_data
+            outcomes.extend(question_outcomes)
+        except Exception as error:
+            failed_question, failed_outcome = (
+                _failed_question_after_unexpected_error(
+                    question,
+                    error,
+                )
             )
-        )
-    return translated_questions
+            translated_questions.append(failed_question)
+            outcomes.append(failed_outcome)
+
+    return TranslationBatchResult(
+        questions=translated_questions,
+        summary=_build_batch_summary(questions, outcomes),
+    )
+
+
+def translate_questions_with_glossary(
+    questions: list[QuestionItem],
+    glossary: list[GlossaryTerm],
+    metadata: ProjectMetadata | None = None,
+) -> list[QuestionItem]:
+    """Backward-compatible wrapper returning only translated question cards."""
+
+    return translate_questions_batch_with_glossary(
+        questions,
+        glossary,
+        metadata,
+    ).questions
 
 
 def build_translation_preview_id() -> str:

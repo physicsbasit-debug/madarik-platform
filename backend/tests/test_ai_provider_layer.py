@@ -3,7 +3,11 @@ from fastapi.testclient import TestClient
 
 from app.core.config import settings
 from app.main import app
-from app.models.project import GlossaryTerm, GlossaryTermStatus
+from app.models.project import (
+    GlossaryTerm,
+    GlossaryTermStatus,
+    TranslationOutcomeStatus,
+)
 from app.services.ai_provider import (
     TRANSLATION_PROMPT_VERSION,
     TranslationPromptContext,
@@ -400,6 +404,7 @@ def test_gemini_provider_uses_generate_content_without_storage(monkeypatch):
 
     assert result.used_external_provider is True
     assert result.provider == "gemini"
+    assert result.outcome == TranslationOutcomeStatus.external_success
     assert result.translated_text.startswith("احسب تسارع جسم")
     assert "Gemini generateContent" in result.note
     assert captured["url"] == (
@@ -585,6 +590,7 @@ def test_phase4_a3_gemini_corrects_glossary_violation_once(monkeypatch):
     assert result.provider == "gemini"
     assert result.used_external_provider is True
     assert result.translated_text == "احسب فرق الجهد بين النقطتين. [1]"
+    assert result.outcome == TranslationOutcomeStatus.corrected_success
     assert "صُححت مخالفة المصطلحات تلقائيًا في محاولة واحدة" in result.note
     assert len(captured_payloads) == 2
 
@@ -836,6 +842,7 @@ def test_phase4_a4_gemini_corrects_fidelity_violation_once(monkeypatch):
     assert result.provider == "gemini"
     assert result.used_external_provider is True
     assert result.translated_text == "احسب V = IR عندما تكون I = 2 A. [2]"
+    assert result.outcome == TranslationOutcomeStatus.corrected_success
     assert "صُححت مخالفة المحتوى العلمي المحمي تلقائيًا" in result.note
     correction_prompt = payloads[1]["contents"][0]["parts"][0]["text"]
     assert "MISSING PROTECTED CONTENT" in correction_prompt

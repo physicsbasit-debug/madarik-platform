@@ -160,6 +160,49 @@ export interface EducationalQualityToolsReport {
   needsReview: boolean;
 }
 
+
+export type TranslationOutcomeStatus =
+  | 'external_success'
+  | 'corrected_success'
+  | 'local_fallback'
+  | 'skipped'
+  | 'failed_safely';
+
+export type TranslationItemType = 'question' | 'part';
+
+export type TranslationBatchStatus =
+  | 'completed'
+  | 'completed_with_fallbacks'
+  | 'completed_with_failures';
+
+export interface TranslationItemOutcome {
+  questionId: string;
+  questionNumber: string;
+  itemType: TranslationItemType;
+  partId: string | null;
+  partLabel: string | null;
+  status: TranslationOutcomeStatus;
+  provider: string;
+  usedExternalProvider: boolean;
+  urgentReview: boolean;
+  message: string;
+}
+
+export interface TranslationBatchSummary {
+  status: TranslationBatchStatus;
+  totalQuestions: number;
+  activeQuestions: number;
+  deletedQuestions: number;
+  totalItems: number;
+  externalSuccessCount: number;
+  correctedSuccessCount: number;
+  localFallbackCount: number;
+  skippedCount: number;
+  failedSafelyCount: number;
+  urgentReviewCount: number;
+  items: TranslationItemOutcome[];
+}
+
 export interface ProjectSession {
   id: string;
   ownerAccountId: string | null;
@@ -175,6 +218,7 @@ export interface ProjectSession {
   answerKey: AnswerKeyItem[];
   educationalAnalysis: EducationalAnalysisReport | null;
   qualityTools: EducationalQualityToolsReport | null;
+  translationBatchSummary?: TranslationBatchSummary | null;
   currentStep: StepKey;
 }
 

@@ -10,7 +10,11 @@ from urllib.parse import quote
 import httpx
 
 from app.core.config import settings
-from app.models.project import GlossaryTerm, GlossaryTermStatus
+from app.models.project import (
+    GlossaryTerm,
+    GlossaryTermStatus,
+    TranslationOutcomeStatus,
+)
 
 
 SUPPORTED_EXTERNAL_PROVIDERS = {"gemini", "openai", "openai-compatible"}
@@ -24,6 +28,7 @@ class TranslationProviderResult:
     provider: str
     used_external_provider: bool
     note: str = ""
+    outcome: TranslationOutcomeStatus = TranslationOutcomeStatus.external_success
 
 
 @dataclass(frozen=True)
@@ -846,6 +851,7 @@ def _fallback_result(fallback_translation: str, provider: str, note: str) -> Tra
         provider="mock",
         used_external_provider=False,
         note=note if note else f"تعذر استخدام المزود {provider}؛ تم استخدام fallback.",
+        outcome=TranslationOutcomeStatus.local_fallback,
     )
 
 
@@ -1071,6 +1077,7 @@ def translate_with_optional_external_provider(
                     f"{_fidelity_success_note(fidelity_compliance)} "
                     "تبقى الترجمة قابلة لمراجعة المعلم."
                 ),
+                outcome=TranslationOutcomeStatus.external_success,
             )
 
         request_stage = "تصحيح الترجمة"
@@ -1135,6 +1142,7 @@ def translate_with_optional_external_provider(
                     f"{glossary_note} {fidelity_note} "
                     "تبقى الترجمة قابلة لمراجعة المعلم."
                 ),
+                outcome=TranslationOutcomeStatus.corrected_success,
             )
 
         failure_notes: list[str] = []
