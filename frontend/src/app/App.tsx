@@ -2105,8 +2105,10 @@ function StepContent({
           qualityTools={qualityTools}
           readiness={projectReadiness}
           fullExamExportReport={fullExamExportReport}
+          fullExamTranslationReport={fullExamTranslationReport}
           fullExamEndToEndReport={fullExamEndToEndReport}
           onRunFullExamAcceptance={onRunFullExamAcceptance}
+          onMetadataChange={onMetadataChange}
           canExportDocx={canExportDocx}
           onExportDocx={onExportDocx}
           onExportPdf={onExportPdf}

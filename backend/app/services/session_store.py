@@ -135,11 +135,20 @@ class InMemoryProjectStore:
         project = self.get(project_id)
         if project is None:
             return None
+        previous_metadata = project.metadata
+        only_marks_policy_changed = (
+            previous_metadata.model_dump(exclude={"marks_policy"})
+            == metadata.model_dump(exclude={"marks_policy"})
+        )
+
         project.metadata = metadata
-        project.translation_batch_summary = None
         self._invalidate_full_exam_export_report(project)
-        project.full_exam_translation_report = None
-        project.current_step = StepKey.setup
+
+        if not only_marks_policy_changed:
+            project.translation_batch_summary = None
+            project.full_exam_translation_report = None
+            project.current_step = StepKey.setup
+
         return self.touch(project_id)
 
     def set_uploaded_file(self, project_id: str, uploaded_file: UploadedFileInfo | None) -> ProjectSession | None:

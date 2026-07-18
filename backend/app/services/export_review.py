@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import re
 
-from app.models.project import QuestionItem
+from app.models.project import (
+    FullExamTranslationAcceptanceStatus,
+    MarksPolicy,
+    OutputMode,
+    ProjectMetadata,
+    ProjectSession,
+    QuestionItem,
+)
 
 _VISUAL_REFERENCE_PATTERN = re.compile(
     r"(?:"
@@ -67,3 +74,76 @@ def missing_visual_asset_question_numbers(
 def parse_declared_total_marks(value: str) -> int | None:
     match = re.search(r"\d+", value or "")
     return int(match.group(0)) if match else None
+
+def declared_total_marks_mismatch(
+    metadata: ProjectMetadata,
+    question_total: int,
+) -> bool:
+    declared = parse_declared_total_marks(metadata.total_marks)
+    return declared is not None and declared != question_total
+
+
+def marks_policy_resolves_total(
+    metadata: ProjectMetadata,
+    question_total: int,
+) -> bool:
+    """Return whether the paper-level marks mismatch has an explicit policy."""
+
+    if not declared_total_marks_mismatch(metadata, question_total):
+        return True
+
+    if metadata.marks_policy == MarksPolicy.use_question_total:
+        return True
+
+    if metadata.marks_policy == MarksPolicy.scale_to_declared:
+        declared = parse_declared_total_marks(metadata.total_marks)
+        return bool(declared and declared > 0 and question_total > 0)
+
+    return False
+
+
+def student_export_marks_label(
+    metadata: ProjectMetadata,
+    question_total: int,
+) -> str:
+    """Return the honest paper-level marks label used in student exports."""
+
+    declared = parse_declared_total_marks(metadata.total_marks)
+
+    if declared is None:
+        return str(question_total)
+
+    if not declared_total_marks_mismatch(metadata, question_total):
+        return str(declared)
+
+    if metadata.marks_policy == MarksPolicy.use_question_total:
+        return str(question_total)
+
+    if metadata.marks_policy == MarksPolicy.scale_to_declared:
+        return f"{declared} (محولة من {question_total})"
+
+    return str(declared)
+
+
+def student_export_total_label(metadata: ProjectMetadata) -> str:
+    return (
+        "المجموع الخام"
+        if metadata.marks_policy == MarksPolicy.scale_to_declared
+        else "مجموع الدرجات"
+    )
+
+
+def student_export_mode_label(project: ProjectSession) -> str:
+    """Never label fallback or unaccepted Arabic as a clean final version."""
+
+    if project.metadata.output_mode == OutputMode.bilingual:
+        return "ثنائية اللغة"
+
+    report = project.full_exam_translation_report
+    if (
+        report is not None
+        and report.status == FullExamTranslationAcceptanceStatus.accepted
+    ):
+        return "عربية معتمدة"
+
+    return "مسودة ترجمة تحتاج مراجعة"

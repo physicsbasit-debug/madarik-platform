@@ -1,6 +1,6 @@
 import { AlertTriangle, BarChart3, CheckCircle2, Download, FileText, GitBranch, KeyRound, Loader2, Radar, ShieldCheck, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import type { AnswerKeyItem, EducationalAnalysisReport, EducationalQualityToolsReport, FullExamEndToEndReport, FullExamExportReport, GlossaryTerm, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
+import type { AnswerKeyItem, EducationalAnalysisReport, EducationalQualityToolsReport, FullExamEndToEndReport, FullExamExportReport, FullExamTranslationReport, GlossaryTerm, MarksPolicy, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
 import { MetricCard } from '../../components/MetricCard';
 
 interface ExportStepProps {
@@ -12,8 +12,10 @@ interface ExportStepProps {
   qualityTools: EducationalQualityToolsReport | null;
   readiness: ProjectReadinessReport | null;
   fullExamExportReport: FullExamExportReport | null;
+  fullExamTranslationReport: FullExamTranslationReport | null;
   fullExamEndToEndReport: FullExamEndToEndReport | null;
   onRunFullExamAcceptance: () => Promise<void>;
+  onMetadataChange: (metadata: ProjectMetadata) => void;
   canExportDocx: boolean;
   canExportPdf: boolean;
   onExportDocx: () => Promise<void>;
@@ -97,8 +99,10 @@ export function ExportStep({
   qualityTools,
   readiness,
   fullExamExportReport,
+  fullExamTranslationReport,
   fullExamEndToEndReport,
   onRunFullExamAcceptance,
+  onMetadataChange,
   canExportDocx,
   canExportPdf,
   onExportDocx,
@@ -125,6 +129,16 @@ export function ExportStep({
     .sort((a, b) => a.orderIndex - b.orderIndex);
   const totalMarks = readiness?.totalMarks ?? approvedQuestions.reduce((sum, question) => sum + (question.marks ?? 0), 0);
   const glossaryNeedsReview = glossary.filter((term) => term.status === 'needs_review').length;
+  const declaredMarks = Number.parseInt(metadata.totalMarks.trim(), 10);
+  const hasDeclaredMarks = Number.isFinite(declaredMarks);
+  const hasMarksMismatch = hasDeclaredMarks && declaredMarks !== totalMarks;
+  const marksPolicy = metadata.marksPolicy ?? 'unresolved';
+  const translationAccepted = fullExamTranslationReport?.status === 'accepted';
+  const studentVersionLabel = metadata.outputMode === 'bilingual'
+    ? 'ثنائية اللغة'
+    : translationAccepted
+      ? 'عربية معتمدة'
+      : 'مسودة ترجمة تحتاج مراجعة';
   const readinessBlocksExport = readiness ? !readiness.ready : approvedQuestions.length === 0;
   const readinessHasWarnings = readiness?.issues.some((issue) => issue.severity === 'warning') ?? false;
 
@@ -294,6 +308,34 @@ export function ExportStep({
           <MetricCard label="التحليل التربوي" value={educationalAnalysis ? 1 : 0} hint="تأسيسي" />
           <MetricCard label="أدوات الجودة" value={qualityTools ? 1 : 0} hint="Pareto/Radar/Fishbone" />
         </div>
+
+        {hasMarksMismatch ? (
+          <div className={`marks-policy-panel ${marksPolicy === 'unresolved' ? 'marks-policy-unresolved' : 'marks-policy-resolved'}`}>
+            <div>
+              <strong>حسم سياسة الدرجة</strong>
+              <p>
+                الدرجة المعلنة {declaredMarks}، بينما مجموع الأسئلة {totalMarks}.
+                اختر كيف ستظهر الدرجة في نسخة الطالب دون تعديل درجات الأسئلة آليًا.
+              </p>
+            </div>
+            <label>
+              <span>السياسة المعتمدة</span>
+              <select
+                value={marksPolicy}
+                onChange={(event) =>
+                  onMetadataChange({
+                    ...metadata,
+                    marksPolicy: event.target.value as MarksPolicy,
+                  })
+                }
+              >
+                <option value="unresolved">لم أحسم بعد</option>
+                <option value="use_question_total">اعتماد مجموع الأسئلة ({totalMarks})</option>
+                <option value="scale_to_declared">تحويل الدرجة إلى {declaredMarks} مع بقاء المجموع الخام {totalMarks}</option>
+              </select>
+            </label>
+          </div>
+        ) : null}
 
         <div className={`readiness-card ${readiness?.ready ? 'success-card' : 'warning-card'}`}>
           {readiness?.ready ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
@@ -732,7 +774,7 @@ export function ExportStep({
           <div><dt>المادة</dt><dd>{metadata.subject}</dd></div>
           <div><dt>الصف</dt><dd>{metadata.grade}</dd></div>
           <div><dt>الزمن</dt><dd>{metadata.duration}</dd></div>
-          <div><dt>نوع النسخة</dt><dd>{metadata.outputMode === 'bilingual' ? 'ثنائية اللغة' : 'عربية نظيفة'}</dd></div>
+          <div><dt>نوع النسخة</dt><dd>{studentVersionLabel}</dd></div>
           <div><dt>الصيغ</dt><dd>DOCX + PDF</dd></div>
         </dl>
       </section>

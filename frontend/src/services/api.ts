@@ -136,6 +136,7 @@ interface ApiProjectMetadata {
   paper_title: string;
   duration: string;
   total_marks: string;
+  marks_policy?: ProjectMetadata['marksPolicy'];
   teacher_name: string;
   date: string;
   output_mode: ProjectMetadata['outputMode'];
@@ -550,6 +551,7 @@ function toApiMetadata(metadata: ProjectMetadata): ApiProjectMetadata {
     paper_title: metadata.paperTitle,
     duration: metadata.duration,
     total_marks: metadata.totalMarks,
+    marks_policy: metadata.marksPolicy ?? 'unresolved',
     teacher_name: metadata.teacherName,
     date: metadata.date,
     output_mode: metadata.outputMode,
@@ -567,6 +569,7 @@ function fromApiMetadata(metadata: ApiProjectMetadata): ProjectMetadata {
     paperTitle: metadata.paper_title,
     duration: metadata.duration,
     totalMarks: metadata.total_marks,
+    marksPolicy: metadata.marks_policy ?? 'unresolved',
     teacherName: metadata.teacher_name,
     date: metadata.date,
     outputMode: metadata.output_mode,

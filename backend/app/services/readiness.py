@@ -10,6 +10,7 @@ from app.models.project import (
     ReadinessSeverity,
 )
 from app.services.export_review import (
+    marks_policy_resolves_total,
     missing_visual_asset_question_numbers,
     parse_declared_total_marks,
 )
@@ -271,6 +272,10 @@ def build_project_readiness_report(project: ProjectSession) -> ProjectReadinessR
     if (
         declared_total_marks is not None
         and declared_total_marks != total_marks
+        and not marks_policy_resolves_total(
+            project.metadata,
+            total_marks,
+        )
     ):
         issues.append(
             ProjectReadinessIssue(
@@ -279,7 +284,9 @@ def build_project_readiness_report(project: ProjectSession) -> ProjectReadinessR
                 message=(
                     f"الدرجة المعلنة للورقة ({declared_total_marks}) لا تطابق "
                     f"مجموع درجات الأسئلة ({total_marks}). "
-                    "سيبقى التصدير متاحًا، لكن القبول النهائي يحتاج مراجعة."
+                    "اختر سياسة الدرجة: اعتماد مجموع الأسئلة أو تحويله "
+                    "إلى الدرجة المعلنة. سيبقى القبول النهائي يحتاج مراجعة "
+                    "حتى يتم الحسم."
                 ),
             )
         )

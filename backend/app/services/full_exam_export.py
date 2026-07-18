@@ -27,6 +27,7 @@ from app.models.project import (
     QuestionStatus,
 )
 from app.services.export_review import (
+    marks_policy_resolves_total,
     missing_visual_asset_question_numbers,
     parse_declared_total_marks,
 )
@@ -715,16 +716,19 @@ def build_full_exam_export_report(
         ),
         FullExamExportCheck(
             code="paper_total_matches",
-            passed=(
-                reported_marks is None
-                or reported_marks == expected["marks"]
+            passed=marks_policy_resolves_total(
+                project.metadata,
+                int(expected["marks"]),
             ),
             message=(
-                "مجموع درجات التصدير يطابق الدرجة المعلنة للورقة."
-                if reported_marks is None or reported_marks == expected["marks"]
+                "سياسة درجة الورقة محسومة ومتوافقة مع التصدير."
+                if marks_policy_resolves_total(
+                    project.metadata,
+                    int(expected["marks"]),
+                )
                 else (
                     f"مجموع الأسئلة ({expected['marks']}) لا يطابق الدرجة "
-                    f"المعلنة ({reported_marks})."
+                    f"المعلنة ({reported_marks}) ولم تُحدَّد سياسة للحسم."
                 )
             ),
         ),

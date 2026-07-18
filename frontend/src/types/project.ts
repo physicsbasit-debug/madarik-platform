@@ -6,6 +6,11 @@ export type OutputMode = 'arabic' | 'bilingual';
 
 export type ExportFormat = 'docx' | 'pdf';
 
+export type MarksPolicy =
+  | 'unresolved'
+  | 'use_question_total'
+  | 'scale_to_declared';
+
 export interface ProjectMetadata {
   schoolName: string;
   directorate: string;
@@ -15,6 +20,7 @@ export interface ProjectMetadata {
   paperTitle: string;
   duration: string;
   totalMarks: string;
+  marksPolicy?: MarksPolicy;
   teacherName: string;
   date: string;
   outputMode: OutputMode;
