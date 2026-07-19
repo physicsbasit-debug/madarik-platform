@@ -1,4 +1,4 @@
-name: Phase Checks
+name: Final Release Checks
 
 on:
   push:
@@ -9,14 +9,17 @@ on:
       - main
   workflow_dispatch:
 
-jobs:
-  backend-check:
-    name: Backend checks
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
 
-    defaults:
-      run:
-        working-directory: backend
+concurrency:
+  group: final-release-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  final-release-check:
+    name: Final RC gate
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -26,40 +29,36 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install backend dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run backend tests
-        run: |
-          pytest -q
-
-  frontend-check:
-    name: Frontend build
-    runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install frontend dependencies from public registry
+      - name: Pin npm for CI stability
         run: |
-          npm config set registry https://registry.npmjs.org/
-          rm -rf node_modules package-lock.json
-          npm install --no-package-lock --no-audit --no-fund
-          npm ls react react-dom lucide-react @types/react typescript
+          npm install --global npm@10.5.0 --no-audit --no-fund
+          echo "Pinned npm version:"
+          npm --version
 
-      - name: Build frontend
+      - name: Install OCR system dependencies
         run: |
-          npm run build
+          sudo apt-get update
+          sudo apt-get install -y \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            fonts-dejavu-core
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+
+      - name: Run Final RC gate
+        run: |
+          chmod +x RUN_FINAL_RC_TESTS.sh
+          ./RUN_FINAL_RC_TESTS.sh
