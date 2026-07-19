@@ -22,7 +22,11 @@ def test_phase2_rc1_docs_exist_and_lock_scope() -> None:
     assert "Phase 3" in scope_lock
 
 
-def test_phase2_rc1_readme_title() -> None:
+def test_readme_reflects_current_release_candidate() -> None:
     readme = Path(__file__).resolve().parents[2] / "README.md"
     content = readme.read_text(encoding="utf-8")
-    assert "Phase 2-RC1 Release Candidate" in content
+
+    assert content.startswith("# منصة مدارك\n")
+    assert "2.0.0-rc.1" in content
+    assert "Phase 4-B1" in content
+    assert "Final Release Candidate" in content
