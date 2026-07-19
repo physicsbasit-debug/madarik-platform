@@ -149,6 +149,15 @@ print("PASS: no tracked generated artifacts, local secret files, or obvious keys
 PY
 
 echo
+echo "=== Internal npm registry guard ==="
+if git grep -n -E   'packages\.applied-caas-gateway[A-Za-z0-9-]*\.internal\.api\.openai\.org'   -- ':!RUN_FINAL_RC_TESTS.sh'
+then
+  echo "FAIL: an internal CAAS npm registry URL is tracked in the repository."
+  exit 1
+fi
+echo "PASS: no internal CAAS npm registry URLs are tracked."
+
+echo
 echo "=== Python syntax ==="
 python -m compileall -q backend/app backend/tests
 
