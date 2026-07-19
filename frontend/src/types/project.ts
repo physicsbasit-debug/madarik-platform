@@ -255,6 +255,7 @@ export interface FullExamTranslationQuestionSummary {
   failedItems: number;
   glossaryViolationCount: number;
   fidelityViolationCount: number;
+  languageQualityViolationCount: number;
   sourcePageNumbers: number[];
   linkedLayoutAssetCount: number;
   message: string;
@@ -282,6 +283,7 @@ export interface FullExamTranslationReport {
   urgentReviewItems: number;
   glossaryViolationCount: number;
   fidelityViolationCount: number;
+  languageQualityViolationCount: number;
   sourcePageLinkedQuestions: number;
   multiPageQuestions: number;
   questions: FullExamTranslationQuestionSummary[];
@@ -479,6 +481,9 @@ export interface TranslationProviderStatus {
   temperature?: number;
   supportedProviders?: string[];
   storesResponses?: boolean;
+  providerStorageControl?: string;
+  acceptanceGuard?: string;
+  fallbackCanBeAccepted?: boolean;
   fallback: string;
 }
 

@@ -576,10 +576,13 @@ export function ReviewStep({
             : ""}
           . تُترجم أجزاء السؤال بصورة مستقلة عند وجودها، ويُفحص التزام الناتج
           بالمصطلحات المعتمدة وبالأرقام والوحدات والمعادلات والصيغ والدرجات
-          والمراجع العلمية المحمية. عند وجود أي مخالفة تُجرى محاولة تصحيح واحدة
-          فقط قبل الرجوع إلى fallback المحلي. ترسل مدارك طلبات OpenAI الرسمية
-          عبر Responses API وطلبات Gemini عبر generateContent مع store=false،
-          وتبقى مراجعة المعلم إلزامية قبل التصدير.
+          والمراجع العلمية المحمية، كما يرفض بقايا النثر الإنجليزي غير المفسرة
+          في وضع العربية. عند وجود أي مخالفة تُجرى محاولة تصحيح واحدة فقط قبل
+          الرجوع إلى fallback المحلي، ولا يمكن أن يحصل fallback على قبول نهائي
+          حتى لو اعتُمدت بطاقة السؤال يدويًا. ترسل مدارك طلبات OpenAI الرسمية
+          عبر Responses API مع store=false، وطلبات Gemini عبر generateContent
+          وفق مخطط Google دون حقل تخزين غير مدعوم. وتبقى مراجعة المعلم إلزامية
+          قبل التصدير.
         </span>
       </div>
 
@@ -598,7 +601,8 @@ export function ReviewStep({
             {fullExamTranslationReport.untranslatedQuestions}، الفاشلة:{" "}
             {fullExamTranslationReport.failedQuestions}، مخالفات القاموس:{" "}
             {fullExamTranslationReport.glossaryViolationCount}، مخالفات السلامة
-            العلمية: {fullExamTranslationReport.fidelityViolationCount}.
+            العلمية: {fullExamTranslationReport.fidelityViolationCount}، مخالفات جودة
+            العربية: {fullExamTranslationReport.languageQualityViolationCount}.
             {fullExamTranslationReport.warnings.length > 0
               ? ` تنبيهات: ${fullExamTranslationReport.warnings.join(" ")}`
               : " جميع فحوص قبول الترجمة والمراجعة ناجحة."}

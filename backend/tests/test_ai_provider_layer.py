@@ -419,7 +419,7 @@ def test_gemini_provider_uses_generate_content_without_storage(monkeypatch):
 
     request_json = captured["json"]
     assert isinstance(request_json, dict)
-    assert request_json["store"] is False
+    assert "store" not in request_json
     assert request_json["generationConfig"]["maxOutputTokens"] == 700
     assert request_json["generationConfig"]["temperature"] == 0.1
     assert "لا تحل السؤال" in request_json["systemInstruction"]["parts"][0]["text"]
@@ -774,7 +774,7 @@ def test_phase4_a4_prompt_lists_protected_source_content():
         [],
     )
 
-    assert TRANSLATION_PROMPT_VERSION == "phase-4-a4-v1"
+    assert TRANSLATION_PROMPT_VERSION == "phase-4-b1-v1"
     assert "PROTECTED SOURCE CONTENT" in user_prompt
     assert "معادلة أو علاقة => V = IR" in user_prompt
     assert "معادلة أو علاقة => I = 2 A" in user_prompt

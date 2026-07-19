@@ -87,8 +87,21 @@ class FidelityComplianceResult:
         return not self.missing_tokens
 
 
-TRANSLATION_PROMPT_VERSION = "phase-4-a4-v1"
-DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
+@dataclass(frozen=True)
+class ArabicTranslationQualityResult:
+    """Deterministic language-quality gate for Arabic exam translations."""
+
+    arabic_letter_ratio: float
+    unexplained_latin_words: tuple[str, ...]
+    issues: tuple[str, ...]
+
+    @property
+    def is_compliant(self) -> bool:
+        return not self.issues
+
+
+TRANSLATION_PROMPT_VERSION = "phase-4-b1-v1"
+DEFAULT_GEMINI_MODEL = ""
 MAX_PROMPT_CONTEXT_CHARS = 1200
 
 
@@ -121,6 +134,94 @@ EXAM_COMMAND_GUIDE = {
 _ARABIC_DIACRITICS_RE = re.compile(
     r"[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]"
 )
+
+
+_ARABIC_LETTER_RE = re.compile(r"[\u0621-\u063A\u0641-\u064A\u066E-\u06D3]")
+_LATIN_WORD_RE = re.compile(r"[A-Za-z]+(?:[.\-][A-Za-z]+)*")
+_ALLOWED_LATIN_TRANSLATION_TOKENS = {
+    "fig", "figure", "table", "diagram",
+    "cmbr", "p.d", "pd",
+    "kg", "g", "mg", "m", "cm", "mm", "km",
+    "s", "ms", "min", "h", "hz",
+    "a", "ma", "v", "mv", "w", "kw",
+    "j", "kj", "pa", "kpa", "n", "c",
+    "mol", "am", "np",
+}
+_MIN_ARABIC_LETTER_RATIO = 0.60
+
+
+def _is_allowed_latin_translation_token(token: str) -> bool:
+    compact = token.strip(".").casefold()
+    if not compact:
+        return True
+    if compact in _ALLOWED_LATIN_TRANSLATION_TOKENS:
+        return True
+    if len(compact) <= 2:
+        return True
+    raw = token.replace(".", "").replace("-", "")
+    return raw.isupper() and len(raw) <= 8
+
+
+def validate_arabic_translation_quality(
+    original_text: str,
+    translated_text: str,
+) -> ArabicTranslationQualityResult:
+    """Reject untranslated English prose while allowing scientific symbols/acronyms."""
+
+    del original_text  # Reserved for future source-aware exemptions.
+    candidate = (translated_text or "").strip()
+    if not candidate:
+        return ArabicTranslationQualityResult(
+            arabic_letter_ratio=0.0,
+            unexplained_latin_words=(),
+            issues=("الناتج العربي فارغ.",),
+        )
+
+    unexplained_words = tuple(
+        dict.fromkeys(
+            token
+            for token in _LATIN_WORD_RE.findall(candidate)
+            if not _is_allowed_latin_translation_token(token)
+        )
+    )
+
+    text_without_allowed_latin = candidate
+    for token in _LATIN_WORD_RE.findall(candidate):
+        if _is_allowed_latin_translation_token(token):
+            text_without_allowed_latin = text_without_allowed_latin.replace(token, " ")
+
+    arabic_letters = len(_ARABIC_LETTER_RE.findall(text_without_allowed_latin))
+    latin_letters = sum(
+        len(token.replace(".", "").replace("-", ""))
+        for token in unexplained_words
+    )
+    total_letters = arabic_letters + latin_letters
+    arabic_ratio = round(
+        arabic_letters / total_letters,
+        4,
+    ) if total_letters else 0.0
+
+    issues: list[str] = []
+    if arabic_letters == 0:
+        issues.append("لا يحتوي الناتج على نص عربي فعلي.")
+    elif arabic_ratio < _MIN_ARABIC_LETTER_RATIO:
+        issues.append(
+            "نسبة النص العربي منخفضة مقارنة بالنص اللاتيني "
+            f"({arabic_ratio:.0%})."
+        )
+    if unexplained_words:
+        preview = "، ".join(unexplained_words[:8])
+        suffix = "…" if len(unexplained_words) > 8 else ""
+        issues.append(
+            "بقيت كلمات إنجليزية تفسيرية غير مسموحة في وضع العربية: "
+            f"{preview}{suffix}."
+        )
+
+    return ArabicTranslationQualityResult(
+        arabic_letter_ratio=arabic_ratio,
+        unexplained_latin_words=unexplained_words,
+        issues=tuple(issues),
+    )
 
 
 def _approved_glossary_terms(glossary: list[GlossaryTerm]) -> list[GlossaryTerm]:
@@ -550,8 +651,15 @@ def get_ai_provider_status() -> dict[str, object]:
         "supported_providers": sorted(SUPPORTED_EXTERNAL_PROVIDERS | {"mock"}),
         "fallback": decision.fallback,
         "prompt_version": TRANSLATION_PROMPT_VERSION,
-        # Madarik never asks an external provider to retain translated exam content.
-        "stores_responses": False,
+        "acceptance_guard": "arabic_language_quality",
+        "fallback_can_be_accepted": False,
+        # OpenAI Responses supports an explicit store=false request flag.
+        # Gemini generateContent and generic compatible providers do not share
+        # one portable storage-control field, so no stronger claim is exposed.
+        "stores_responses": False if provider == "openai" else None,
+        "provider_storage_control": (
+            "store_false" if provider == "openai" else "not_available"
+        ),
     }
 
 
@@ -662,6 +770,7 @@ def build_translation_correction_prompts(
     glossary: list[GlossaryTerm],
     missing_terms: tuple[GlossaryTerm, ...] = (),
     missing_fidelity_tokens: tuple[FidelityToken, ...] = (),
+    language_quality_issues: tuple[str, ...] = (),
     context: TranslationPromptContext | None = None,
 ) -> tuple[str, str]:
     """Build the one allowed correction request for all deterministic violations."""
@@ -680,10 +789,16 @@ def build_translation_correction_prompts(
         if missing_fidelity_tokens
         else "لا توجد مخالفة محتوى علمي محمي في هذه المحاولة."
     )
+    language_quality_text = (
+        "\n".join(f"- {issue}" for issue in language_quality_issues)
+        if language_quality_issues
+        else "لا توجد مخالفة جودة لغوية في هذه المحاولة."
+    )
     correction_system = (
         f"{system_prompt}\n\n"
         "هذه محاولة تصحيح واحدة فقط. حافظ على معنى الترجمة السابقة وبنيتها، "
-        "وغيّر فقط ما يلزم لإصلاح مخالفات القاموس أو المحتوى العلمي المحمي."
+        "وغيّر فقط ما يلزم لإصلاح مخالفات القاموس أو المحتوى العلمي المحمي "
+        "أو بقايا النثر الإنجليزي غير المسموح."
     )
     correction_user = (
         f"PROMPT VERSION: {TRANSLATION_PROMPT_VERSION}\n\n"
@@ -703,6 +818,9 @@ def build_translation_correction_prompts(
         "MISSING PROTECTED CONTENT\n"
         "-------------------------\n"
         f"{protected_text}\n\n"
+        "LANGUAGE QUALITY ISSUES\n"
+        "-----------------------\n"
+        f"{language_quality_text}\n\n"
         "OUTPUT REQUIREMENT\n"
         "------------------\n"
         "أعد الترجمة العربية المصححة فقط."
@@ -883,8 +1001,7 @@ def _post_gemini_generate_content(
                 "temperature": settings.ai_temperature,
                 "maxOutputTokens": settings.ai_max_output_tokens,
             },
-            # Exam content is sent for this one translation request only.
-            "store": False,
+            # Gemini generateContent has no OpenAI-style store request field.
         },
         timeout=settings.ai_timeout_seconds,
     )
@@ -1021,6 +1138,13 @@ def _fidelity_success_note(compliance: FidelityComplianceResult) -> str:
     return "فحص الأمان العلمي: لا يوجد محتوى علمي محمي قابل للفحص في النص المصدر."
 
 
+def _language_quality_success_note(quality: ArabicTranslationQualityResult) -> str:
+    return (
+        "فحص جودة العربية: لا توجد بقايا نثر إنجليزي غير مفسرة، "
+        f"ونسبة الحروف العربية {quality.arabic_letter_ratio:.0%}."
+    )
+
+
 def translate_with_optional_external_provider(
     original_text: str,
     glossary: list[GlossaryTerm],
@@ -1066,7 +1190,15 @@ def translate_with_optional_external_provider(
             original_text,
             translated_text,
         )
-        if glossary_compliance.is_compliant and fidelity_compliance.is_compliant:
+        language_quality = validate_arabic_translation_quality(
+            original_text,
+            translated_text,
+        )
+        if (
+            glossary_compliance.is_compliant
+            and fidelity_compliance.is_compliant
+            and language_quality.is_compliant
+        ):
             return TranslationProviderResult(
                 translated_text=translated_text,
                 provider=decision.provider,
@@ -1075,6 +1207,7 @@ def translate_with_optional_external_provider(
                     f"تم توليد الترجمة عبر {decision.provider} باستخدام {api_label}. "
                     f"{_glossary_success_note(glossary_compliance)} "
                     f"{_fidelity_success_note(fidelity_compliance)} "
+                    f"{_language_quality_success_note(language_quality)} "
                     "تبقى الترجمة قابلة لمراجعة المعلم."
                 ),
                 outcome=TranslationOutcomeStatus.external_success,
@@ -1087,6 +1220,7 @@ def translate_with_optional_external_provider(
             glossary,
             missing_terms=glossary_compliance.missing_terms,
             missing_fidelity_tokens=fidelity_compliance.missing_tokens,
+            language_quality_issues=language_quality.issues,
             context=context,
         )
         correction_response, correction_extractor, _ = _post_provider_request(
@@ -1114,7 +1248,15 @@ def translate_with_optional_external_provider(
             original_text,
             corrected_text,
         )
-        if corrected_glossary.is_compliant and corrected_fidelity.is_compliant:
+        corrected_language_quality = validate_arabic_translation_quality(
+            original_text,
+            corrected_text,
+        )
+        if (
+            corrected_glossary.is_compliant
+            and corrected_fidelity.is_compliant
+            and corrected_language_quality.is_compliant
+        ):
             if glossary_compliance.is_compliant:
                 glossary_note = _glossary_success_note(corrected_glossary)
             else:
@@ -1140,6 +1282,7 @@ def translate_with_optional_external_provider(
                 note=(
                     f"تم توليد الترجمة عبر {decision.provider} باستخدام {api_label}. "
                     f"{glossary_note} {fidelity_note} "
+                    f"{_language_quality_success_note(corrected_language_quality)} "
                     "تبقى الترجمة قابلة لمراجعة المعلم."
                 ),
                 outcome=TranslationOutcomeStatus.corrected_success,
@@ -1157,6 +1300,11 @@ def translate_with_optional_external_provider(
                 "استمرت مخالفة المحتوى العلمي المحمي بعد محاولة تصحيح واحدة؛ "
                 "العناصر غير المتحققة: "
                 f"{_format_fidelity_tokens(corrected_fidelity.missing_tokens)}."
+            )
+        if not corrected_language_quality.is_compliant:
+            failure_notes.append(
+                "استمرت مخالفة جودة العربية بعد محاولة تصحيح واحدة؛ "
+                + " ".join(corrected_language_quality.issues)
             )
 
         return _fallback_result(

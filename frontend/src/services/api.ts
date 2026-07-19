@@ -104,6 +104,9 @@ interface ApiTranslationProviderStatus {
   temperature?: number;
   supported_providers?: string[];
   stores_responses?: boolean;
+  provider_storage_control?: string;
+  acceptance_guard?: string;
+  fallback_can_be_accepted?: boolean;
   fallback: string;
 }
 
@@ -123,6 +126,9 @@ function fromApiTranslationProviderStatus(status: ApiTranslationProviderStatus):
     temperature: status.temperature,
     supportedProviders: status.supported_providers,
     storesResponses: status.stores_responses,
+    providerStorageControl: status.provider_storage_control,
+    acceptanceGuard: status.acceptance_guard,
+    fallbackCanBeAccepted: status.fallback_can_be_accepted,
     fallback: status.fallback,
   };
 }
@@ -360,6 +366,7 @@ interface ApiFullExamTranslationQuestionSummary {
   failed_items: number;
   glossary_violation_count: number;
   fidelity_violation_count: number;
+  language_quality_violation_count: number;
   source_page_numbers: number[];
   linked_layout_asset_count: number;
   message: string;
@@ -387,6 +394,7 @@ interface ApiFullExamTranslationReport {
   urgent_review_items: number;
   glossary_violation_count: number;
   fidelity_violation_count: number;
+  language_quality_violation_count: number;
   source_page_linked_questions: number;
   multi_page_questions: number;
   questions: ApiFullExamTranslationQuestionSummary[];
@@ -825,6 +833,7 @@ function fromApiFullExamTranslationReport(
     urgentReviewItems: report.urgent_review_items,
     glossaryViolationCount: report.glossary_violation_count,
     fidelityViolationCount: report.fidelity_violation_count,
+    languageQualityViolationCount: report.language_quality_violation_count,
     sourcePageLinkedQuestions: report.source_page_linked_questions,
     multiPageQuestions: report.multi_page_questions,
     questions: report.questions.map((question) => ({
@@ -837,6 +846,7 @@ function fromApiFullExamTranslationReport(
       failedItems: question.failed_items,
       glossaryViolationCount: question.glossary_violation_count,
       fidelityViolationCount: question.fidelity_violation_count,
+      languageQualityViolationCount: question.language_quality_violation_count,
       sourcePageNumbers: question.source_page_numbers,
       linkedLayoutAssetCount: question.linked_layout_asset_count,
       message: question.message,
