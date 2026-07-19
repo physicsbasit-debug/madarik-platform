@@ -167,11 +167,21 @@ echo
 echo "=== Frontend clean dependency install ==="
 (
   cd frontend
-  npm config set registry https://registry.npmjs.org/
   if [[ "${SKIP_NPM_CI:-0}" == "1" ]]; then
     echo "SKIP_NPM_CI=1: using the existing node_modules directory."
   else
-    npm ci --no-audit --no-fund
+    if ! npm ci --no-audit --no-fund; then
+      echo
+      echo "WARN: the first npm ci attempt failed."
+      echo "Retrying once with a fresh isolated npm cache."
+
+      rm -rf node_modules
+
+      retry_cache="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/madarik-final-rc-npm-cache"
+      rm -rf "$retry_cache"
+
+      npm ci         --no-audit         --no-fund         --prefer-online         --cache "$retry_cache"
+    fi
   fi
 
   echo
