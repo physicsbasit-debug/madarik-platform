@@ -17,6 +17,7 @@ from app.models.project import (
     TranslationOutcomeStatus,
 )
 from app.services.ai_provider import (
+    validate_arabic_translation_quality,
     validate_glossary_compliance,
     validate_translation_fidelity,
 )
@@ -75,6 +76,7 @@ def _question_message(
     urgent_review_items: int,
     glossary_violations: int,
     fidelity_violations: int,
+    language_quality_violations: int,
 ) -> str:
     if status == FullExamTranslationQuestionStatus.deleted:
         return "السؤال محذوف ولا يدخل في قبول الورقة."
@@ -101,6 +103,10 @@ def _question_message(
         if fidelity_violations:
             reasons.append(
                 f"{fidelity_violations} مخالفات سلامة علمية"
+            )
+        if language_quality_violations:
+            reasons.append(
+                f"{language_quality_violations} مخالفات جودة عربية"
             )
         if not reasons:
             reasons.append("اعتماد المعلم لم يكتمل")
@@ -129,6 +135,7 @@ def build_full_exam_translation_report(
     urgent_review_items = 0
     glossary_violation_count = 0
     fidelity_violation_count = 0
+    language_quality_violation_count = 0
     source_page_linked_questions = 0
     multi_page_questions = 0
     structure_preserved = True
@@ -142,6 +149,7 @@ def build_full_exam_translation_report(
         question_translated_items = 0
         question_glossary_violations = 0
         question_fidelity_violations = 0
+        question_language_quality_violations = 0
 
         for _part_id, original_text, translated_text in translation_items:
             if translated_text.strip():
@@ -161,6 +169,12 @@ def build_full_exam_translation_report(
                 question_fidelity_violations += len(
                     fidelity_result.missing_tokens
                 )
+                language_quality_result = validate_arabic_translation_quality(
+                    original_text,
+                    translated_text,
+                )
+                if not language_quality_result.is_compliant:
+                    question_language_quality_violations += 1
 
         question_outcomes = outcomes_by_question.get(question.id, [])
         failed_items = sum(
@@ -188,6 +202,8 @@ def build_full_exam_translation_report(
         elif (
             question_glossary_violations > 0
             or question_fidelity_violations > 0
+            or question_language_quality_violations > 0
+            or question_urgent_review_items > 0
             or question.status != QuestionStatus.approved
         ):
             question_status = (
@@ -216,6 +232,9 @@ def build_full_exam_translation_report(
             fidelity_violation_count += (
                 question_fidelity_violations
             )
+            language_quality_violation_count += (
+                question_language_quality_violations
+            )
             if (
                 question.source_page_numbers
                 and question.linked_layout_asset_ids
@@ -239,6 +258,9 @@ def build_full_exam_translation_report(
                 fidelity_violation_count=(
                     question_fidelity_violations
                 ),
+                language_quality_violation_count=(
+                    question_language_quality_violations
+                ),
                 source_page_numbers=question.source_page_numbers,
                 linked_layout_asset_count=len(
                     question.linked_layout_asset_ids
@@ -256,6 +278,9 @@ def build_full_exam_translation_report(
                     ),
                     fidelity_violations=(
                         question_fidelity_violations
+                    ),
+                    language_quality_violations=(
+                        question_language_quality_violations
                     ),
                 ),
             )
@@ -327,8 +352,10 @@ def build_full_exam_translation_report(
         )
     elif (
         needs_review_questions
+        or urgent_review_items
         or glossary_violation_count
         or fidelity_violation_count
+        or language_quality_violation_count
     ):
         report_status = (
             FullExamTranslationAcceptanceStatus.needs_review
@@ -383,6 +410,30 @@ def build_full_exam_translation_report(
             ),
         ),
         FullExamTranslationCheck(
+            code="arabic_language_quality_compliant",
+            passed=language_quality_violation_count == 0,
+            message=(
+                "لا توجد بقايا نثر إنجليزي غير مفسرة في وضع العربية."
+                if language_quality_violation_count == 0
+                else (
+                    "تم اكتشاف "
+                    f"{language_quality_violation_count} عناصر ترجمة مختلطة أو غير عربية بما يكفي."
+                )
+            ),
+        ),
+        FullExamTranslationCheck(
+            code="external_translation_only",
+            passed=urgent_review_items == 0,
+            message=(
+                "لا توجد عناصر fallback أو فشل محفوظ بأمان في الدفعة الحالية."
+                if urgent_review_items == 0
+                else (
+                    f"توجد {urgent_review_items} عناصر fallback أو فشل؛ "
+                    "ولا يمكن قبولها نهائيًا حتى بعد اعتماد المعلم."
+                )
+            ),
+        ),
+        FullExamTranslationCheck(
             code="source_structure_preserved",
             passed=structure_preserved,
             message=(
@@ -430,6 +481,14 @@ def build_full_exam_translation_report(
         warnings.append(
             f"توجد {fidelity_violation_count} مخالفات للمحتوى العلمي المحمي."
         )
+    if language_quality_violation_count:
+        warnings.append(
+            f"توجد {language_quality_violation_count} عناصر ترجمة مختلطة أو غير عربية بما يكفي."
+        )
+    if urgent_review_items:
+        warnings.append(
+            f"توجد {urgent_review_items} عناصر fallback أو فشل لا يمكن اعتمادها نهائيًا."
+        )
     if intake_report is None:
         warnings.append(
             "لا يوجد تقرير قبول إدخال كامل لمقارنة بنية صفحات المصدر."
@@ -455,6 +514,7 @@ def build_full_exam_translation_report(
         urgent_review_items=urgent_review_items,
         glossary_violation_count=glossary_violation_count,
         fidelity_violation_count=fidelity_violation_count,
+        language_quality_violation_count=language_quality_violation_count,
         source_page_linked_questions=source_page_linked_questions,
         multi_page_questions=multi_page_questions,
         questions=question_summaries,

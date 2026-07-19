@@ -285,6 +285,7 @@ class FullExamTranslationQuestionSummary(BaseModel):
     failed_items: int = Field(default=0, ge=0)
     glossary_violation_count: int = Field(default=0, ge=0)
     fidelity_violation_count: int = Field(default=0, ge=0)
+    language_quality_violation_count: int = Field(default=0, ge=0)
     source_page_numbers: list[int] = Field(default_factory=list)
     linked_layout_asset_count: int = Field(default=0, ge=0)
     message: str = ""
@@ -312,6 +313,7 @@ class FullExamTranslationReport(BaseModel):
     urgent_review_items: int = Field(default=0, ge=0)
     glossary_violation_count: int = Field(default=0, ge=0)
     fidelity_violation_count: int = Field(default=0, ge=0)
+    language_quality_violation_count: int = Field(default=0, ge=0)
     source_page_linked_questions: int = Field(default=0, ge=0)
     multi_page_questions: int = Field(default=0, ge=0)
     questions: list[FullExamTranslationQuestionSummary] = Field(default_factory=list)
