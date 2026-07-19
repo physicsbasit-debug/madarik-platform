@@ -39,6 +39,12 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Pin npm for CI stability
+        run: |
+          npm install --global npm@10.5.0 --no-audit --no-fund
+          echo "Pinned npm version:"
+          npm --version
+
       - name: Install OCR system dependencies
         run: |
           sudo apt-get update
