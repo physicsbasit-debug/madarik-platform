@@ -298,6 +298,40 @@ docs/PHASE_4_B1_REAL_AI_TRANSLATION_ACCEPTANCE.md
 
 يجب أن تمر التعديلات الجديدة عبر الاختبارات المركزة والاختبارات الكاملة وبناء الواجهة قبل الدمج. أي تحسين لا يدخل في نطاق الإغلاق الحالي يُرحّل إلى إصدار لاحق بدل توسيع النسخة المرشحة بلا نهاية.
 
+## ما هي منصة مدارك؟
+
+**منصة مدارك** هي منصة عربية متخصصة في تحويل المحتوى والاختبارات العلمية
+الأجنبية إلى موارد تعليمية عربية قابلة للمراجعة وإعادة الاستخدام وبناء
+التقويمات منها. لا تتعامل المنصة مع الترجمة بوصفها استبدال كلمات فقط، بل
+تدير دورة العمل التعليمية كاملة من المصدر حتى الاختبار النهائي.
+
+تبدأ الرحلة من رفع ملف PDF أو ربط مصدر سحابي، ثم استخراج النص وتقسيمه إلى
+أسئلة وأجزاء، وإنشاء قاموس علمي، وترجمة المحتوى مع الحفاظ على الرموز
+والمعادلات والرسوم. بعد ذلك يراجع المعلم السؤال، ويصنفه معرفيًا، ويربطه
+بالصف والمادة والوحدة والدرس ونواتج التعلم.
+
+الأسئلة المعتمدة تُحفظ في **بنك أسئلة دائم** يمكن البحث فيه وتصفيته وإعادة
+استخدام عناصره داخل مشاريع أخرى. ومن البنك ينتقل المستخدم إلى **منشئ
+الاختبارات** الذي يعتمد جدول مواصفات يوازن بين المعرفة والتطبيق
+والاستدلال، ويختار الأسئلة آليًا أو يدويًا، ثم يسمح بترتيبها داخل أقسام
+وتعديل درجاتها قبل التصدير في المراحل اللاحقة.
+
+### الفكرة الجديدة للبرنامج
+
+الفكرة الجديدة هي أن مدارك لم تعد مجرد أداة ترجمة اختبارات، بل أصبحت
+**منظومة إدارة محتوى وتقويم علمي** تربط خمسة مسارات في مكان واحد:
+
+1. استيراد المصادر العلمية ومتابعة نسخها.
+2. الترجمة العلمية والمراجعة البصرية واللغوية.
+3. التصنيف المعرفي والربط بالمنهج ونواتج التعلم.
+4. بناء بنك أسئلة منظم وقابل لإعادة الاستخدام.
+5. إنشاء اختبارات متوازنة وفق جدول مواصفات واضح.
+
+تستهدف المنصة معلمي العلوم والفيزياء والكيمياء والأحياء، والمشرفين
+التربويين، وفرق إعداد الاختبارات والمحتوى العربي. وتبقى قرارات الاعتماد
+النهائية بيد المعلم؛ فالاختيار والتصنيف الآليان أدوات مساعدة وليسا بديلًا
+عن الحكم التربوي.
+
 ## Madarik Science Platform V2 Status
 
 Development branch:
@@ -308,14 +342,33 @@ feat/madarik-science-platform-v2
 
 Completed V2 phases:
 
-- Phase 0-A through Phase 6-A.
-- Phase 6-B: Automatic Question Selection and Blueprint Validation.
+- Phase 0-A: Scope, architecture, and data contracts.
+- Phase 0-B: Task-oriented home.
+- Phase 1: Quick translation workflow.
+- Phase 2: Curriculum structure for grades 1–12.
+- Phase 3-A: Google Drive source foundation.
+- Phase 3-B: Curriculum source persistence.
+- Phase 3-C: Source refresh detection.
+- Phase 3-D: Source version history and manual update acceptance.
+- Phase 4-A: Science question classification foundation.
+- Phase 4-B: Curriculum linking and classification review.
+- Phase 5-A: Question bank data model and persistence.
+- Phase 5-B: Question bank library, search, and filters.
+- Phase 5-C: Reuse question bank items in projects.
+- Phase 6-A: Assessment blueprint and test builder foundation.
+- Phase 6-B: Automatic question selection and blueprint validation.
+- Phase 6-C: Assessment Ordering, Sections, and Manual Marks.
 
-Automatic selection uses grade, science domain, unit, and cognitive category. It reports shortages instead of silently substituting unclassified questions. Validation checks question count, total marks, cognitive distribution, and unclassified items.
+Phase 6-C adds:
+
+- named assessment sections;
+- manual question ordering;
+- per-question mark overrides;
+- backward-compatible layout persistence;
+- automatic recalculation of assessment totals.
 
 Next planned phase:
 
 ```text
-Phase 6-C: Assessment Ordering, Sections, and Manual Marks
+Phase 6-D: Student Paper Preview and Assessment Export Foundation
 ```
-

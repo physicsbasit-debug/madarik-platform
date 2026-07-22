@@ -794,18 +794,39 @@ export interface AssessmentBlueprint {
   reasoningPercent: number;
 }
 
+export interface AssessmentSection {
+  id: string;
+  title: string;
+  instructions: string | null;
+  orderIndex: number;
+}
+
+export interface AssessmentItemConfiguration {
+  bankItemId: string;
+  sectionId: string | null;
+  orderIndex: number;
+  marksOverride: number | null;
+}
+
+
 export interface AssessmentDraft {
   id: string;
   ownerAccountId: string | null;
   sourceProjectId: string | null;
   blueprint: AssessmentBlueprint;
   questionBankItemIds: string[];
+  sections: AssessmentSection[];
+  itemConfigurations: AssessmentItemConfiguration[];
   status: "draft" | "ready";
   createdAt: string;
   updatedAt: string;
 }
 
 export interface AssessmentQuestionSummary {
+  sectionId: string | null;
+  orderIndex: number;
+  sourceMarks: number;
+  marksOverride: number | null;
   bankItemId: string;
   questionNumber: string;
   text: string;

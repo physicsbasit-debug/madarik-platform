@@ -34,6 +34,33 @@ class AssessmentBlueprint(BaseModel):
         )
 
 
+class AssessmentSection(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    title: str = "القسم الأول"
+    instructions: str | None = None
+    order_index: int = Field(default=1, ge=1)
+
+
+class AssessmentItemConfiguration(BaseModel):
+    bank_item_id: str
+    section_id: str | None = None
+    order_index: int = Field(default=1, ge=1)
+    marks_override: int | None = Field(
+        default=None,
+        ge=0,
+        le=200,
+    )
+
+
+class AssessmentLayoutUpdate(BaseModel):
+    sections: list[AssessmentSection] = Field(
+        default_factory=list
+    )
+    item_configurations: list[
+        AssessmentItemConfiguration
+    ] = Field(default_factory=list)
+
+
 class AssessmentDraft(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     owner_account_id: str | None = None
@@ -42,6 +69,12 @@ class AssessmentDraft(BaseModel):
         default_factory=AssessmentBlueprint
     )
     question_bank_item_ids: list[str] = Field(default_factory=list)
+    sections: list[AssessmentSection] = Field(
+        default_factory=lambda: [AssessmentSection()]
+    )
+    item_configurations: list[
+        AssessmentItemConfiguration
+    ] = Field(default_factory=list)
     status: AssessmentStatus = AssessmentStatus.draft
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
@@ -64,6 +97,10 @@ class AssessmentDraftListResponse(BaseModel):
 
 
 class AssessmentQuestionSummary(BaseModel):
+    section_id: str | None = None
+    order_index: int = 1
+    source_marks: int = 0
+    marks_override: int | None = None
     bank_item_id: str
     question_number: str
     text: str

@@ -7529,3 +7529,71 @@ button:disabled {
 
 /* Phase 6-B: Blueprint Validation */
 .assessment-blueprint-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.7rem}.assessment-validation-panel{margin-top:1rem;padding:1rem;border:1px solid #e2c7c2;border-radius:1rem;background:#fff7f5}.assessment-validation-panel.is-ready{border-color:#b8dcc3;background:#f2fbf5}.assessment-validation-panel>div:first-child{display:flex;justify-content:space-between;gap:1rem}.assessment-validation-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem;margin-top:.8rem}.assessment-validation-grid span{padding:.55rem;border-radius:.65rem;background:rgba(255,255,255,.7);text-align:center}.assessment-validation-panel ul{margin:.8rem 0 0;color:#8b493f;line-height:1.7}.assessment-shortages{color:#8a641c!important}@media(max-width:760px){.assessment-validation-grid{grid-template-columns:1fr 1fr}.assessment-validation-panel>div:first-child{flex-direction:column}}
+
+
+/* Phase 6-C: Assessment Sections and Ordering */
+.assessment-section-manager {
+  margin-bottom: 1rem;
+  padding: 0.85rem;
+  border: 1px solid #e0e4ea;
+  border-radius: 0.9rem;
+  background: #f8fafc;
+}
+
+.assessment-section-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.8rem;
+}
+
+.assessment-section-list label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.assessment-section-list input,
+.assessment-item-controls input,
+.assessment-item-controls select {
+  min-height: 2.55rem;
+  padding: 0.55rem;
+  border: 1px solid #d9dfe7;
+  border-radius: 0.65rem;
+  background: #fff;
+}
+
+.assessment-selected-item {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.assessment-item-main {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.assessment-item-controls {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) 7rem auto auto;
+  gap: 0.55rem;
+  align-items: end;
+  margin-top: 0.7rem;
+}
+
+.assessment-item-controls label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.assessment-order-buttons {
+  display: flex;
+  gap: 0.35rem;
+}
+
+@media (max-width: 760px) {
+  .assessment-item-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .assessment-order-buttons {
+    align-self: end;
+  }
+}

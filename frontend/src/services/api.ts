@@ -2167,6 +2167,18 @@ interface ApiAssessmentDraft {
   source_project_id: string | null;
   blueprint: ApiAssessmentBlueprint;
   question_bank_item_ids: string[];
+  sections: Array<{
+    id: string;
+    title: string;
+    instructions: string | null;
+    order_index: number;
+  }>;
+  item_configurations: Array<{
+    bank_item_id: string;
+    section_id: string | null;
+    order_index: number;
+    marks_override: number | null;
+  }>;
   status: "draft" | "ready";
   created_at: string;
   updated_at: string;
@@ -2175,6 +2187,10 @@ interface ApiAssessmentDraft {
 interface ApiAssessmentDraftDetail {
   draft: ApiAssessmentDraft;
   questions: Array<{
+    section_id: string | null;
+    order_index: number;
+    source_marks: number;
+    marks_override: number | null;
     bank_item_id: string;
     question_number: string;
     text: string;
@@ -2249,6 +2265,18 @@ function fromApiAssessmentDraft(
       reasoningPercent: draft.blueprint.reasoning_percent,
     },
     questionBankItemIds: draft.question_bank_item_ids,
+    sections: draft.sections.map((section) => ({
+      id: section.id,
+      title: section.title,
+      instructions: section.instructions,
+      orderIndex: section.order_index,
+    })),
+    itemConfigurations: draft.item_configurations.map((item) => ({
+      bankItemId: item.bank_item_id,
+      sectionId: item.section_id,
+      orderIndex: item.order_index,
+      marksOverride: item.marks_override,
+    })),
     status: draft.status,
     createdAt: draft.created_at,
     updatedAt: draft.updated_at,
@@ -2262,6 +2290,10 @@ function fromApiAssessmentDetail(
     draft: fromApiAssessmentDraft(payload.draft),
     questions: payload.questions.map((question) => ({
       bankItemId: question.bank_item_id,
+      sectionId: question.section_id,
+      orderIndex: question.order_index,
+      sourceMarks: question.source_marks,
+      marksOverride: question.marks_override,
       questionNumber: question.question_number,
       text: question.text,
       marks: question.marks,
@@ -2429,4 +2461,46 @@ export async function validateAssessmentDraft(
   );
   if (!response.ok) throw new Error('Failed to validate assessment draft');
   return fromApiAssessmentValidation(await response.json());
+}
+
+
+export async function updateAssessmentLayout(
+  draftId: string,
+  sections: AssessmentDraft["sections"],
+  itemConfigurations: AssessmentDraft["itemConfigurations"],
+): Promise<AssessmentDraftDetail> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/assessment-builder/${draftId}/layout`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify({
+        sections: sections.map((section) => ({
+          id: section.id,
+          title: section.title,
+          instructions: section.instructions,
+          order_index: section.orderIndex,
+        })),
+        item_configurations: itemConfigurations.map(
+          (item) => ({
+            bank_item_id: item.bankItemId,
+            section_id: item.sectionId,
+            order_index: item.orderIndex,
+            marks_override: item.marksOverride,
+          }),
+        ),
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      'Failed to update assessment layout',
+    );
+  }
+  return fromApiAssessmentDetail(
+    (await response.json()) as ApiAssessmentDraftDetail,
+  );
 }

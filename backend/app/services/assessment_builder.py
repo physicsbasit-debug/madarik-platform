@@ -6,6 +6,7 @@ from app.models.assessment import (
     AssessmentBalanceSummary,
     AssessmentDraft,
     AssessmentDraftDetail,
+    AssessmentItemConfiguration,
     AssessmentQuestionSummary,
 )
 from app.models.project import CognitiveCategory
@@ -30,31 +31,69 @@ def build_assessment_detail(
 ) -> AssessmentDraftDetail:
     validate_blueprint(draft)
 
+    config_by_id = {
+        config.bank_item_id: config
+        for config in draft.item_configurations
+    }
+    ordered_ids = sorted(
+        draft.question_bank_item_ids,
+        key=lambda item_id: (
+            config_by_id.get(
+                item_id,
+                AssessmentItemConfiguration(
+                    bank_item_id=item_id,
+                    order_index=10_000,
+                ),
+            ).order_index
+        ),
+    )
+
     bank_items = []
-    for item_id in draft.question_bank_item_ids:
+    for item_id in ordered_ids:
         item = question_bank_repository.get(item_id)
         if item is not None:
             bank_items.append(item)
 
-    questions = [
-        AssessmentQuestionSummary(
-            bank_item_id=item.id,
-            question_number=(
-                item.question_snapshot.original_number or "—"
+    questions = []
+    for default_index, item in enumerate(
+        bank_items,
+        start=1,
+    ):
+        config = config_by_id.get(
+            item.id,
+            AssessmentItemConfiguration(
+                bank_item_id=item.id,
+                order_index=default_index,
             ),
-            text=(
-                item.question_snapshot.translated_text
-                or item.question_snapshot.original_text
-            ),
-            marks=item.question_snapshot.marks or 0,
-            cognitive_category=(
-                item.question_snapshot.cognitive_category
-            ),
-            grade=item.question_snapshot.curriculum_grade,
-            unit_id=item.question_snapshot.curriculum_unit_id,
         )
-        for item in bank_items
-    ]
+        source_marks = item.question_snapshot.marks or 0
+        effective_marks = (
+            config.marks_override
+            if config.marks_override is not None
+            else source_marks
+        )
+        questions.append(
+            AssessmentQuestionSummary(
+                bank_item_id=item.id,
+                question_number=(
+                    item.question_snapshot.original_number or "—"
+                ),
+                text=(
+                    item.question_snapshot.translated_text
+                    or item.question_snapshot.original_text
+                ),
+                marks=effective_marks,
+                source_marks=source_marks,
+                marks_override=config.marks_override,
+                section_id=config.section_id,
+                order_index=config.order_index,
+                cognitive_category=(
+                    item.question_snapshot.cognitive_category
+                ),
+                grade=item.question_snapshot.curriculum_grade,
+                unit_id=item.question_snapshot.curriculum_unit_id,
+            )
+        )
 
     selected_count = len(questions)
     selected_marks = sum(question.marks for question in questions)

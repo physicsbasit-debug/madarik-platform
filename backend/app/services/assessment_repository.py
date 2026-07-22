@@ -8,6 +8,8 @@ from app.core.config import settings
 from app.models.assessment import (
     AssessmentBlueprint,
     AssessmentDraft,
+    AssessmentLayoutUpdate,
+    AssessmentItemConfiguration,
 )
 from app.models.question_bank import QuestionBankItem
 
@@ -138,6 +140,7 @@ class AssessmentRepository:
         if bank_item.id in draft.question_bank_item_ids:
             return draft, False
         draft.question_bank_item_ids.append(bank_item.id)
+        self.normalize_item_configurations(draft)
         self.save(draft)
         return draft, True
 
@@ -153,8 +156,101 @@ class AssessmentRepository:
             for item_id in draft.question_bank_item_ids
             if item_id != bank_item_id
         ]
+        self.normalize_item_configurations(draft)
         self.save(draft)
         return draft, True
 
+
+
+    def update_layout(
+        self,
+        draft: AssessmentDraft,
+        layout: AssessmentLayoutUpdate,
+    ) -> AssessmentDraft:
+        valid_ids = set(draft.question_bank_item_ids)
+        section_ids = {
+            section.id for section in layout.sections
+        }
+
+        draft.sections = sorted(
+            layout.sections,
+            key=lambda section: section.order_index,
+        ) or draft.sections
+
+        normalized: list[
+            AssessmentItemConfiguration
+        ] = []
+        seen: set[str] = set()
+
+        for config in sorted(
+            layout.item_configurations,
+            key=lambda item: item.order_index,
+        ):
+            if (
+                config.bank_item_id not in valid_ids
+                or config.bank_item_id in seen
+            ):
+                continue
+            seen.add(config.bank_item_id)
+            normalized.append(
+                config.model_copy(
+                    update={
+                        "section_id": (
+                            config.section_id
+                            if config.section_id
+                            in section_ids
+                            else None
+                        )
+                    }
+                )
+            )
+
+        next_order = len(normalized) + 1
+        for bank_item_id in draft.question_bank_item_ids:
+            if bank_item_id in seen:
+                continue
+            normalized.append(
+                AssessmentItemConfiguration(
+                    bank_item_id=bank_item_id,
+                    order_index=next_order,
+                )
+            )
+            next_order += 1
+
+        draft.item_configurations = normalized
+        return self.save(draft)
+
+    def normalize_item_configurations(
+        self,
+        draft: AssessmentDraft,
+    ) -> AssessmentDraft:
+        valid_ids = set(draft.question_bank_item_ids)
+        existing = {
+            config.bank_item_id: config
+            for config in draft.item_configurations
+            if config.bank_item_id in valid_ids
+        }
+
+        normalized = []
+        for index, bank_item_id in enumerate(
+            draft.question_bank_item_ids,
+            start=1,
+        ):
+            config = existing.get(bank_item_id)
+            normalized.append(
+                (
+                    config.model_copy(
+                        update={"order_index": index}
+                    )
+                    if config
+                    else AssessmentItemConfiguration(
+                        bank_item_id=bank_item_id,
+                        order_index=index,
+                    )
+                )
+            )
+
+        draft.item_configurations = normalized
+        return draft
 
 assessment_repository = AssessmentRepository()

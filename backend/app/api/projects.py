@@ -9,6 +9,7 @@ from app.models.assessment import (
     AssessmentDraft,
     AssessmentDraftCreateRequest,
     AssessmentDraftDetail,
+    AssessmentLayoutUpdate,
     AssessmentDraftListResponse,
 )
 from app.services.assessment_builder import (
@@ -1471,6 +1472,31 @@ def validate_assessment_draft(
 ) -> AssessmentBlueprintValidation:
     draft = _get_assessment_or_404(draft_id, account)
     return validate_assessment_blueprint(
+        draft,
+        question_bank_repository,
+    )
+
+
+@router.put(
+    "/assessment-builder/{draft_id}/layout",
+    response_model=AssessmentDraftDetail,
+)
+def update_assessment_layout(
+    draft_id: str,
+    layout: AssessmentLayoutUpdate,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> AssessmentDraftDetail:
+    draft = _get_assessment_or_404(
+        draft_id,
+        account,
+    )
+    assessment_repository.update_layout(
+        draft,
+        layout,
+    )
+    return build_assessment_detail(
         draft,
         question_bank_repository,
     )

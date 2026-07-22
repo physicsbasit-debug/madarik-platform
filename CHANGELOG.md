@@ -271,3 +271,13 @@
 - Added shortage reporting and strict readiness validation.
 - Added builder controls and validation summary.
 - Updated README.
+
+### Phase 6-C: Assessment Ordering, Sections, and Manual Marks
+
+- Added persistent assessment sections.
+- Added per-question order, section assignment, and mark overrides.
+- Added a layout update API and backward-compatible normalization.
+- Updated assessment totals to use effective assessment marks.
+- Added ordering and section controls to the assessment builder.
+- Rewrote README to describe Madarik as an end-to-end Arabic science content and assessment platform.
+- No student-paper preview or DOCX/PDF export was added.

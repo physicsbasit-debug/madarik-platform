@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, ClipboardList, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, ClipboardList, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import {
   addAssessmentBankItem,
   createAssessmentDraft,
   removeAssessmentBankItem,
   searchQuestionBankLibrary,
   updateAssessmentBlueprint,
+  updateAssessmentLayout,
   autoSelectAssessmentQuestions,
   validateAssessmentDraft,
 } from "../../services/api";
@@ -175,6 +176,131 @@ async function runValidation() {
   } finally {
     setLoading(false);
   }
+}
+
+
+function currentConfigurations() {
+  if (!detail) return [];
+  const byId = new Map(
+    detail.draft.itemConfigurations.map(
+      (item) => [item.bankItemId, item],
+    ),
+  );
+  return detail.questions.map((question, index) => ({
+    bankItemId: question.bankItemId,
+    sectionId:
+      byId.get(question.bankItemId)?.sectionId ??
+      detail.draft.sections[0]?.id ??
+      null,
+    orderIndex: index + 1,
+    marksOverride:
+      byId.get(question.bankItemId)?.marksOverride ??
+      null,
+  }));
+}
+
+async function saveLayout(
+  nextSections = detail?.draft.sections ?? [],
+  nextConfigurations = currentConfigurations(),
+) {
+  if (!detail) return;
+  setLoading(true);
+  setError("");
+  try {
+    const next = await updateAssessmentLayout(
+      detail.draft.id,
+      nextSections,
+      nextConfigurations,
+    );
+    setDetail(next);
+    setMessage("تم حفظ ترتيب الاختبار وأقسامه ودرجاته.");
+    setValidation(null);
+  } catch {
+    setError("تعذر حفظ بناء الاختبار.");
+  } finally {
+    setLoading(false);
+  }
+}
+
+function moveQuestion(
+  bankItemId: string,
+  direction: -1 | 1,
+) {
+  if (!detail) return;
+  const configs = currentConfigurations();
+  const index = configs.findIndex(
+    (item) => item.bankItemId === bankItemId,
+  );
+  const target = index + direction;
+  if (
+    index < 0 ||
+    target < 0 ||
+    target >= configs.length
+  ) {
+    return;
+  }
+  [configs[index], configs[target]] = [
+    configs[target],
+    configs[index],
+  ];
+  const normalized = configs.map((item, itemIndex) => ({
+    ...item,
+    orderIndex: itemIndex + 1,
+  }));
+  void saveLayout(
+    detail.draft.sections,
+    normalized,
+  );
+}
+
+function updateQuestionLayout(
+  bankItemId: string,
+  updates: {
+    sectionId?: string | null;
+    marksOverride?: number | null;
+  },
+) {
+  if (!detail) return;
+  const configs = currentConfigurations().map((item) =>
+    item.bankItemId === bankItemId
+      ? { ...item, ...updates }
+      : item,
+  );
+  void saveLayout(detail.draft.sections, configs);
+}
+
+function addSection() {
+  if (!detail) return;
+  const nextSections = [
+    ...detail.draft.sections,
+    {
+      id: crypto.randomUUID(),
+      title: `القسم ${detail.draft.sections.length + 1}`,
+      instructions: null,
+      orderIndex: detail.draft.sections.length + 1,
+    },
+  ];
+  void saveLayout(nextSections);
+}
+
+function renameSection(
+  sectionId: string,
+  title: string,
+) {
+  if (!detail) return;
+  const nextSections = detail.draft.sections.map(
+    (section) =>
+      section.id === sectionId
+        ? { ...section, title }
+        : section,
+  );
+  setDetail({
+    ...detail,
+    draft: {
+      ...detail.draft,
+      sections: nextSections,
+    },
+  });
 }
 
 async function removeItem(itemId: string) {
@@ -348,17 +474,150 @@ async function removeItem(itemId: string) {
             </div>
 
             <div className="assessment-selected">
-              <div className="assessment-section-heading"><div><span>المسودة</span><h2>الأسئلة المختارة</h2></div><strong>{detail.questions.length}</strong></div>
-              {detail.questions.length ? detail.questions.map((question) =>
-                <article key={question.bankItemId}>
-                  <div><strong>السؤال {question.questionNumber}</strong><span>{question.text}</span>
-                    <small>{categoryLabels[question.cognitiveCategory]} · {question.marks} درجة</small>
+              <div className="assessment-section-manager">
+                <div className="assessment-section-heading">
+                  <div>
+                    <span>بنية الاختبار</span>
+                    <h2>الأقسام والترتيب والدرجات</h2>
                   </div>
-                  <button type="button" className="secondary-button compact"
-                    disabled={workingId === question.bankItemId}
-                    onClick={() => void removeItem(question.bankItemId)}>
-                    {workingId === question.bankItemId ? <Loader2 size={15} className="spin-icon" /> : <Trash2 size={15} />} إزالة
+                  <button
+                    type="button"
+                    className="secondary-button compact"
+                    disabled={loading}
+                    onClick={addSection}
+                  >
+                    <Plus size={15} />
+                    إضافة قسم
                   </button>
+                </div>
+                <div className="assessment-section-list">
+                  {detail.draft.sections.map((section) => (
+                    <label key={section.id}>
+                      <span>اسم القسم</span>
+                      <input
+                        value={section.title}
+                        onChange={(event) =>
+                          renameSection(
+                            section.id,
+                            event.target.value,
+                          )
+                        }
+                        onBlur={() =>
+                          void saveLayout(
+                            detail.draft.sections,
+                          )
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="assessment-section-heading"><div><span>المسودة</span><h2>الأسئلة المختارة</h2></div><strong>{detail.questions.length}</strong></div>
+              {detail.questions.length ? detail.questions.map((question, index) =>
+                <article key={question.bankItemId} className="assessment-selected-item">
+                  <div className="assessment-item-main">
+                    <strong>{index + 1}. السؤال {question.questionNumber}</strong>
+                    <span>{question.text}</span>
+                    <small>
+                      {categoryLabels[question.cognitiveCategory]}
+                      {" · "}
+                      {question.marks} درجة
+                      {question.marksOverride !== null
+                        ? ` (الأصل ${question.sourceMarks})`
+                        : ""}
+                    </small>
+                  </div>
+                  <div className="assessment-item-controls">
+                    <label>
+                      <span>القسم</span>
+                      <select
+                        value={question.sectionId ?? ""}
+                        onChange={(event) =>
+                          updateQuestionLayout(
+                            question.bankItemId,
+                            {
+                              sectionId:
+                                event.target.value || null,
+                            },
+                          )
+                        }
+                      >
+                        <option value="">دون قسم</option>
+                        {detail.draft.sections.map((section) => (
+                          <option key={section.id} value={section.id}>
+                            {section.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>الدرجة</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={200}
+                        value={
+                          question.marksOverride ??
+                          question.sourceMarks
+                        }
+                        onChange={(event) =>
+                          updateQuestionLayout(
+                            question.bankItemId,
+                            {
+                              marksOverride:
+                                Number(event.target.value),
+                            },
+                          )
+                        }
+                      />
+                    </label>
+                    <div className="assessment-order-buttons">
+                      <button
+                        type="button"
+                        className="secondary-button compact"
+                        disabled={index === 0 || loading}
+                        onClick={() =>
+                          moveQuestion(
+                            question.bankItemId,
+                            -1,
+                          )
+                        }
+                        aria-label="تحريك السؤال للأعلى"
+                      >
+                        <ArrowUp size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button compact"
+                        disabled={
+                          index === detail.questions.length - 1 ||
+                          loading
+                        }
+                        onClick={() =>
+                          moveQuestion(
+                            question.bankItemId,
+                            1,
+                          )
+                        }
+                        aria-label="تحريك السؤال للأسفل"
+                      >
+                        <ArrowDown size={15} />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="secondary-button compact"
+                      disabled={workingId === question.bankItemId}
+                      onClick={() =>
+                        void removeItem(question.bankItemId)
+                      }
+                    >
+                      {workingId === question.bankItemId
+                        ? <Loader2 size={15} className="spin-icon" />
+                        : <Trash2 size={15} />}
+                      إزالة
+                    </button>
+                  </div>
                 </article>) : <p className="assessment-empty">أضف أسئلة من البنك لبناء المسودة.</p>}
             </div>
           </section>
