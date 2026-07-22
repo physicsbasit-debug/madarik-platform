@@ -69,8 +69,9 @@ import {
   listProjects,
   updateAuthAccount,
 } from "../services/api";
-import type {
 import ScienceTaskHome from "../features/workflow/ScienceTaskHome";
+import QuickTranslationWorkspace from "../features/workflow/QuickTranslationWorkspace";
+import type {
   AnswerKeyItem,
   EducationalAnalysisReport,
   EducationalQualityToolsReport,
@@ -166,6 +167,13 @@ function applyProjectSession(
 export function App() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional">("home");
+  const [quickRunStatus, setQuickRunStatus] = useState<
+    "idle" | "parsing" | "translating" | "checking" | "completed" | "error"
+  >("idle");
+  const [quickRunMessage, setQuickRunMessage] = useState(
+    "ارفع ورقة اختبار علمية ثم شغّل الترجمة السريعة.",
+  );
+
   const [projectId, setProjectId] = useState<string | null>(null);
   const [isProjectHydrating, setProjectHydrating] = useState(true);
   const [apiStatus, setApiStatus] = useState<ApiConnectionStatus>("connecting");
@@ -654,6 +662,8 @@ export function App() {
 function openQuickTranslation() {
   setWorkspaceMode("quick");
   setActiveIndex(0);
+  setQuickRunStatus("idle");
+  setQuickRunMessage("ارفع ورقة اختبار علمية ثم شغّل الترجمة السريعة.");
 }
 
 function openProfessionalTranslation() {
@@ -664,6 +674,87 @@ function openProfessionalTranslation() {
 function returnToTaskHome() {
   setWorkspaceMode("home");
   setActiveIndex(0);
+}
+
+
+async function runQuickTranslationWorkflow() {
+  if (!projectId || apiStatus === "offline") {
+    setQuickRunStatus("error");
+    setQuickRunMessage(
+      "لا يمكن تشغيل الترجمة السريعة دون اتصال Backend.",
+    );
+    return;
+  }
+
+  if (!extractedText?.isTextBased) {
+    setQuickRunStatus("error");
+    setQuickRunMessage(
+      "ارفع ملفًا وانتظر اكتمال استخراج النص قبل بدء الترجمة السريعة.",
+    );
+    return;
+  }
+
+  setApiStatus("syncing");
+  setQuickRunStatus("parsing");
+  setQuickRunMessage("جارٍ تقسيم الورقة إلى أسئلة وأجزاء ودرجات...");
+
+  try {
+    const parsedProject = await parseExtractedQuestions(projectId);
+    applyProject(parsedProject);
+
+    const activeParsedQuestions = parsedProject.questions.filter(
+      (question) => question.status !== "deleted",
+    );
+
+    if (activeParsedQuestions.length === 0) {
+      throw new Error("No active questions were parsed.");
+    }
+
+    setQuickRunStatus("translating");
+    setQuickRunMessage(
+      `تم اكتشاف ${activeParsedQuestions.length} سؤالًا. جارٍ تشغيل الترجمة العلمية...`,
+    );
+
+    const translatedProject = await translateProjectQuestions(projectId);
+    applyProject(translatedProject);
+
+    setQuickRunStatus("checking");
+    setQuickRunMessage(
+      "اكتملت الترجمة. جارٍ فحص الأسئلة والدرجات وحالة الجاهزية...",
+    );
+
+    const readinessReport = await getProjectReadiness(projectId);
+    setProjectReadiness(readinessReport);
+    setApiStatus("connected");
+    setQuickRunStatus("completed");
+
+    if (readinessReport.ready) {
+      setQuickRunMessage(
+        `اكتملت الترجمة السريعة بنجاح: ${readinessReport.translatedQuestionCount} سؤالًا مترجمًا، والورقة جاهزة للتصدير.`,
+      );
+    } else {
+      setQuickRunMessage(
+        `اكتملت الترجمة، لكن توجد ${readinessReport.issues.length} ملاحظة تحتاج مراجعة قبل التصدير.`,
+      );
+    }
+  } catch (error) {
+    console.error(error);
+    setApiStatus("connected");
+    setQuickRunStatus("error");
+    setQuickRunMessage(
+      "تعذر إكمال الترجمة السريعة. لم تُحذف البيانات، ويمكن فتح المراجعة الاحترافية لمعرفة موضع التعثر.",
+    );
+  }
+}
+
+function openQuickProfessionalReview() {
+  setWorkspaceMode("professional");
+  setActiveIndex(1);
+}
+
+function openQuickExport() {
+  setWorkspaceMode("professional");
+  setActiveIndex(2);
 }
 
   function goNext() {
@@ -1845,6 +1936,32 @@ if (workspaceMode === "home") {
     <ScienceTaskHome
       onQuickTranslation={openQuickTranslation}
       onProfessionalTranslation={openProfessionalTranslation}
+    />
+  );
+}
+
+if (workspaceMode === "quick") {
+  return (
+    <QuickTranslationWorkspace
+      metadata={metadata}
+      uploadedFile={uploadedFile}
+      extractedText={extractedText}
+      initialExtractionStatus={initialExtractionStatus}
+      questions={questions}
+      projectReadiness={projectReadiness}
+      translationBatchSummary={translationBatchSummary}
+      isBusy={apiStatus === "syncing" || apiStatus === "connecting"}
+      apiStatus={apiStatus}
+      lastSyncNote={lastSyncNote}
+      quickRunStatus={quickRunStatus}
+      quickRunMessage={quickRunMessage}
+      onMetadataChange={handleMetadataChange}
+      onFileSelected={handleFileSelected}
+      onRetryInitialExtraction={retryInitialExtraction}
+      onRunQuickTranslation={() => void runQuickTranslationWorkflow()}
+      onOpenProfessionalReview={openQuickProfessionalReview}
+      onOpenExport={openQuickExport}
+      onReturnHome={returnToTaskHome}
     />
   );
 }

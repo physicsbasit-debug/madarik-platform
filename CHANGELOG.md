@@ -147,3 +147,13 @@
 - Added a return-to-tasks control from the current workspace.
 - Added responsive RTL styling and focused tests.
 - No Backend, API, persistence, extraction, translation, or export logic was changed.
+
+### Phase 1: Quick Translation Workflow
+
+- Added a dedicated quick translation workspace.
+- Added one-action orchestration for parsing, translation, and readiness checks.
+- Added direct transitions to professional review and export.
+- Added clear extraction, processing, and readiness states.
+- Repaired the Phase 0-B ScienceTaskHome import placement in App.tsx.
+- Added responsive RTL styling, documentation, and focused tests.
+- No Backend API contract, persistence model, or export implementation was changed.
