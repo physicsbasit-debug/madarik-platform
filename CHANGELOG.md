@@ -130,13 +130,11 @@
 - Excluded Render, Docker, CORS, and experimental Pages deployment changes.
 - Added focused safety checks for the merge package.
 
-### Final UX Stable Merge Test Alignment
+### Phase 0-A: V2 Scope, Architecture, and Data Contracts
 
-- Updated legacy UX assertions to match the approved export workspace redesign.
-- Updated the upload-zone assertion to accept its dynamic drag-state class.
-- Preserved all production UI and business logic without modification.
-
-### Final UX Stable Merge Fix 2
-
-- Aligned the remaining export-workspace assertions with the approved redesign class and title.
-- No production application code was changed.
+- Locked Madarik V2 to science subjects for grades 1–12.
+- Declared quick translation, curriculum library, question bank, assessment builder, differentiated activities, and science diagrams as core workflows.
+- Declared Google Drive as the first cloud source and deferred OneDrive.
+- Added V2 architecture, roadmap, data contracts, decisions, and UI simplification plan.
+- Added a machine-readable V2 scope contract and focused tests.
+- No production UI, Backend logic, persistence, or API behavior was changed.

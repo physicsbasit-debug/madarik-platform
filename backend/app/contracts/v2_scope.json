@@ -1,0 +1,57 @@
+{
+  "product": "Madarik Science Platform V2",
+  "grades": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "science_domains": [
+    "general_science",
+    "physics",
+    "chemistry",
+    "biology",
+    "environmental_science"
+  ],
+  "cognitive_categories": [
+    "knowledge",
+    "application",
+    "reasoning",
+    "unclassified"
+  ],
+  "cloud_providers": {
+    "phase_1": [
+      "google_drive"
+    ],
+    "deferred": [
+      "onedrive"
+    ]
+  },
+  "core_workflows": [
+    "quick_translation",
+    "professional_translation",
+    "curriculum_library",
+    "question_bank",
+    "assessment_builder",
+    "differentiated_activities",
+    "science_diagrams"
+  ],
+  "out_of_scope": [
+    "non_science_subjects",
+    "student_lms",
+    "attendance",
+    "student_gradebook",
+    "virtual_classrooms",
+    "marketplace",
+    "mobile_app",
+    "automatic_student_answer_grading"
+  ]
+}
