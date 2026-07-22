@@ -316,23 +316,22 @@ Completed V2 phases:
 - Phase 3-B: Curriculum source persistence.
 - Phase 3-C: Source refresh detection.
 - Phase 3-D: Source version history and manual update acceptance.
-- Phase 4-A: Science Question Classification Foundation.
+- Phase 4-A: Science question classification foundation.
+- Phase 4-B: Curriculum Linking and Classification Review.
 
-Cognitive categories:
+Each reviewed question can now store:
 
-```text
-knowledge
-application
-reasoning
-unclassified
-```
+- cognitive category and confidence;
+- grade, science domain, semester, and subject;
+- unit and lesson;
+- one or more learning outcomes.
 
-Classification is editable by the teacher. Automatic classification
-currently uses deterministic linguistic rules and does not replace
-professional judgment.
+Curriculum links remain teacher-reviewed. The current catalog contains
+structural sample content and is not presented as a complete official
+curriculum dataset.
 
 Next planned phase:
 
 ```text
-Phase 4-B: Curriculum Linking and Classification Review
+Phase 5-A: Question Bank Data Model and Persistence
 ```

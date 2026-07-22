@@ -116,6 +116,14 @@ export interface QuestionPart {
 }
 
 export interface QuestionItem {
+  curriculumGrade?: number | null;
+  curriculumScienceDomain?: ScienceDomain | null;
+  curriculumSemesterId?: string | null;
+  curriculumSubjectId?: string | null;
+  curriculumUnitId?: string | null;
+  curriculumLessonId?: string | null;
+  curriculumLearningOutcomeIds?: string[];
+  curriculumLinkSource?: string;
   cognitiveCategory?: CognitiveCategory;
   classificationConfidence?: number;
   classificationReason?: string | null;

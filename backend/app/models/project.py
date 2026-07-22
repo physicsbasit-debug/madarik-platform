@@ -228,6 +228,14 @@ class QuestionItem(BaseModel):
     classification_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     classification_reason: str | None = None
     classification_source: str = "manual"
+    curriculum_grade: int | None = Field(default=None, ge=1, le=12)
+    curriculum_science_domain: str | None = None
+    curriculum_semester_id: str | None = None
+    curriculum_subject_id: str | None = None
+    curriculum_unit_id: str | None = None
+    curriculum_lesson_id: str | None = None
+    curriculum_learning_outcome_ids: list[str] = Field(default_factory=list)
+    curriculum_link_source: str = "manual"
     id: str
     original_number: str
     original_text: str
@@ -561,6 +569,14 @@ class StepUpdate(BaseModel):
 
 
 class QuestionPatch(BaseModel):
+    curriculum_grade: int | None = Field(default=None, ge=1, le=12)
+    curriculum_science_domain: str | None = None
+    curriculum_semester_id: str | None = None
+    curriculum_subject_id: str | None = None
+    curriculum_unit_id: str | None = None
+    curriculum_lesson_id: str | None = None
+    curriculum_learning_outcome_ids: list[str] | None = None
+    curriculum_link_source: str | None = None
     cognitive_category: CognitiveCategory | None = None
     classification_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     classification_reason: str | None = None

@@ -212,3 +212,13 @@
 - Reused the current question update API.
 - Updated README with the current V2 status.
 - No bulk classification, curriculum linking, difficulty estimation, or question bank was added.
+
+### Phase 4-B: Curriculum Linking and Classification Review
+
+- Added curriculum-link fields to questions and question patches.
+- Added grade, domain, semester, subject, unit, lesson, and learning-outcome selection.
+- Added a curriculum-link card to the existing question review screen.
+- Added review summary counts for complete, unclassified, and unlinked questions.
+- Repaired the malformed Phase 4-A import in ReviewStep.
+- Updated README with the current V2 status.
+- No AI linking, bulk linking, official curriculum import, or question-bank insertion was added.

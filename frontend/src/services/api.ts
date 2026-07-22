@@ -222,6 +222,14 @@ interface ApiQuestionPart {
 }
 
 interface ApiQuestionItem {
+  curriculum_grade?: number | null;
+  curriculum_science_domain?: 'general_science' | 'physics' | 'chemistry' | 'biology' | 'environmental_science' | null;
+  curriculum_semester_id?: string | null;
+  curriculum_subject_id?: string | null;
+  curriculum_unit_id?: string | null;
+  curriculum_lesson_id?: string | null;
+  curriculum_learning_outcome_ids?: string[];
+  curriculum_link_source?: string;
   cognitive_category?: CognitiveCategory;
   classification_confidence?: number;
   classification_reason?: string | null;
@@ -735,6 +743,14 @@ function toApiQuestionPart(part: QuestionPart): ApiQuestionPart {
 function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
   return {
     id: question.id,
+    curriculumGrade: question.curriculum_grade ?? null,
+    curriculumScienceDomain: question.curriculum_science_domain ?? null,
+    curriculumSemesterId: question.curriculum_semester_id ?? null,
+    curriculumSubjectId: question.curriculum_subject_id ?? null,
+    curriculumUnitId: question.curriculum_unit_id ?? null,
+    curriculumLessonId: question.curriculum_lesson_id ?? null,
+    curriculumLearningOutcomeIds: question.curriculum_learning_outcome_ids ?? [],
+    curriculumLinkSource: question.curriculum_link_source ?? 'manual',
     cognitiveCategory: question.cognitive_category ?? 'unclassified',
     classificationConfidence: question.classification_confidence ?? 0,
     classificationReason: question.classification_reason ?? null,
@@ -1361,6 +1377,14 @@ export async function updateQuestion(
       status: updates.status,
       parts: updates.parts?.map(toApiQuestionPart),
       review_notes: updates.reviewNotes,
+      curriculum_grade: updates.curriculumGrade,
+      curriculum_science_domain: updates.curriculumScienceDomain,
+      curriculum_semester_id: updates.curriculumSemesterId,
+      curriculum_subject_id: updates.curriculumSubjectId,
+      curriculum_unit_id: updates.curriculumUnitId,
+      curriculum_lesson_id: updates.curriculumLessonId,
+      curriculum_learning_outcome_ids: updates.curriculumLearningOutcomeIds,
+      curriculum_link_source: updates.curriculumLinkSource,
       cognitive_category: updates.cognitiveCategory,
       classification_confidence: updates.classificationConfidence,
       classification_reason: updates.classificationReason,

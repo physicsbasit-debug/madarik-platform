@@ -20,8 +20,10 @@ import {
   X,
 } from "lucide-react";
 import type { ChangeEvent, CSSProperties } from "react";
-import type {
 import { QuestionClassificationCard } from "./QuestionClassificationCard";
+import { QuestionCurriculumLinkCard } from "./QuestionCurriculumLinkCard";
+import { ClassificationReviewSummary } from "./ClassificationReviewSummary";
+import type {
   PdfLayoutAssetInfo,
   QuestionItem,
   QuestionPart,
@@ -412,6 +414,7 @@ export function ReviewStep({
     return (
       activeQuestions.find(
         (question) => !(question.linkedLayoutAssetIds ?? []).includes(asset.id),
+      <ClassificationReviewSummary questions={questions} />
       )?.id ??
       activeQuestions[0]?.id ??
       ""
@@ -1490,6 +1493,14 @@ export function ReviewStep({
     
 {selectedQuestion ? (
   <QuestionClassificationCard
+    question={selectedQuestion}
+    disabled={isBusy}
+    onUpdateQuestion={onUpdateQuestion}
+  />
+) : null}
+
+{selectedQuestion ? (
+  <QuestionCurriculumLinkCard
     question={selectedQuestion}
     disabled={isBusy}
     onUpdateQuestion={onUpdateQuestion}
