@@ -315,18 +315,24 @@ Completed V2 phases:
 - Phase 3-A: Google Drive source foundation.
 - Phase 3-B: Curriculum source persistence.
 - Phase 3-C: Source refresh detection.
-- Phase 3-D: Source Version History and manual update acceptance.
+- Phase 3-D: Source version history and manual update acceptance.
+- Phase 4-A: Science Question Classification Foundation.
 
-Current Google Drive behavior:
+Cognitive categories:
 
-- Read-only integration.
-- Manual refresh checks.
-- Manual acceptance of changed versions.
-- Previous source metadata preserved in version history.
-- No automatic replacement or content reprocessing.
+```text
+knowledge
+application
+reasoning
+unclassified
+```
+
+Classification is editable by the teacher. Automatic classification
+currently uses deterministic linguistic rules and does not replace
+professional judgment.
 
 Next planned phase:
 
 ```text
-Phase 4-A: Science Question Classification Foundation
+Phase 4-B: Curriculum Linking and Classification Review
 ```

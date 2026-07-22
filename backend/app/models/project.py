@@ -21,6 +21,13 @@ class MarksPolicy(str, Enum):
     scale_to_declared = "scale_to_declared"
 
 
+class CognitiveCategory(str, Enum):
+    knowledge = "knowledge"
+    application = "application"
+    reasoning = "reasoning"
+    unclassified = "unclassified"
+
+
 class QuestionStatus(str, Enum):
     approved = "approved"
     needs_review = "needs_review"
@@ -217,6 +224,10 @@ class QuestionPart(BaseModel):
 
 
 class QuestionItem(BaseModel):
+    cognitive_category: CognitiveCategory = CognitiveCategory.unclassified
+    classification_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    classification_reason: str | None = None
+    classification_source: str = "manual"
     id: str
     original_number: str
     original_text: str
@@ -550,6 +561,10 @@ class StepUpdate(BaseModel):
 
 
 class QuestionPatch(BaseModel):
+    cognitive_category: CognitiveCategory | None = None
+    classification_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    classification_reason: str | None = None
+    classification_source: str | None = None
     translated_text: str | None = None
     marks: int | None = None
     status: QuestionStatus | None = None

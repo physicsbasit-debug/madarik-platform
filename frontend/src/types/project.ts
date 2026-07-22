@@ -116,6 +116,10 @@ export interface QuestionPart {
 }
 
 export interface QuestionItem {
+  cognitiveCategory?: CognitiveCategory;
+  classificationConfidence?: number;
+  classificationReason?: string | null;
+  classificationSource?: string;
   id: string;
   originalNumber: string;
   originalText: string;
@@ -715,3 +719,10 @@ export type RefreshCurriculumSourcesResult = {
   missingCount: number;
   unverifiableCount: number;
 };
+
+
+export type CognitiveCategory =
+  | "knowledge"
+  | "application"
+  | "reasoning"
+  | "unclassified";

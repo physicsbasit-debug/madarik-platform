@@ -202,3 +202,13 @@
 - Added version history display in the curriculum source panel.
 - Updated README with the current V2 status and next phase.
 - No automatic replacement, content reprocessing, or version restoration was added.
+
+### Phase 4-A: Science Question Classification Foundation
+
+- Added knowledge, application, reasoning, and unclassified categories.
+- Added classification confidence, reason, and source fields.
+- Added deterministic automatic classification and manual override.
+- Added classification controls to the existing question review screen.
+- Reused the current question update API.
+- Updated README with the current V2 status.
+- No bulk classification, curriculum linking, difficulty estimation, or question bank was added.

@@ -11,6 +11,7 @@ import type {
   PdfLayoutAssetInfo,
   SchoolLogoInfo,
   QuestionItem,
+  CognitiveCategory,
   QuestionAssetInfo,
   QuestionPart,
   QuestionStatus,
@@ -221,6 +222,10 @@ interface ApiQuestionPart {
 }
 
 interface ApiQuestionItem {
+  cognitive_category?: CognitiveCategory;
+  classification_confidence?: number;
+  classification_reason?: string | null;
+  classification_source?: string;
   id: string;
   original_number: string;
   original_text: string;
@@ -730,6 +735,10 @@ function toApiQuestionPart(part: QuestionPart): ApiQuestionPart {
 function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
   return {
     id: question.id,
+    cognitiveCategory: question.cognitive_category ?? 'unclassified',
+    classificationConfidence: question.classification_confidence ?? 0,
+    classificationReason: question.classification_reason ?? null,
+    classificationSource: question.classification_source ?? 'manual',
     originalNumber: question.original_number,
     originalText: question.original_text,
     rawText: question.raw_text,
@@ -1352,6 +1361,10 @@ export async function updateQuestion(
       status: updates.status,
       parts: updates.parts?.map(toApiQuestionPart),
       review_notes: updates.reviewNotes,
+      cognitive_category: updates.cognitiveCategory,
+      classification_confidence: updates.classificationConfidence,
+      classification_reason: updates.classificationReason,
+      classification_source: updates.classificationSource,
     }),
   });
   return fromApiProject(project);

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { ChangeEvent, CSSProperties } from "react";
 import type {
+import { QuestionClassificationCard } from "./QuestionClassificationCard";
   PdfLayoutAssetInfo,
   QuestionItem,
   QuestionPart,
@@ -1486,7 +1487,16 @@ export function ReviewStep({
             <span>{selectedLinkedLayoutAssets.length}</span>
           </div>
 
-          {selectedQuestion && selectedLinkedLayoutAssets.length > 0 ? (
+    
+{selectedQuestion ? (
+  <QuestionClassificationCard
+    question={selectedQuestion}
+    disabled={isBusy}
+    onUpdateQuestion={onUpdateQuestion}
+  />
+) : null}
+
+      {selectedQuestion && selectedLinkedLayoutAssets.length > 0 ? (
             <div className="rtl-review-visual-list">
               {selectedLinkedLayoutAssets.map((asset) => (
                 <article key={asset.id} className="rtl-review-visual-card">

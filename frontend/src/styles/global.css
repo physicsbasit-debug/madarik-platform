@@ -6815,3 +6815,111 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+
+/* Phase 4-A: Science Question Classification */
+.question-classification-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #dbe4ec;
+  border-radius: 1rem;
+  background: #fbfcfe;
+}
+
+.question-classification-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.question-classification-heading > svg {
+  color: #315f8f;
+}
+
+.question-classification-heading span {
+  color: #728397;
+  font-size: 0.82rem;
+}
+
+.question-classification-heading h3 {
+  margin: 0.2rem 0 0;
+}
+
+.classification-badge {
+  display: inline-flex;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: #edf0f3;
+  color: #677583;
+  font-weight: 800;
+}
+
+.classification-badge.is-knowledge {
+  background: #e7f0fa;
+  color: #2d5f91;
+}
+
+.classification-badge.is-application {
+  background: #eaf6ee;
+  color: #2e744b;
+}
+
+.classification-badge.is-reasoning {
+  background: #f3ebfa;
+  color: #6d468f;
+}
+
+.question-classification-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.question-classification-controls label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.question-classification-controls select {
+  min-height: 2.8rem;
+  padding: 0.6rem;
+  border: 1px solid #d6e0e9;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.classification-confidence {
+  margin-top: 1rem;
+}
+
+.classification-confidence > div {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.classification-confidence progress {
+  width: 100%;
+  height: 0.65rem;
+}
+
+.question-classification-card p {
+  margin: 0.8rem 0 0;
+  color: #596d80;
+  line-height: 1.7;
+}
+
+.question-classification-card > small {
+  display: block;
+  margin-top: 0.5rem;
+  color: #7a8895;
+}
+
+@media (max-width: 640px) {
+  .question-classification-heading,
+  .question-classification-controls {
+    grid-template-columns: 1fr;
+  }
+}
