@@ -129,3 +129,9 @@
 - Preserved `main` as the clean deployment baseline.
 - Excluded Render, Docker, CORS, and experimental Pages deployment changes.
 - Added focused safety checks for the merge package.
+
+### Final UX Stable Merge Test Alignment
+
+- Updated legacy UX assertions to match the approved export workspace redesign.
+- Updated the upload-zone assertion to accept its dynamic drag-state class.
+- Preserved all production UI and business logic without modification.

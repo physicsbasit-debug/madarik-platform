@@ -9,7 +9,8 @@ def test_export_stage_uses_single_title() -> None:
 
     assert "label: 'التصدير والجاهزية'" in steps
     assert "<h2>التصدير والجاهزية</h2>" not in export_step
-    assert 'className="export-control-bar"' in export_step
+    assert "export-control-bar export-control-bar-redesign" in export_step
+    assert "export-control-actions" in export_step
 
 
 def test_export_choices_use_two_row_layout() -> None:
@@ -18,9 +19,10 @@ def test_export_choices_use_two_row_layout() -> None:
 
     assert "export-mode-card" in content
     assert "export-formats-card" in content
-    assert "export-choice-wide" in content
+    assert "export-choice-card-body" in content
+    assert "export-identity-row" in content
     assert ".export-choice-grid" in styles
-    assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in styles
+    assert "grid-template-columns: repeat(2, minmax(22rem, 1fr));" in styles
 
 
 def test_marks_mismatch_is_horizontal_decision_bar() -> None:

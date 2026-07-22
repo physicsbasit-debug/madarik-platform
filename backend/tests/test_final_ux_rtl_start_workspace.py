@@ -76,7 +76,8 @@ def test_upload_card_preserves_file_callback_and_status_data() -> None:
     assert "extractedText.pageCount" in upload
     assert "extractedText.characterCount" in upload
     assert "layoutAssets.length" in upload
-    assert 'className="start-upload-zone"' in upload
+    assert "start-upload-zone" in upload
+    assert "is-drag-active" in upload
 
 
 def test_rtl_start_layout_has_expected_visual_order() -> None:
