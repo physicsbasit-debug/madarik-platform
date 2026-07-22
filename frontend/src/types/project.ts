@@ -837,3 +837,28 @@ export interface AssessmentDraftDetail {
   questions: AssessmentQuestionSummary[];
   balance: AssessmentBalanceSummary;
 }
+
+
+export interface AssessmentBlueprintValidation {
+  ready: boolean;
+  totalSelectedQuestions: number;
+  targetQuestions: number;
+  totalSelectedMarks: number;
+  targetMarks: number;
+  knowledgeSelected: number;
+  knowledgeTarget: number;
+  applicationSelected: number;
+  applicationTarget: number;
+  reasoningSelected: number;
+  reasoningTarget: number;
+  unclassifiedSelected: number;
+  issues: string[];
+}
+
+export interface AssessmentAutoSelectionResult {
+  detail: AssessmentDraftDetail;
+  validation: AssessmentBlueprintValidation;
+  selectedItemIds: string[];
+  skippedItemIds: string[];
+  shortages: string[];
+}

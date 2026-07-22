@@ -264,3 +264,10 @@
 - Activated the assessment-builder card and workspace.
 - Updated README.
 - No automatic selection, ordering, export, answer key, or assessment versioning was added.
+
+### Phase 6-B: Automatic Question Selection and Blueprint Validation
+
+- Added automatic question selection by blueprint.
+- Added shortage reporting and strict readiness validation.
+- Added builder controls and validation summary.
+- Updated README.

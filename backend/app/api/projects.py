@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile,
 from fastapi.responses import Response
 
 from app.models.assessment import (
+    AssessmentAutoSelectionResponse,
+    AssessmentBlueprintValidation,
     AssessmentBlueprint,
     AssessmentDraft,
     AssessmentDraftCreateRequest,
@@ -10,6 +12,8 @@ from app.models.assessment import (
     AssessmentDraftListResponse,
 )
 from app.services.assessment_builder import (
+    auto_select_questions_for_assessment,
+    validate_assessment_blueprint,
     AssessmentBlueprintError,
     build_assessment_detail,
     validate_blueprint,
@@ -1427,6 +1431,46 @@ def remove_assessment_bank_item(
         bank_item_id,
     )
     return build_assessment_detail(
+        draft,
+        question_bank_repository,
+    )
+
+
+
+@router.post(
+    "/assessment-builder/{draft_id}/auto-select",
+    response_model=AssessmentAutoSelectionResponse,
+)
+def auto_select_assessment_questions(
+    draft_id: str,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> AssessmentAutoSelectionResponse:
+    draft = _get_assessment_or_404(draft_id, account)
+    items = question_bank_repository.search(
+        grade=draft.blueprint.grade,
+        science_domain=draft.blueprint.science_domain,
+        unit_id=draft.blueprint.unit_id,
+        owner_account_id=account.id if account else None,
+    )
+    result = auto_select_questions_for_assessment(
+        draft,
+        items,
+        question_bank_repository,
+    )
+    assessment_repository.save(draft)
+    return result
+
+
+@router.get(
+    "/assessment-builder/{draft_id}/validate",
+    response_model=AssessmentBlueprintValidation,
+)
+def validate_assessment_draft(
+    draft_id: str,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> AssessmentBlueprintValidation:
+    draft = _get_assessment_or_404(draft_id, account)
+    return validate_assessment_blueprint(
         draft,
         question_bank_repository,
     )

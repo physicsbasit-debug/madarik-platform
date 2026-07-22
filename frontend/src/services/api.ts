@@ -19,6 +19,8 @@ import type {
   AssessmentBlueprint,
   AssessmentDraft,
   AssessmentDraftDetail,
+  AssessmentAutoSelectionResult,
+  AssessmentBlueprintValidation,
   CognitiveCategory,
   QuestionAssetInfo,
   QuestionPart,
@@ -2379,4 +2381,52 @@ export async function removeAssessmentBankItem(
   return fromApiAssessmentDetail(
     (await response.json()) as ApiAssessmentDraftDetail,
   );
+}
+
+
+function fromApiAssessmentValidation(payload: any): AssessmentBlueprintValidation {
+  return {
+    ready: payload.ready,
+    totalSelectedQuestions: payload.total_selected_questions,
+    targetQuestions: payload.target_questions,
+    totalSelectedMarks: payload.total_selected_marks,
+    targetMarks: payload.target_marks,
+    knowledgeSelected: payload.knowledge_selected,
+    knowledgeTarget: payload.knowledge_target,
+    applicationSelected: payload.application_selected,
+    applicationTarget: payload.application_target,
+    reasoningSelected: payload.reasoning_selected,
+    reasoningTarget: payload.reasoning_target,
+    unclassifiedSelected: payload.unclassified_selected,
+    issues: payload.issues,
+  };
+}
+
+export async function autoSelectAssessmentQuestions(
+  draftId: string,
+): Promise<AssessmentAutoSelectionResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/assessment-builder/${draftId}/auto-select`,
+    { method: 'POST', headers: buildAuthHeaders() },
+  );
+  if (!response.ok) throw new Error('Failed to auto-select assessment questions');
+  const payload = await response.json();
+  return {
+    detail: fromApiAssessmentDetail(payload.detail),
+    validation: fromApiAssessmentValidation(payload.validation),
+    selectedItemIds: payload.selected_item_ids,
+    skippedItemIds: payload.skipped_item_ids,
+    shortages: payload.shortages,
+  };
+}
+
+export async function validateAssessmentDraft(
+  draftId: string,
+): Promise<AssessmentBlueprintValidation> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/assessment-builder/${draftId}/validate`,
+    { headers: buildAuthHeaders() },
+  );
+  if (!response.ok) throw new Error('Failed to validate assessment draft');
+  return fromApiAssessmentValidation(await response.json());
 }

@@ -6,11 +6,14 @@ import {
   removeAssessmentBankItem,
   searchQuestionBankLibrary,
   updateAssessmentBlueprint,
+  autoSelectAssessmentQuestions,
+  validateAssessmentDraft,
 } from "../../services/api";
 import { localCurriculumRepository } from "../curriculum/local-curriculum.repository";
 import type {
   AssessmentBlueprint,
   AssessmentDraftDetail,
+  AssessmentBlueprintValidation,
   CognitiveCategory,
   QuestionBankItem,
 } from "../../types/project";
@@ -76,6 +79,8 @@ export default function AssessmentBuilder({
   const [workingId, setWorkingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [validation, setValidation] = useState<AssessmentBlueprintValidation | null>(null);
+  const [shortages, setShortages] = useState<string[]>([]);
 
   const subjects = useMemo(
     () => localCurriculumRepository.listSubjects(blueprint.grade),
@@ -140,7 +145,39 @@ export default function AssessmentBuilder({
     }
   }
 
-  async function removeItem(itemId: string) {
+
+async function runAutomaticSelection() {
+  if (!detail) return;
+  setLoading(true);
+  setError("");
+  setShortages([]);
+  try {
+    const result = await autoSelectAssessmentQuestions(detail.draft.id);
+    setDetail(result.detail);
+    setValidation(result.validation);
+    setShortages(result.shortages);
+    setMessage("تم تنفيذ الاختيار الآلي، ويمكنك تعديل النتيجة يدويًا.");
+  } catch {
+    setError("تعذر تنفيذ الاختيار الآلي.");
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function runValidation() {
+  if (!detail) return;
+  setLoading(true);
+  setError("");
+  try {
+    setValidation(await validateAssessmentDraft(detail.draft.id));
+  } catch {
+    setError("تعذر التحقق من جاهزية المسودة.");
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function removeItem(itemId: string) {
     if (!detail) return;
     setWorkingId(itemId);
     try {
@@ -254,6 +291,12 @@ export default function AssessmentBuilder({
           {loading ? <Loader2 size={17} className="spin-icon" /> : <Save size={17} />}
           {detail ? "حفظ جدول المواصفات" : "إنشاء مسودة الاختبار"}
         </button>
+        {detail ? (
+          <div className="assessment-blueprint-actions">
+            <button type="button" className="secondary-button" disabled={loading} onClick={() => void runAutomaticSelection()}>اختيار آلي</button>
+            <button type="button" className="secondary-button" disabled={loading} onClick={() => void runValidation()}>تحقق من الجاهزية</button>
+          </div>
+        ) : null}
       </section>
 
       {message ? <div className="assessment-message">{message}</div> : null}
@@ -268,6 +311,20 @@ export default function AssessmentBuilder({
             <article><span>تطبيق</span><strong>{detail.balance.applicationPercent}%</strong><small>المستهدف {detail.draft.blueprint.applicationPercent}%</small></article>
             <article><span>استدلال</span><strong>{detail.balance.reasoningPercent}%</strong><small>المستهدف {detail.draft.blueprint.reasoningPercent}%</small></article>
           </section>
+
+          {validation ? (
+            <section className={validation.ready ? "assessment-validation-panel is-ready" : "assessment-validation-panel"}>
+              <div><strong>{validation.ready ? "المسودة متوافقة مع جدول المواصفات" : "المسودة تحتاج معالجة"}</strong><span>{validation.totalSelectedQuestions}/{validation.targetQuestions} أسئلة · {validation.totalSelectedMarks}/{validation.targetMarks} درجات</span></div>
+              <div className="assessment-validation-grid">
+                <span>معرفة: {validation.knowledgeSelected}/{validation.knowledgeTarget}</span>
+                <span>تطبيق: {validation.applicationSelected}/{validation.applicationTarget}</span>
+                <span>استدلال: {validation.reasoningSelected}/{validation.reasoningTarget}</span>
+                <span>غير مصنف: {validation.unclassifiedSelected}</span>
+              </div>
+              {validation.issues.length ? <ul>{validation.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul> : null}
+              {shortages.length ? <ul className="assessment-shortages">{shortages.map((item) => <li key={item}>{item}</li>)}</ul> : null}
+            </section>
+          ) : null}
 
           <section className="assessment-builder-layout">
             <div className="assessment-candidates">

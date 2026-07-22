@@ -308,34 +308,14 @@ feat/madarik-science-platform-v2
 
 Completed V2 phases:
 
-- Phase 0-A: Scope, architecture, and data contracts.
-- Phase 0-B: Task-oriented home.
-- Phase 1: Quick translation workflow.
-- Phase 2: Curriculum structure for grades 1–12.
-- Phase 3-A: Google Drive source foundation.
-- Phase 3-B: Curriculum source persistence.
-- Phase 3-C: Source refresh detection.
-- Phase 3-D: Source version history and manual update acceptance.
-- Phase 4-A: Science question classification foundation.
-- Phase 4-B: Curriculum linking and classification review.
-- Phase 5-A: Question bank data model and persistence.
-- Phase 5-B: Question bank library, search, and filters.
-- Phase 5-C: Reuse question bank items in projects.
-- Phase 6-A: Assessment Blueprint and Test Builder Foundation.
+- Phase 0-A through Phase 6-A.
+- Phase 6-B: Automatic Question Selection and Blueprint Validation.
 
-The assessment builder now supports:
-
-- persistent SQLite assessment drafts;
-- grade, subject, semester, unit, duration, marks, and question targets;
-- knowledge, application, and reasoning percentage targets;
-- adding and removing question-bank items;
-- live comparison of selected marks, question count, and cognitive balance.
-
-Automatic question selection, ordering rules, test export, and answer-key generation remain deferred.
+Automatic selection uses grade, science domain, unit, and cognitive category. It reports shortages instead of silently substituting unclassified questions. Validation checks question count, total marks, cognitive distribution, and unclassified items.
 
 Next planned phase:
 
 ```text
-Phase 6-B: Automatic Question Selection and Blueprint Validation
+Phase 6-C: Assessment Ordering, Sections, and Manual Marks
 ```
 

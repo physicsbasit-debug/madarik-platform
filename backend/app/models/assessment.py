@@ -94,3 +94,27 @@ class AssessmentDraftDetail(BaseModel):
     draft: AssessmentDraft
     questions: list[AssessmentQuestionSummary]
     balance: AssessmentBalanceSummary
+
+
+class AssessmentBlueprintValidation(BaseModel):
+    ready: bool
+    total_selected_questions: int
+    target_questions: int
+    total_selected_marks: int
+    target_marks: int
+    knowledge_selected: int
+    knowledge_target: int
+    application_selected: int
+    application_target: int
+    reasoning_selected: int
+    reasoning_target: int
+    unclassified_selected: int
+    issues: list[str] = Field(default_factory=list)
+
+
+class AssessmentAutoSelectionResponse(BaseModel):
+    detail: AssessmentDraftDetail
+    validation: AssessmentBlueprintValidation
+    selected_item_ids: list[str]
+    skipped_item_ids: list[str]
+    shortages: list[str] = Field(default_factory=list)
