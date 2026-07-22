@@ -1,10 +1,40 @@
-import { AlertTriangle, BarChart3, CheckCircle2, Download, FileText, GitBranch, KeyRound, Loader2, Radar, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  BarChart3,
+  BookOpenCheck,
+  CheckCircle2,
+  Download,
+  Eye,
+  FileCheck2,
+  FileText,
+  GitBranch,
+  Image as ImageIcon,
+  KeyRound,
+  Loader2,
+  Radar,
+  Settings2,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
-import type { AnswerKeyItem, EducationalAnalysisReport, EducationalQualityToolsReport, FullExamEndToEndReport, FullExamExportReport, FullExamTranslationReport, GlossaryTerm, MarksPolicy, ProjectMetadata, ProjectReadinessReport, QuestionItem } from '../../types/project';
+import type {
+  AnswerKeyItem,
+  EducationalAnalysisReport,
+  EducationalQualityToolsReport,
+  FullExamEndToEndReport,
+  FullExamExportReport,
+  FullExamTranslationReport,
+  GlossaryTerm,
+  ProjectMetadata,
+  ProjectReadinessReport,
+  QuestionItem,
+  SchoolLogoInfo,
+} from '../../types/project';
 import { MetricCard } from '../../components/MetricCard';
 
 interface ExportStepProps {
   metadata: ProjectMetadata;
+  schoolLogo: SchoolLogoInfo | null;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   answerKey: AnswerKeyItem[];
@@ -92,6 +122,7 @@ function endToEndStageStatusLabel(
 
 export function ExportStep({
   metadata,
+  schoolLogo,
   questions,
   glossary,
   answerKey,
@@ -141,6 +172,50 @@ export function ExportStep({
       : 'مسودة ترجمة تحتاج مراجعة';
   const readinessBlocksExport = readiness ? !readiness.ready : approvedQuestions.length === 0;
   const readinessHasWarnings = readiness?.issues.some((issue) => issue.severity === 'warning') ?? false;
+  const approvedCount = approvedQuestions.filter(
+    (question) => question.status === 'approved',
+  ).length;
+  const reviewCount = approvedQuestions.filter(
+    (question) => question.status === 'needs_review',
+  ).length;
+  const linkedAssetsCount = approvedQuestions.filter(
+    (question) =>
+      (question.linkedLayoutAssetIds?.length ?? 0) > 0 ||
+      question.attachments.length > 0,
+  ).length;
+  const selectedFormats = metadata.exportFormats ?? [];
+  const logoPreview = schoolLogo
+    ? `data:${schoolLogo.type};base64,${schoolLogo.dataBase64}`
+    : null;
+  const exportIsRunning = isExportingDocx || isExportingPdf;
+  const canRunSelectedExport =
+    selectedFormats.length > 0 &&
+    !readinessBlocksExport &&
+    !exportIsRunning &&
+    selectedFormats.every((format) =>
+      format === 'docx' ? canExportDocx : canExportPdf,
+    );
+
+  function toggleExportFormat(format: 'docx' | 'pdf') {
+    const nextFormats = selectedFormats.includes(format)
+      ? selectedFormats.filter((item) => item !== format)
+      : [...selectedFormats, format];
+
+    onMetadataChange({
+      ...metadata,
+      exportFormats: nextFormats,
+    });
+  }
+
+  async function handleExportSelected() {
+    if (selectedFormats.includes('docx')) {
+      await handleExportDocx();
+    }
+    if (selectedFormats.includes('pdf')) {
+      await handleExportPdf();
+    }
+  }
+
 
   async function handleRefreshReadiness() {
     setIsCheckingReadiness(true);
@@ -290,90 +365,394 @@ export function ExportStep({
 
   return (
     <div className="step-grid">
-      <section className="form-card wide-card">
-        <div className="section-heading">
-          <p className="eyebrow">فحص الجاهزية قبل التصدير</p>
-          <h3>جاهزية الورقة النهائية</h3>
-          <p>
-            قبل إنشاء Word أو PDF، تفحص منصة مدارك وجود أسئلة قابلة للتصدير وترجمة ودرجات وحالات مراجعة.
-          </p>
+      <section className="export-workspace export-workspace-redesign">
+        <div className="export-control-bar export-control-bar-redesign">
+          <div className="export-control-copy">
+            <strong>مركز الجاهزية والتصدير</strong>
+            <p>راجع الموانع، احسم الدرجة، اختر النسخة والصيغ، ثم نزّل الملفات.</p>
+          </div>
+          <div className="export-control-actions">
+            <button
+              type="button"
+              className="secondary-button export-readiness-button"
+              onClick={() => void handleRefreshReadiness()}
+              disabled={isCheckingReadiness}
+            >
+              {isCheckingReadiness ? (
+                <Loader2 size={18} className="spin-icon" />
+              ) : (
+                <ShieldCheck size={18} />
+              )}
+              تحديث الجاهزية
+            </button>
+            <span className="export-advanced-label">الفحوص والتقارير المتقدمة أسفل الصفحة</span>
+          </div>
         </div>
 
-        <div className="metrics-row">
-          <MetricCard label="الأسئلة المصدّرة" value={readiness?.exportableQuestionCount ?? approvedQuestions.length} hint="بعد الحذف" />
-          <MetricCard label="مجموع الدرجات" value={totalMarks} hint="الدرجة العامة، أو مجموع الأجزاء عند غيابها" />
-          <MetricCard label="أسئلة مترجمة" value={readiness?.translatedQuestionCount ?? 0} hint="حسب فحص Backend" />
-          <MetricCard label="مصطلحات تحتاج مراجعة" value={glossaryNeedsReview} hint="للمعلم فقط" />
-          <MetricCard label="مسودة الإجابة" value={answerKey.length} hint="للمعلم فقط" />
-          <MetricCard label="التحليل التربوي" value={educationalAnalysis ? 1 : 0} hint="تأسيسي" />
-          <MetricCard label="أدوات الجودة" value={qualityTools ? 1 : 0} hint="Pareto/Radar/Fishbone" />
+        <div className="export-readiness-summary">
+          <article className="export-readiness-main">
+            <div
+              className={`export-readiness-icon ${
+                readiness?.ready ? 'is-ready' : 'needs-attention'
+              }`}
+            >
+              {readiness?.ready ? (
+                <CheckCircle2 size={30} />
+              ) : (
+                <AlertTriangle size={30} />
+              )}
+            </div>
+            <div>
+              <span>حالة المشروع</span>
+              <strong>
+                {readiness?.ready
+                  ? readinessHasWarnings
+                    ? 'جاهز مع تنبيهات'
+                    : 'جاهز للتصدير'
+                  : 'يحتاج تدخلك قبل التصدير'}
+              </strong>
+              <p>
+                {readiness
+                  ? `${readiness.exportableQuestionCount} سؤالًا قابلة للتصدير، و${readiness.deletedQuestionCount} محذوفة.`
+                  : 'شغّل فحص الجاهزية لرؤية النتيجة النهائية.'}
+              </p>
+            </div>
+          </article>
+
+          <div className="export-readiness-metrics">
+            <article>
+              <FileCheck2 size={21} />
+              <span>الأسئلة</span>
+              <strong>{approvedQuestions.length}</strong>
+              <small>{approvedCount} معتمد</small>
+            </article>
+            <article>
+              <BookOpenCheck size={21} />
+              <span>المراجعة اليدوية</span>
+              <strong>{reviewCount}</strong>
+              <small>{reviewCount ? 'تحتاج انتباهًا' : 'مكتملة'}</small>
+            </article>
+            <article>
+              <ImageIcon size={21} />
+              <span>الرسوم المرتبطة</span>
+              <strong>{linkedAssetsCount}</strong>
+              <small>من الأسئلة النشطة</small>
+            </article>
+            <article>
+              <FileText size={21} />
+              <span>المصطلحات</span>
+              <strong>{glossary.length - glossaryNeedsReview}</strong>
+              <small>{glossaryNeedsReview} غير معتمد</small>
+            </article>
+            <article>
+              <ShieldCheck size={21} />
+              <span>مجموع الدرجات</span>
+              <strong>{totalMarks}</strong>
+              <small>{hasMarksMismatch ? 'يوجد اختلاف' : 'متسق'}</small>
+            </article>
+          </div>
         </div>
 
         {hasMarksMismatch ? (
-          <div className={`marks-policy-panel ${marksPolicy === 'unresolved' ? 'marks-policy-unresolved' : 'marks-policy-resolved'}`}>
+          <div
+            className={`marks-decision-bar ${
+              marksPolicy === 'unresolved'
+                ? 'marks-policy-unresolved'
+                : 'marks-policy-resolved'
+            }`}
+          >
             <div>
-              <strong>حسم سياسة الدرجة</strong>
+              <strong>يوجد اختلاف في الدرجة</strong>
               <p>
-                الدرجة المعلنة {declaredMarks}، بينما مجموع الأسئلة {totalMarks}.
-                اختر كيف ستظهر الدرجة في نسخة الطالب دون تعديل درجات الأسئلة آليًا.
+                الدرجة المعلنة {declaredMarks}، ومجموع الأسئلة {totalMarks}. اختر القرار قبل التصدير.
               </p>
             </div>
-            <label>
-              <span>السياسة المعتمدة</span>
-              <select
-                value={marksPolicy}
-                onChange={(event) =>
+            <div className="marks-decision-actions">
+              <button
+                type="button"
+                className={`secondary-button ${
+                  marksPolicy === 'use_question_total' ? 'is-selected' : ''
+                }`}
+                onClick={() =>
                   onMetadataChange({
                     ...metadata,
-                    marksPolicy: event.target.value as MarksPolicy,
+                    marksPolicy: 'use_question_total',
                   })
                 }
               >
-                <option value="unresolved">لم أحسم بعد</option>
-                <option value="use_question_total">اعتماد مجموع الأسئلة ({totalMarks})</option>
-                <option value="scale_to_declared">تحويل الدرجة إلى {declaredMarks} مع بقاء المجموع الخام {totalMarks}</option>
-              </select>
-            </label>
+                <span>اعتماد مجموع الأسئلة</span>
+                <strong>{totalMarks}</strong>
+              </button>
+              <button
+                type="button"
+                className={`secondary-button ${
+                  marksPolicy === 'scale_to_declared' ? 'is-selected' : ''
+                }`}
+                onClick={() =>
+                  onMetadataChange({
+                    ...metadata,
+                    marksPolicy: 'scale_to_declared',
+                  })
+                }
+              >
+                <span>تحويل الدرجة إلى المعلنة</span>
+                <strong>{declaredMarks}</strong>
+              </button>
+            </div>
           </div>
         ) : null}
 
-        <div className={`readiness-card ${readiness?.ready ? 'success-card' : 'warning-card'}`}>
-          {readiness?.ready ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
-          <div>
-            <strong>{readiness?.ready ? (readinessHasWarnings ? 'الورقة قابلة للتصدير مع تنبيهات' : 'الورقة جاهزة للتصدير') : 'توجد ملاحظات قبل التصدير'}</strong>
-            <p>
-              {readiness
-                ? `الأسئلة القابلة للتصدير: ${readiness.exportableQuestionCount}، المحذوفة: ${readiness.deletedQuestionCount}.`
-                : 'لم يتم تشغيل فحص الجاهزية بعد.'}
-            </p>
+        {readiness?.issues.length ? (
+          <div className="export-blockers-panel">
+            <strong>ملاحظات الجاهزية</strong>
+            <ul className="readiness-list">
+              {readiness.issues.map((issue) => (
+                <li
+                  key={`${issue.code}-${issue.message}`}
+                  className={
+                    issue.severity === 'error'
+                      ? 'readiness-error'
+                      : 'readiness-warning'
+                  }
+                >
+                  <span>{issue.severity === 'error' ? 'مانع' : 'تنبيه'}</span>
+                  {issue.message}
+                </li>
+              ))}
+            </ul>
           </div>
+        ) : null}
+
+        <div className="export-choice-grid">
+          <section className="export-choice-card export-mode-card">
+            <div className="export-choice-card-body">
+            <div className="export-choice-heading">
+              <FileText size={22} />
+              <div>
+                <span>نوع النسخة</span>
+                <strong>اختر المخرج النهائي</strong>
+              </div>
+            </div>
+
+            <label
+              className={`export-radio-card ${
+                metadata.outputMode === 'arabic' ? 'is-selected' : ''
+              }`}
+            >
+              <input
+                type="radio"
+                name="output-mode"
+                checked={metadata.outputMode === 'arabic'}
+                onChange={() =>
+                  onMetadataChange({ ...metadata, outputMode: 'arabic' })
+                }
+              />
+              <div>
+                <strong>نسخة عربية نظيفة</strong>
+                <span>السؤال بالعربية فقط، جاهز للطباعة والمراجعة الصفية.</span>
+              </div>
+            </label>
+
+            <label
+              className={`export-radio-card ${
+                metadata.outputMode === 'bilingual' ? 'is-selected' : ''
+              }`}
+            >
+              <input
+                type="radio"
+                name="output-mode"
+                checked={metadata.outputMode === 'bilingual'}
+                onChange={() =>
+                  onMetadataChange({ ...metadata, outputMode: 'bilingual' })
+                }
+              />
+              <div>
+                <strong>نسخة ثنائية اللغة</strong>
+                <span>الإنجليزية ثم العربية تحت كل سؤال.</span>
+              </div>
+            </label>
+            </div>
+          </section>
+
+          <section className="export-choice-card export-formats-card">
+            <div className="export-choice-card-body">
+            <div className="export-choice-heading">
+              <Download size={22} />
+              <div>
+                <span>صيغ الملفات</span>
+                <strong>اختر ما تريد تنزيله</strong>
+              </div>
+            </div>
+
+            <label
+              className={`export-format-option ${
+                selectedFormats.includes('docx') ? 'is-selected' : ''
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedFormats.includes('docx')}
+                onChange={() => toggleExportFormat('docx')}
+              />
+              <div>
+                <strong>Word DOCX</strong>
+                <span>ملف قابل للتعديل والمراجعة.</span>
+              </div>
+            </label>
+
+            <label
+              className={`export-format-option ${
+                selectedFormats.includes('pdf') ? 'is-selected' : ''
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedFormats.includes('pdf')}
+                onChange={() => toggleExportFormat('pdf')}
+              />
+              <div>
+                <strong>PDF للطباعة</strong>
+                <span>نسخة ثابتة جاهزة للطباعة والمشاركة.</span>
+              </div>
+            </label>
+            </div>
+          </section>
+
         </div>
 
-        {readiness?.issues.length ? (
-          <ul className="readiness-list">
-            {readiness.issues.map((issue) => (
-              <li key={`${issue.code}-${issue.message}`} className={issue.severity === 'error' ? 'readiness-error' : 'readiness-warning'}>
-                <span>{issue.severity === 'error' ? 'مانع' : 'تنبيه'}</span>
-                {issue.message}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="notice-card">
-            <ShieldCheck size={22} />
-            <span>لا توجد ملاحظات مانعة من التصدير في آخر فحص جاهزية.</span>
-          </div>
-        )}
+        <div className="export-preview-grid">
+          <section className="export-preview-card">
+            <div className="export-choice-heading">
+              <Eye size={22} />
+              <div>
+                <span>معاينة قبل التصدير</span>
+                <strong>{metadata.paperTitle || 'ورقة بلا عنوان'}</strong>
+              </div>
+            </div>
+            <div className="export-paper-preview">
+              <div className="export-paper-thumbnail" aria-hidden="true">
+                <div className="export-paper-brand">
+                  {logoPreview ? (
+                    <img src={logoPreview} alt="" />
+                  ) : (
+                    <ImageIcon size={20} />
+                  )}
+                  <span>{metadata.schoolName || 'اسم المدرسة'}</span>
+                </div>
+                <strong>{metadata.paperTitle || 'عنوان الورقة'}</strong>
+                <small>
+                  {metadata.subject || 'المادة'} · {metadata.grade || 'الصف'}
+                </small>
+                <div className="export-paper-line is-wide" />
+                <div className="export-paper-line" />
+                <div className="export-paper-line is-short" />
+                <div className="export-paper-question">1</div>
+                <div className="export-paper-line is-wide" />
+                <div className="export-paper-line" />
+              </div>
+              <dl className="export-preview-meta">
+                <div><dt>المادة</dt><dd>{metadata.subject || '—'}</dd></div>
+                <div><dt>الصف</dt><dd>{metadata.grade || '—'}</dd></div>
+                <div><dt>نوع النسخة</dt><dd>{studentVersionLabel}</dd></div>
+                <div><dt>الأسئلة</dt><dd>{approvedQuestions.length}</dd></div>
+                <div><dt>الدرجات</dt><dd>{totalMarks}</dd></div>
+                <div>
+                  <dt>الصيغ</dt>
+                  <dd>
+                    {selectedFormats.length
+                      ? selectedFormats.map(formatLabel).join(' + ')
+                      : 'لم تُحدد'}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </section>
 
-        <button type="button" className="secondary-button" onClick={() => void handleRefreshReadiness()} disabled={isCheckingReadiness}>
-          {isCheckingReadiness ? <Loader2 size={18} className="spin-icon" /> : <ShieldCheck size={18} />}
-          تحديث فحص الجاهزية
-        </button>
+          <section
+            className={`export-ready-card ${
+              readiness?.ready ? 'is-ready' : 'needs-attention'
+            }`}
+          >
+            {readiness?.ready ? (
+              <CheckCircle2 size={38} />
+            ) : (
+              <AlertTriangle size={38} />
+            )}
+            <strong>
+              {readiness?.ready
+                ? 'المشروع جاهز للتصدير'
+                : 'أكمل الملاحظات قبل التصدير'}
+            </strong>
+            <p>
+              {readiness?.ready
+                ? 'اختر الصيغ واضغط زر التصدير أدناه.'
+                : 'راجع قائمة الجاهزية ثم أعد الفحص.'}
+            </p>
+          </section>
+        </div>
+
+        <section className="export-choice-card export-identity-card export-identity-row">
+          <div className="export-choice-heading">
+            <ImageIcon size={22} />
+            <div>
+              <span>هوية المدرسة</span>
+              <strong>الشعار ورأس الورقة</strong>
+            </div>
+          </div>
+
+          <div className="export-identity-row-content">
+            <div className="export-logo-preview">
+              {logoPreview ? (
+                <img src={logoPreview} alt="شعار المدرسة" />
+              ) : (
+                <ImageIcon size={34} />
+              )}
+            </div>
+            <div className="export-identity-copy">
+              <strong>{metadata.schoolName || 'لم يُحدد اسم المدرسة'}</strong>
+              <span>
+                {schoolLogo
+                  ? `الشعار: ${schoolLogo.name}`
+                  : 'أضف الشعار من مرحلة البدء والرفع.'}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <div className="export-primary-action">
+          <div className="notice-card export-primary-message">
+            <FileText size={22} />
+            <span>{exportMessage}</span>
+          </div>
+          <button
+            type="button"
+            className="primary-button export-main-button"
+            onClick={() => void handleExportSelected()}
+            disabled={!canRunSelectedExport}
+          >
+            {exportIsRunning ? (
+              <Loader2 size={20} className="spin-icon" />
+            ) : (
+              <Download size={20} />
+            )}
+            {exportIsRunning
+              ? 'جاري تجهيز الملفات...'
+              : selectedFormats.length > 1
+                ? 'تصدير Word وPDF'
+                : selectedFormats[0] === 'pdf'
+                  ? 'تصدير PDF'
+                  : 'تصدير Word'}
+          </button>
+        </div>
       </section>
 
-
-
-
+      <details className="export-advanced-tools">
+        <summary>
+          <Settings2 size={20} />
+          <span>الفحوص والتقارير المتقدمة</span>
+          <small>بوابات القبول، التحليل التربوي، أدوات الجودة، ونموذج الإجابة</small>
+        </summary>
+        <div className="export-advanced-content">
       <section className="form-card wide-card end-to-end-acceptance-panel">
         <div className="section-heading">
           <p className="eyebrow">Phase 4-A6d</p>
@@ -764,7 +1143,10 @@ export function ExportStep({
         )}
       </section>
 
-      <section className="form-card">
+        </div>
+      </details>
+
+      <section className="form-card export-legacy-hidden" aria-hidden="true">
         <div className="section-heading">
           <p className="eyebrow">بيانات الورقة</p>
           <h3>{metadata.paperTitle}</h3>
@@ -779,7 +1161,7 @@ export function ExportStep({
         </dl>
       </section>
 
-      <section className="form-card">
+      <section className="form-card export-legacy-hidden" aria-hidden="true">
         <div className="section-heading">
           <p className="eyebrow">ملفات التصدير</p>
           <h3>إنشاء Word وPDF بتنسيق RTL</h3>

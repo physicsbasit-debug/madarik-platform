@@ -1,30 +1,24 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  DatabaseZap,
-  Download,
-  FolderOpen,
-  RefreshCcw,
-  Upload,
-  Wifi,
-  WifiOff,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, DatabaseZap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { StepNavigation } from "../components/StepNavigation";
-import { steps } from "../constants/steps";
+import { WorkflowStatusStrip } from "../components/WorkflowStatusStrip";
+import { WorkspaceShell } from "../components/WorkspaceShell";
+import { WorkspaceSidebar } from "../components/WorkspaceSidebar";
+import { WorkspaceTopBar } from "../components/WorkspaceTopBar";
+import {
+  getLegacyStepForStage,
+  getWorkflowStageIndex,
+  steps,
+  type WorkflowStageKey,
+} from "../constants/steps";
 import {
   defaultMetadata,
   sampleGlossary,
   sampleQuestions,
 } from "../data/mockProject";
 import { AuthPanel } from "../features/auth/AuthPanel";
-import { ExtractionStep } from "../features/extraction/ExtractionStep";
 import { ExportStep } from "../features/export/ExportStep";
-import { FileUploadStep } from "../features/file-upload/FileUploadStep";
-import { GlossaryStep } from "../features/glossary/GlossaryStep";
-import { ProjectSetupStep } from "../features/project-setup/ProjectSetupStep";
-import { ProjectLibraryPanel } from "../features/project-library/ProjectLibraryPanel";
-import { ReviewStep } from "../features/review/ReviewStep";
+import { StartWorkspace } from "../features/workflow/StartWorkspace";
+import { UnifiedReviewWorkspace } from "../features/workflow/UnifiedReviewWorkspace";
 import {
   bootstrapOwner,
   clearAnswerKey,
@@ -37,7 +31,6 @@ import {
   exportProjectDocx,
   exportProjectPdf,
   exportProjectSnapshot,
-  extractPdfLayoutAssets,
   generateGlossaryFromQuestions,
   deleteProject,
   deletePdfLayoutAsset,
@@ -85,6 +78,7 @@ import type {
   AuthAccountPublic,
   AuthStatus,
   ExtractedTextInfo,
+  InitialExtractionStatus,
   FullExamEndToEndReport,
   FullExamExportReport,
   FullExamIntakeReport,
@@ -97,7 +91,6 @@ import type {
   QuestionItem,
   QuestionStatus,
   SchoolLogoInfo,
-  StepKey,
   UploadedFileInfo,
   TranslationProviderStatus,
   TranslationBatchSummary,
@@ -108,25 +101,9 @@ function sortQuestions(questions: QuestionItem[]) {
   return [...questions].sort((a, b) => a.orderIndex - b.orderIndex);
 }
 
-function statusLabel(status: ApiConnectionStatus) {
-  switch (status) {
-    case "connecting":
-      return "الاتصال بالخلفية...";
-    case "connected":
-      return "متصل بـ FastAPI";
-    case "syncing":
-      return "مزامنة مؤقتة...";
-    case "offline":
-      return "وضع واجهة محلي";
-  }
-}
 
 const ACTIVE_PROJECT_STORAGE_KEY = "madarik-active-project-id";
 
-function getStepIndex(stepKey: ProjectSession["currentStep"] | undefined) {
-  const index = steps.findIndex((step) => step.key === stepKey);
-  return index >= 0 ? index : 0;
-}
 
 function applyProjectSession(
   project: ProjectSession,
@@ -201,6 +178,14 @@ export function App() {
   const [extractedText, setExtractedText] = useState<ExtractedTextInfo | null>(
     null,
   );
+  const [initialExtractionStatus, setInitialExtractionStatus] =
+    useState<InitialExtractionStatus>({
+      phase: "idle",
+      startedAt: null,
+      message: "بانتظار اختيار ملف.",
+      canRetry: false,
+    });
+  const lastSelectedFileRef = useRef<File | null>(null);
   const [fullExamIntakeReport, setFullExamIntakeReport] =
     useState<FullExamIntakeReport | null>(null);
   const [fullExamTranslationReport, setFullExamTranslationReport] =
@@ -224,7 +209,6 @@ export function App() {
   const [projectReadiness, setProjectReadiness] =
     useState<ProjectReadinessReport | null>(null);
   const [projectLibrary, setProjectLibrary] = useState<ProjectSession[]>([]);
-  const [isProjectLibraryVisible, setProjectLibraryVisible] = useState(false);
   const [isProjectLibraryLoading, setProjectLibraryLoading] = useState(false);
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [authAccount, setAuthAccount] = useState<AuthAccountPublic | null>(
@@ -238,6 +222,7 @@ export function App() {
   );
   const [authAccounts, setAuthAccounts] = useState<AuthAccountPublic[]>([]);
   const [authAccountsLoading, setAuthAccountsLoading] = useState(false);
+  const [isAuthPanelOpen, setAuthPanelOpen] = useState(false);
   const glossaryUpdateQueuesRef = useRef(
     new Map<string, Promise<void>>(),
   );
@@ -257,10 +242,7 @@ export function App() {
   const needsReviewCount = questions.filter(
     (question) => question.status === "needs_review",
   ).length;
-  const deletedCount = questions.filter(
-    (question) => question.status === "deleted",
-  ).length;
-
+  const canAdvanceFromStart = Boolean(extractedText?.text.trim());
   const applyProject = useCallback((project: ProjectSession) => {
     applyProjectSession(project, {
       setProjectId,
@@ -300,7 +282,7 @@ export function App() {
     (project: ProjectSession) => {
       setProjectHydrating(true);
       applyProject(project);
-      setActiveIndex(getStepIndex(project.currentStep));
+      setActiveIndex(getWorkflowStageIndex(project.currentStep));
       setProjectReadiness(null);
 
       window.requestAnimationFrame(() => {
@@ -488,7 +470,6 @@ export function App() {
       const project = await getProject(projectIdToOpen);
       hydrateProject(project);
       setApiStatus("connected");
-      setProjectLibraryVisible(false);
       setLastSyncNote(`تم فتح المشروع المحفوظ: ${project.id.slice(0, 8)}.`);
     } catch (error) {
       console.error(error);
@@ -523,6 +504,48 @@ export function App() {
       console.error(error);
       setApiStatus("connected");
       setLastSyncNote("فشل حذف المشروع المحفوظ.");
+    }
+  }
+
+
+  async function deletePersistedProjects(projectIdsToDelete: string[]) {
+    const uniqueIds = [...new Set(projectIdsToDelete)];
+    if (uniqueIds.length === 0) return;
+
+    const confirmed = window.confirm(
+      `سيتم حذف ${uniqueIds.length} مشروعًا محفوظًا. هل تريد المتابعة؟`,
+    );
+    if (!confirmed) return;
+
+    if (apiStatus === "offline") {
+      setLastSyncNote("لا يمكن حذف المشاريع دون اتصال Backend.");
+      return;
+    }
+
+    setApiStatus("syncing");
+    try {
+      for (const projectIdToDelete of uniqueIds) {
+        await deleteProject(projectIdToDelete);
+      }
+
+      const deletedCurrentProject = Boolean(
+        projectId && uniqueIds.includes(projectId),
+      );
+
+      if (deletedCurrentProject) {
+        window.localStorage.removeItem(ACTIVE_PROJECT_STORAGE_KEY);
+        await bootstrapProject();
+      } else {
+        const projects = await listProjects(50);
+        setProjectLibrary(projects);
+        setApiStatus("connected");
+      }
+
+      setLastSyncNote(`تم حذف ${uniqueIds.length} مشروعًا من المكتبة.`);
+    } catch (error) {
+      console.error(error);
+      setApiStatus("connected");
+      setLastSyncNote("تعذر إكمال الحذف الجماعي للمشاريع.");
     }
   }
 
@@ -609,10 +632,14 @@ export function App() {
     void refreshAuthStatus();
   }, []);
 
+
   useEffect(() => {
     if (isProjectHydrating || !projectId || apiStatus === "offline") return;
 
-    void updateProjectStep(projectId, activeStep.key).catch(
+    void updateProjectStep(
+      projectId,
+      getLegacyStepForStage(activeStep.key),
+    ).catch(
       (error: unknown) => {
         console.error(error);
         setApiStatus("offline");
@@ -778,6 +805,13 @@ export function App() {
 
   function handleFileSelected(file: File | null) {
     if (!file) {
+      lastSelectedFileRef.current = null;
+      setInitialExtractionStatus({
+        phase: "idle",
+        startedAt: null,
+        message: "بانتظار اختيار ملف.",
+        canRetry: false,
+      });
       setUploadedFile(null);
       setExtractedText(null);
       setFullExamIntakeReport(null);
@@ -803,21 +837,43 @@ export function App() {
       return;
     }
 
+    lastSelectedFileRef.current = file;
+    const startedAt = Date.now();
     const fileInfo: UploadedFileInfo = {
       name: file.name,
       size: file.size,
       type: file.type || "غير معروف",
     };
+    setInitialExtractionStatus({
+      phase: "uploading",
+      startedAt,
+      message: "تم اختيار الملف. جارٍ إرساله وبدء القراءة الأولية...",
+      canRetry: false,
+    });
     setUploadedFile(fileInfo);
     setExtractedText(null);
+    setLayoutAssets([]);
     setFullExamIntakeReport(null);
     setFullExamTranslationReport(null);
     setFullExamExportReport(null);
     setFullExamEndToEndReport(null);
 
     if (!projectId || apiStatus === "offline") {
+      const isGithubPagesPreview =
+        window.location.hostname.endsWith(".github.io");
+
+      setInitialExtractionStatus({
+        phase: "error",
+        startedAt,
+        message: isGithubPagesPreview
+          ? "هذه نسخة معاينة على GitHub Pages. رفع الملف يعمل محليًا، لكن قراءة النص تحتاج Backend مستضافًا."
+          : "تعذر بدء القراءة لأن Backend غير متصل.",
+        canRetry: true,
+      });
       setLastSyncNote(
-        "تم اختيار الملف محليًا فقط. لا يمكن استخلاص PDF دون اتصال Backend. الكون يضحك في الخلفية.",
+        isGithubPagesPreview
+          ? "وضع المعاينة: يمكنك فحص التصميم والسحب والإفلات، لكن الاستخراج والترجمة والقص تحتاج Backend."
+          : "تم اختيار الملف محليًا فقط. لا يمكن استخراج النص دون اتصال Backend.",
       );
       return;
     }
@@ -829,6 +885,12 @@ export function App() {
       file.name.toLowerCase().endsWith(".pdf");
 
     if (!isImageFile && !isPdfFile) {
+      setInitialExtractionStatus({
+        phase: "error",
+        startedAt,
+        message: "نوع الملف غير مدعوم للاستخراج الأولي.",
+        canRetry: false,
+      });
       setExtractedText({
         text: "",
         preview: "",
@@ -836,55 +898,62 @@ export function App() {
         characterCount: 0,
         isTextBased: false,
         message:
-          "يدعم Phase 1-I2 ملفات PDF النصية أو المصوّرة البسيطة وصور PNG/JPG/WEBP فقط.",
+          "يدعم المسار ملفات PDF النصية أو المصوّرة وصور PNG/JPG/WEBP فقط.",
       });
-      setLastSyncNote(
-        "نوع الملف غير مدعوم في هذه المرحلة. لا نطلب من التطبيق قراءة كل مخلوقات التخزين مرة واحدة.",
-      );
+      setLastSyncNote("نوع الملف غير مدعوم في هذه المرحلة.");
       return;
     }
 
     setApiStatus("syncing");
+    setInitialExtractionStatus({
+      phase: isImageFile ? "ocr" : "reading",
+      startedAt,
+      message: isImageFile
+        ? "جارٍ تشغيل OCR على الصورة..."
+        : "جارٍ قراءة النص القابل للتحديد من PDF...",
+      canRetry: false,
+    });
+
     const extractionRequest = isImageFile
       ? uploadImageAndExtractText(projectId, file)
       : uploadPdfAndExtractText(projectId, file).then((project) => {
           if (project.extractedText?.isTextBased) return project;
+          setInitialExtractionStatus({
+            phase: "ocr",
+            startedAt,
+            message: "الملف مصوّر. جارٍ تشغيل OCR دون تحليل الرسوم الآن...",
+            canRetry: false,
+          });
           return uploadPdfOcrAndExtractText(projectId, file);
         });
 
     extractionRequest
-      .then(async (project) => {
+      .then((project) => {
         applyProject(project);
-        if (isPdfFile) {
-          try {
-            const projectWithLayout = await extractPdfLayoutAssets(
-              projectId,
-              file,
-            );
-            applyProject(projectWithLayout);
-            setApiStatus("connected");
-            const intakeReport = projectWithLayout.fullExamIntakeReport;
-            const intakeSummary = intakeReport
-              ? ` تقرير القبول: ${intakeReport.pageCount} صفحة، ${intakeReport.detectedQuestionCount} سؤالًا، ${intakeReport.detectedTotalMarks ?? "—"} درجة.`
-              : "";
-            setLastSyncNote(
-              `${project.extractedText?.message ?? "تم رفع الملف ومحاولة استخراج النص."} وتم استخراج ${projectWithLayout.layoutAssets.length} لقطة تخطيط من PDF.${intakeSummary}`,
-            );
-            return;
-          } catch (layoutError) {
-            console.error(layoutError);
-          }
-        }
         setApiStatus("connected");
+        const elapsedSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+        setInitialExtractionStatus({
+          phase: "success",
+          startedAt,
+          message: `اكتملت القراءة الأولية خلال ${elapsedSeconds} ث. تحليل الرسوم مؤجل للمراجعة.`,
+          canRetry: false,
+        });
         setLastSyncNote(
-          project.extractedText?.message ??
-            "تم رفع الملف ومحاولة استخراج النص.",
+          `${project.extractedText?.message ?? "تم رفع الملف واستخراج النص."} لم يبدأ تحليل التخطيط أو القص أثناء القراءة الأولية.`,
         );
       })
       .catch((error: unknown) => {
         console.error(error);
         setApiStatus("connected");
         setUploadedFile(fileInfo);
+        setInitialExtractionStatus({
+          phase: "error",
+          startedAt,
+          message: isImageFile
+            ? "تعذر OCR للصورة. جرّب صورة أوضح أو أعد المحاولة."
+            : "تعذر استخراج النص. جرّب إعادة المحاولة أو ملفًا أوضح.",
+          canRetry: true,
+        });
         setExtractedText({
           text: "",
           preview: "",
@@ -898,9 +967,15 @@ export function App() {
         setLastSyncNote(
           isImageFile
             ? "فشل OCR المبدئي للصورة."
-            : "فشل استخراج النص من PDF نصيًا وOCR. جرّب صورة واضحة أو ملفًا أعلى جودة.",
+            : "فشل استخراج النص من PDF نصيًا وOCR.",
         );
       });
+  }
+
+  function retryInitialExtraction() {
+    if (lastSelectedFileRef.current) {
+      handleFileSelected(lastSelectedFileRef.current);
+    }
   }
 
   async function handleLayoutAssetDelete(assetId: string) {
@@ -1258,6 +1333,49 @@ export function App() {
     glossaryUpdateQueuesRef.current.set(termId, queuedUpdate);
   }
 
+  async function approveAllCompletedGlossaryTerms() {
+    if (!projectId || apiStatus === "offline") {
+      setLastSyncNote("لا يمكن اعتماد القاموس جماعيًا دون اتصال Backend.");
+      return;
+    }
+
+    const termsToApprove = glossary.filter(
+      (term) =>
+        term.status === "needs_review" &&
+        term.englishTerm.trim().length > 0 &&
+        term.arabicTerm.trim().length > 0,
+    );
+
+    if (termsToApprove.length === 0) {
+      setLastSyncNote("لا توجد مصطلحات مكتملة تنتظر الاعتماد.");
+      return;
+    }
+
+    setApiStatus("syncing");
+    try {
+      let latestProject: ProjectSession | null = null;
+      for (const term of termsToApprove) {
+        latestProject = await updateGlossaryTermOnServer(
+          projectId,
+          term.id,
+          { status: "approved" },
+        );
+      }
+
+      if (latestProject) applyProject(latestProject);
+      setApiStatus("connected");
+      setLastSyncNote(
+        `تم اعتماد ${termsToApprove.length} مصطلحًا مكتملًا دفعة واحدة.`,
+      );
+    } catch (error) {
+      console.error(error);
+      setApiStatus("connected");
+      setLastSyncNote(
+        "تعذر إكمال الاعتماد الجماعي للقاموس. بقيت المصطلحات غير المحفوظة للمراجعة.",
+      );
+    }
+  }
+
   async function parseQuestionsFromExtractedText() {
     if (!projectId || apiStatus === "offline") {
       setLastSyncNote(
@@ -1315,7 +1433,7 @@ export function App() {
       const project = await translateProjectQuestions(projectId);
       applyProject(project);
       setApiStatus("connected");
-      setActiveIndex(4);
+      setActiveIndex(1);
       const summary = project.translationBatchSummary;
       setLastSyncNote(
         summary
@@ -1704,222 +1822,176 @@ export function App() {
   }
 
   return (
-    <main className="app-shell">
-      <section className="hero-card">
-        <div>
-          <p className="eyebrow">Phase 2-B3 Project Ownership</p>
-          <h1>منصة مدارك</h1>
-          <p className="hero-text">
-            واجهة متعددة الخطوات لمعالجة أوراق الاختبارات، مع تخزين دائم، مكتبة
-            مشاريع، وحسابات أولية تربط المشاريع الجديدة بالمستخدم الحالي وتحترم
-            قواعد الوصول. أخيرًا أصبح للمشروع صاحب، لا يتجول في SQLite مثل يتيم
-            رقمي.
-          </p>
-        </div>
-        <div className="hero-actions">
-          <button
-            className="ghost-button"
-            type="button"
-            onClick={() => setProjectLibraryVisible((visible) => !visible)}
-            disabled={apiStatus === "offline"}
-          >
-            <FolderOpen size={18} />
-            مكتبة المشاريع
-          </button>
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={() => void downloadProjectSnapshot()}
-            disabled={!projectId || apiStatus === "offline"}
-          >
-            <Download size={18} />
-            حفظ JSON
-          </button>
-          <label className="secondary-button snapshot-import-button">
-            <Upload size={18} />
-            استيراد JSON
-            <input
-              type="file"
-              accept="application/json,.json"
-              onChange={(event) =>
-                void importProjectSnapshotFile(event.target.files?.[0] ?? null)
-              }
-            />
-          </label>
-          <button
-            className="ghost-button"
-            type="button"
-            onClick={() => void resetProject()}
-          >
-            <RefreshCcw size={18} />
-            مشروع جديد
-          </button>
-        </div>
-      </section>
-
-      <AuthPanel
-        status={authStatus}
-        account={authAccount}
-        accounts={authAccounts}
-        accountsLoading={authAccountsLoading}
-        message={authMessage}
-        onBootstrap={bootstrapOwnerAccount}
-        onLogin={loginAccount}
-        onLogout={logoutAccount}
-        onRefreshAccounts={refreshAuthAccounts}
-        onCreateAccount={createManagedAccount}
-        onToggleAccount={toggleManagedAccount}
-      />
-
-      {isProjectLibraryVisible ? (
-        <ProjectLibraryPanel
-          projects={projectLibrary}
-          currentProjectId={projectId}
-          isLoading={isProjectLibraryLoading}
-          onRefresh={() => void refreshProjectLibrary()}
-          onOpenProject={(id) => void openPersistedProject(id)}
-          onDeleteProject={(id) => void deletePersistedProject(id)}
-        />
-      ) : null}
-
-      <section
-        className={`api-banner api-banner-${apiStatus}`}
-        aria-label="حالة الاتصال بالخلفية"
-      >
-        <div>
-          {apiStatus === "offline" ? <WifiOff size={20} /> : <Wifi size={20} />}
-          <strong>{statusLabel(apiStatus)}</strong>
-        </div>
-        <span>{lastSyncNote}</span>
-        {projectId ? (
-          <code dir="ltr">project: {projectId.slice(0, 8)}</code>
-        ) : (
-          <code dir="ltr">local fallback</code>
-        )}
-      </section>
-
-      <section className="status-strip" aria-label="ملخص حالة المشروع">
-        <div>
-          <span>معتمد</span>
-          <strong>{approvedCount}</strong>
-        </div>
-        <div>
-          <span>يحتاج مراجعة</span>
-          <strong>{needsReviewCount}</strong>
-        </div>
-        <div>
-          <span>محذوف</span>
-          <strong>{deletedCount}</strong>
-        </div>
-        <div>
-          <span>نوع النسخة</span>
-          <strong>
-            {metadata.outputMode === "bilingual" ? "ثنائية" : "عربية"}
-          </strong>
-        </div>
-        <div>
-          <span>مرحلة التطوير</span>
-          <strong>Phase 2-B3</strong>
-        </div>
-      </section>
-
-      <section className="workspace-card">
-        <StepNavigation
+    <WorkspaceShell
+      sidebar={
+        <WorkspaceSidebar
           steps={steps}
           activeIndex={activeIndex}
           onSelectStep={setActiveIndex}
+          onOpenSettings={() => setAuthPanelOpen(true)}
+        />
+      }
+      topbar={
+        <WorkspaceTopBar
+          metadata={metadata}
+          apiStatus={apiStatus}
+          lastSyncNote={lastSyncNote}
+          projectId={projectId}
+          onOpenStart={() => setActiveIndex(0)}
+          onDownloadSnapshot={() => void downloadProjectSnapshot()}
+          onImportSnapshot={(file) => void importProjectSnapshotFile(file)}
+          onNewProject={() => void resetProject()}
+        />
+      }
+      status={
+        <WorkflowStatusStrip
+          activeQuestions={approvedCount + needsReviewCount}
+          needsReview={needsReviewCount}
+          glossaryNeedsReview={glossary.filter((term) => term.status === "needs_review").length}
+          outputLabel={metadata.outputMode === "bilingual" ? "ثنائي" : "عربي"}
+        />
+      }
+    >
+      <details
+        className="workspace-settings-panel"
+        open={isAuthPanelOpen}
+        onToggle={(event) => setAuthPanelOpen(event.currentTarget.open)}
+      >
+        <summary className="workspace-settings-summary">
+          <span>
+            <strong>الحساب والصلاحيات</strong>
+            <small>
+              {authAccount
+                ? `الحساب: ${authAccount.displayName}`
+                : `الحساب غير مسجل · ${apiStatus === "offline" ? "وضع محلي" : "جاهز للربط"}`}
+            </small>
+          </span>
+        </summary>
+        <AuthPanel
+          status={authStatus}
+          account={authAccount}
+          accounts={authAccounts}
+          accountsLoading={authAccountsLoading}
+          message={authMessage}
+          onBootstrap={bootstrapOwnerAccount}
+          onLogin={loginAccount}
+          onLogout={logoutAccount}
+          onRefreshAccounts={refreshAuthAccounts}
+          onCreateAccount={createManagedAccount}
+          onToggleAccount={toggleManagedAccount}
+        />
+      </details>
+
+      <section className="workspace-stage-surface">
+        <div className="step-header workspace-stage-header">
+          <div>
+            <p className="eyebrow">المرحلة {progressLabel}</p>
+            <h2>{activeStep.label}</h2>
+            <p>{activeStep.description}</p>
+          </div>
+          <DatabaseZap size={32} aria-hidden="true" />
+        </div>
+
+        <WorkspaceContent
+          stageKey={activeStep.key}
+          metadata={metadata}
+          schoolLogo={schoolLogo}
+          uploadedFile={uploadedFile}
+          extractedText={extractedText}
+          fullExamIntakeReport={fullExamIntakeReport}
+          fullExamTranslationReport={fullExamTranslationReport}
+          fullExamExportReport={fullExamExportReport}
+          fullExamEndToEndReport={fullExamEndToEndReport}
+          questions={questions}
+          glossary={glossary}
+          layoutAssets={layoutAssets}
+          answerKey={answerKey}
+          educationalAnalysis={educationalAnalysis}
+          qualityTools={qualityTools}
+          translationProviderStatus={translationProviderStatus}
+          translationBatchSummary={translationBatchSummary}
+          projectReadiness={projectReadiness}
+          projects={projectLibrary}
+          currentProjectId={projectId}
+          isLibraryLoading={isProjectLibraryLoading}
+          isBusy={apiStatus === "syncing" || apiStatus === "connecting"}
+          initialExtractionStatus={initialExtractionStatus}
+          lastSyncNote={lastSyncNote}
+          onMetadataChange={handleMetadataChange}
+          onLogoSelected={handleLogoSelected}
+          onLogoRemove={handleLogoRemove}
+          onFileSelected={handleFileSelected}
+          onRetryInitialExtraction={retryInitialExtraction}
+          onRefreshProjects={() => void refreshProjectLibrary()}
+          onOpenProject={(id) => void openPersistedProject(id)}
+          onDeleteProject={(id) => void deletePersistedProject(id)}
+          onDeleteProjects={(ids) => void deletePersistedProjects(ids)}
+          onUpdateQuestion={updateQuestion}
+          onMoveQuestion={moveQuestion}
+          onUpdateGlossaryTerm={updateGlossaryTerm}
+          onGenerateGlossary={generateGlossaryFromQuestionCards}
+          onApproveAllGlossary={approveAllCompletedGlossaryTerms}
+          onTranslateQuestions={translateQuestions}
+          onRetryQuestionTranslation={retryQuestionTranslationForReview}
+          onBulkUpdateStatus={bulkUpdateReviewStatus}
+          onUploadQuestionAsset={handleQuestionAssetUpload}
+          onDeleteQuestionAsset={handleQuestionAssetDelete}
+          onLinkQuestionLayoutAsset={handleQuestionLayoutAssetLink}
+          onUnlinkQuestionLayoutAsset={handleQuestionLayoutAssetUnlink}
+          onCropQuestionLayoutAsset={handleQuestionLayoutAssetCrop}
+          onDeleteLayoutAsset={handleLayoutAssetDelete}
+          onReloadDemo={reloadDemoFromBackend}
+          onParseQuestions={parseQuestionsFromExtractedText}
+          onExportDocx={exportDocx}
+          onExportPdf={exportPdf}
+          onRefreshReadiness={refreshProjectReadiness}
+          onGenerateAnswerKey={generateProjectAnswerKey}
+          onClearAnswerKey={clearProjectAnswerKey}
+          onGenerateEducationalAnalysis={generateProjectEducationalAnalysis}
+          onClearEducationalAnalysis={clearProjectEducationalAnalysis}
+          onGenerateQualityTools={generateProjectQualityTools}
+          onClearQualityTools={clearProjectQualityTools}
+          onRunFullExamAcceptance={runFullExamAcceptanceGate}
+          canExportDocx={Boolean(projectId && apiStatus !== "offline")}
+          canExportPdf={Boolean(projectId && apiStatus !== "offline")}
         />
 
-        <section className="step-content">
-          <div className="step-header">
-            <div>
-              <p className="eyebrow">الخطوة {progressLabel}</p>
-              <h2>{activeStep.label}</h2>
-              <p>{activeStep.description}</p>
-            </div>
-            <DatabaseZap size={34} aria-hidden="true" />
-          </div>
-
-          <StepContent
-            stepKey={activeStep.key}
-            metadata={metadata}
-            schoolLogo={schoolLogo}
-            uploadedFile={uploadedFile}
-            extractedText={extractedText}
-            fullExamIntakeReport={fullExamIntakeReport}
-            fullExamTranslationReport={fullExamTranslationReport}
-            fullExamExportReport={fullExamExportReport}
-            fullExamEndToEndReport={fullExamEndToEndReport}
-            questions={questions}
-            glossary={glossary}
-            layoutAssets={layoutAssets}
-            answerKey={answerKey}
-            educationalAnalysis={educationalAnalysis}
-            qualityTools={qualityTools}
-            translationProviderStatus={translationProviderStatus}
-            translationBatchSummary={translationBatchSummary}
-            onMetadataChange={handleMetadataChange}
-            onLogoSelected={handleLogoSelected}
-            onLogoRemove={handleLogoRemove}
-            onFileSelected={handleFileSelected}
-            onUpdateQuestion={updateQuestion}
-            onMoveQuestion={moveQuestion}
-            onUpdateGlossaryTerm={updateGlossaryTerm}
-            onGenerateGlossary={generateGlossaryFromQuestionCards}
-            onTranslateQuestions={translateQuestions}
-            onRetryQuestionTranslation={retryQuestionTranslationForReview}
-            onBulkUpdateStatus={bulkUpdateReviewStatus}
-            onUploadQuestionAsset={handleQuestionAssetUpload}
-            onDeleteQuestionAsset={handleQuestionAssetDelete}
-            onLinkQuestionLayoutAsset={handleQuestionLayoutAssetLink}
-            onUnlinkQuestionLayoutAsset={handleQuestionLayoutAssetUnlink}
-            onCropQuestionLayoutAsset={handleQuestionLayoutAssetCrop}
-            onDeleteLayoutAsset={handleLayoutAssetDelete}
-            onReloadDemo={reloadDemoFromBackend}
-            onParseQuestions={parseQuestionsFromExtractedText}
-            onExportDocx={exportDocx}
-            onExportPdf={exportPdf}
-            onRefreshReadiness={refreshProjectReadiness}
-            onGenerateAnswerKey={generateProjectAnswerKey}
-            onClearAnswerKey={clearProjectAnswerKey}
-            onGenerateEducationalAnalysis={generateProjectEducationalAnalysis}
-            onClearEducationalAnalysis={clearProjectEducationalAnalysis}
-            onGenerateQualityTools={generateProjectQualityTools}
-            onClearQualityTools={clearProjectQualityTools}
-            onRunFullExamAcceptance={runFullExamAcceptanceGate}
-            projectReadiness={projectReadiness}
-            canExportDocx={Boolean(projectId && apiStatus !== "offline")}
-            canExportPdf={Boolean(projectId && apiStatus !== "offline")}
-          />
-
-          <div className="actions-row">
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={goPrevious}
-              disabled={activeIndex === 0}
-            >
-              <ArrowRight size={18} />
-              السابق
-            </button>
+        <div className="actions-row workflow-actions-row workspace-stage-actions">
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={goPrevious}
+            disabled={activeIndex === 0}
+          >
+            <ArrowRight size={18} />
+            السابق
+          </button>
+          {activeIndex < steps.length - 1 ? (
             <button
               className="primary-button"
               type="button"
               onClick={goNext}
-              disabled={activeIndex === steps.length - 1}
+              disabled={activeIndex === 0 && !canAdvanceFromStart}
             >
-              التالي
+              {activeIndex === 0
+                ? "الانتقال إلى المراجعة"
+                : "الانتقال إلى التصدير"}
               <ArrowLeft size={18} />
             </button>
-          </div>
-        </section>
+          ) : null}
+          {activeIndex === 0 && !canAdvanceFromStart ? (
+            <span className="workspace-next-requirement">
+              أكمل رفع الملف واستخراج النص أولًا.
+            </span>
+          ) : null}
+        </div>
       </section>
-    </main>
+    </WorkspaceShell>
   );
 }
 
-interface StepContentProps {
-  stepKey: StepKey;
+interface WorkspaceContentProps {
+  stageKey: WorkflowStageKey;
   metadata: ProjectMetadata;
   schoolLogo: SchoolLogoInfo | null;
   uploadedFile: UploadedFileInfo | null;
@@ -1937,10 +2009,21 @@ interface StepContentProps {
   translationProviderStatus: TranslationProviderStatus | null;
   translationBatchSummary: TranslationBatchSummary | null;
   projectReadiness: ProjectReadinessReport | null;
+  projects: ProjectSession[];
+  currentProjectId: string | null;
+  isLibraryLoading: boolean;
+  isBusy: boolean;
+  initialExtractionStatus: InitialExtractionStatus;
+  lastSyncNote: string;
   onMetadataChange: (metadata: ProjectMetadata) => void;
   onLogoSelected: (file: File | null) => void;
   onLogoRemove: () => void;
   onFileSelected: (file: File | null) => void;
+  onRetryInitialExtraction: () => void;
+  onRefreshProjects: () => void;
+  onOpenProject: (projectId: string) => void;
+  onDeleteProject: (projectId: string) => void;
+  onDeleteProjects: (projectIds: string[]) => void;
   onUpdateQuestion: (
     questionId: string,
     updates: Partial<QuestionItem>,
@@ -1951,6 +2034,7 @@ interface StepContentProps {
     updates: Partial<GlossaryTerm>,
   ) => void;
   onGenerateGlossary: () => void;
+  onApproveAllGlossary: () => void;
   onTranslateQuestions: () => void;
   onRetryQuestionTranslation: (questionId: string) => void;
   onBulkUpdateStatus: (
@@ -1983,8 +2067,8 @@ interface StepContentProps {
   canExportPdf: boolean;
 }
 
-function StepContent({
-  stepKey,
+function WorkspaceContent({
+  stageKey,
   metadata,
   schoolLogo,
   uploadedFile,
@@ -2002,14 +2086,26 @@ function StepContent({
   translationProviderStatus,
   translationBatchSummary,
   projectReadiness,
+  projects,
+  currentProjectId,
+  isLibraryLoading,
+  isBusy,
+  initialExtractionStatus,
+  lastSyncNote,
   onMetadataChange,
   onLogoSelected,
   onLogoRemove,
   onFileSelected,
+  onRetryInitialExtraction,
+  onRefreshProjects,
+  onOpenProject,
+  onDeleteProject,
+  onDeleteProjects,
   onUpdateQuestion,
   onMoveQuestion,
   onUpdateGlossaryTerm,
   onGenerateGlossary,
+  onApproveAllGlossary,
   onTranslateQuestions,
   onRetryQuestionTranslation,
   onBulkUpdateStatus,
@@ -2033,94 +2129,94 @@ function StepContent({
   onRunFullExamAcceptance,
   canExportDocx,
   canExportPdf,
-}: StepContentProps) {
-  switch (stepKey) {
-    case "setup":
-      return (
-        <ProjectSetupStep
-          metadata={metadata}
-          schoolLogo={schoolLogo}
-          onChange={onMetadataChange}
-          onLogoSelected={onLogoSelected}
-          onLogoRemove={onLogoRemove}
-        />
-      );
-    case "upload":
-      return (
-        <FileUploadStep
-          uploadedFile={uploadedFile}
-          extractedText={extractedText}
-          layoutAssets={layoutAssets}
-          onFileSelected={onFileSelected}
-        />
-      );
-    case "extract":
-      return (
-        <ExtractionStep
-          questions={questions}
-          extractedText={extractedText}
-          layoutAssets={layoutAssets}
-          onDeleteLayoutAsset={onDeleteLayoutAsset}
-          onReloadDemo={onReloadDemo}
-          onParseQuestions={onParseQuestions}
-        />
-      );
-    case "glossary":
-      return (
-        <GlossaryStep
-          glossary={glossary}
-          onUpdateTerm={onUpdateGlossaryTerm}
-          onGenerateGlossary={onGenerateGlossary}
-        />
-      );
-    case "review":
-      return (
-        <ReviewStep
-          questions={questions}
-          layoutAssets={layoutAssets}
-          onUpdateQuestion={onUpdateQuestion}
-          onMoveQuestion={onMoveQuestion}
-          onTranslateQuestions={onTranslateQuestions}
-          onRetryQuestionTranslation={onRetryQuestionTranslation}
-          onBulkUpdateStatus={onBulkUpdateStatus}
-          onUploadQuestionAsset={onUploadQuestionAsset}
-          onDeleteQuestionAsset={onDeleteQuestionAsset}
-          onLinkLayoutAsset={onLinkQuestionLayoutAsset}
-          onUnlinkLayoutAsset={onUnlinkQuestionLayoutAsset}
-          onCropLayoutAsset={onCropQuestionLayoutAsset}
-          translationProviderStatus={translationProviderStatus}
-          translationBatchSummary={translationBatchSummary}
-          fullExamIntakeReport={fullExamIntakeReport}
-          fullExamTranslationReport={fullExamTranslationReport}
-        />
-      );
-    case "export":
-      return (
-        <ExportStep
-          metadata={metadata}
-          questions={questions}
-          glossary={glossary}
-          answerKey={answerKey}
-          educationalAnalysis={educationalAnalysis}
-          qualityTools={qualityTools}
-          readiness={projectReadiness}
-          fullExamExportReport={fullExamExportReport}
-          fullExamTranslationReport={fullExamTranslationReport}
-          fullExamEndToEndReport={fullExamEndToEndReport}
-          onRunFullExamAcceptance={onRunFullExamAcceptance}
-          onMetadataChange={onMetadataChange}
-          canExportDocx={canExportDocx}
-          onExportDocx={onExportDocx}
-          onExportPdf={onExportPdf}
-          canExportPdf={canExportPdf}
-          onRefreshReadiness={onRefreshReadiness}
-          onGenerateAnswerKey={onGenerateAnswerKey}
-          onClearAnswerKey={onClearAnswerKey}
-          onGenerateEducationalAnalysis={onGenerateEducationalAnalysis}
-          onClearEducationalAnalysis={onClearEducationalAnalysis}
-          onGenerateQualityTools={onGenerateQualityTools}
-          onClearQualityTools={onClearQualityTools}
-        />
-      );
+}: WorkspaceContentProps) {
+  if (stageKey === "start") {
+    return (
+      <StartWorkspace
+        metadata={metadata}
+        schoolLogo={schoolLogo}
+        uploadedFile={uploadedFile}
+        extractedText={extractedText}
+        layoutAssets={layoutAssets}
+        questions={questions}
+        projects={projects}
+        currentProjectId={currentProjectId}
+        isLibraryLoading={isLibraryLoading}
+        isBusy={isBusy}
+        initialExtractionStatus={initialExtractionStatus}
+        lastSyncNote={lastSyncNote}
+        onMetadataChange={onMetadataChange}
+        onLogoSelected={onLogoSelected}
+        onLogoRemove={onLogoRemove}
+        onFileSelected={onFileSelected}
+        onRetryInitialExtraction={onRetryInitialExtraction}
+        onRefreshProjects={onRefreshProjects}
+        onOpenProject={onOpenProject}
+        onDeleteProject={onDeleteProject}
+        onDeleteProjects={onDeleteProjects}
+        onParseQuestions={onParseQuestions}
+      />
+    );
   }
+
+  if (stageKey === "review") {
+    return (
+      <UnifiedReviewWorkspace
+        questions={questions}
+        glossary={glossary}
+        layoutAssets={layoutAssets}
+        extractedText={extractedText}
+        translationProviderStatus={translationProviderStatus}
+        translationBatchSummary={translationBatchSummary}
+        fullExamIntakeReport={fullExamIntakeReport}
+        fullExamTranslationReport={fullExamTranslationReport}
+        isBusy={isBusy}
+        onUpdateQuestion={onUpdateQuestion}
+        onMoveQuestion={onMoveQuestion}
+        onTranslateQuestions={onTranslateQuestions}
+        onRetryQuestionTranslation={onRetryQuestionTranslation}
+        onBulkUpdateStatus={onBulkUpdateStatus}
+        onUploadQuestionAsset={onUploadQuestionAsset}
+        onDeleteQuestionAsset={onDeleteQuestionAsset}
+        onLinkLayoutAsset={onLinkQuestionLayoutAsset}
+        onUnlinkLayoutAsset={onUnlinkQuestionLayoutAsset}
+        onCropLayoutAsset={onCropQuestionLayoutAsset}
+        onUpdateGlossaryTerm={onUpdateGlossaryTerm}
+        onGenerateGlossary={onGenerateGlossary}
+        onApproveAllGlossary={onApproveAllGlossary}
+        onDeleteLayoutAsset={onDeleteLayoutAsset}
+        onReloadDemo={onReloadDemo}
+        onParseQuestions={onParseQuestions}
+      />
+    );
+  }
+
+  return (
+    <ExportStep
+      metadata={metadata}
+      schoolLogo={schoolLogo}
+      questions={questions}
+      glossary={glossary}
+      answerKey={answerKey}
+      educationalAnalysis={educationalAnalysis}
+      qualityTools={qualityTools}
+      readiness={projectReadiness}
+      fullExamExportReport={fullExamExportReport}
+      fullExamTranslationReport={fullExamTranslationReport}
+      fullExamEndToEndReport={fullExamEndToEndReport}
+      onRunFullExamAcceptance={onRunFullExamAcceptance}
+      onMetadataChange={onMetadataChange}
+      canExportDocx={canExportDocx}
+      onExportDocx={onExportDocx}
+      onExportPdf={onExportPdf}
+      canExportPdf={canExportPdf}
+      onRefreshReadiness={onRefreshReadiness}
+      onGenerateAnswerKey={onGenerateAnswerKey}
+      onClearAnswerKey={onClearAnswerKey}
+      onGenerateEducationalAnalysis={onGenerateEducationalAnalysis}
+      onClearEducationalAnalysis={onClearEducationalAnalysis}
+      onGenerateQualityTools={onGenerateQualityTools}
+      onClearQualityTools={onClearQualityTools}
+    />
+  );
 }
