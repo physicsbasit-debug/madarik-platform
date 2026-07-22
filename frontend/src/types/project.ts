@@ -557,3 +557,71 @@ export interface AuthUpdateAccountInput {
   role?: AccountRole;
   isActive?: boolean;
 }
+
+
+export type ScienceDomain =
+  | "general_science"
+  | "physics"
+  | "chemistry"
+  | "biology"
+  | "environmental_science";
+
+export type CurriculumDocumentType =
+  | "student_book"
+  | "teacher_guide"
+  | "curriculum_document"
+  | "learning_outcomes"
+  | "assessment_guide"
+  | "other";
+
+export type CurriculumSemester = {
+  id: string;
+  grade: number;
+  number: 1 | 2;
+  title: string;
+};
+
+export type CurriculumSubject = {
+  id: string;
+  grade: number;
+  scienceDomain: ScienceDomain;
+  title: string;
+  shortTitle: string;
+};
+
+export type CurriculumUnit = {
+  id: string;
+  subjectId: string;
+  semesterId: string;
+  title: string;
+  order: number;
+  description?: string;
+};
+
+export type CurriculumLesson = {
+  id: string;
+  unitId: string;
+  title: string;
+  order: number;
+  learningOutcomeIds: string[];
+};
+
+export type CurriculumLearningOutcome = {
+  id: string;
+  grade: number;
+  scienceDomain: ScienceDomain;
+  unitId: string;
+  lessonId: string | null;
+  code: string;
+  text: string;
+};
+
+export type CurriculumCatalog = {
+  grades: number[];
+  semesters: CurriculumSemester[];
+  subjects: CurriculumSubject[];
+  units: CurriculumUnit[];
+  lessons: CurriculumLesson[];
+  learningOutcomes: CurriculumLearningOutcome[];
+};
+

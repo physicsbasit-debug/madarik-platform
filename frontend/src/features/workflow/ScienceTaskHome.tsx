@@ -13,6 +13,7 @@ import {
 type ScienceTaskHomeProps = {
   onQuickTranslation: () => void;
   onProfessionalTranslation: () => void;
+  onOpenCurriculum: () => void;
 };
 
 const comingSoonTasks = [
@@ -45,6 +46,7 @@ const comingSoonTasks = [
 export default function ScienceTaskHome({
   onQuickTranslation,
   onProfessionalTranslation,
+  onOpenCurriculum,
 }: ScienceTaskHomeProps) {
   return (
     <main className="science-task-home" dir="rtl">
@@ -130,6 +132,27 @@ export default function ScienceTaskHome({
         <div className="science-task-coming-grid">
           {comingSoonTasks.map((task) => {
             const Icon = task.icon;
+            const isCurriculum = task.title === "مكتبة المناهج والمصادر";
+
+            if (isCurriculum) {
+              return (
+                <button
+                  type="button"
+                  className="science-task-coming-card is-available"
+                  key={task.title}
+                  onClick={onOpenCurriculum}
+                >
+                  <div className="science-task-coming-icon">
+                    <Icon size={24} />
+                  </div>
+                  <span className="science-task-status is-ready">متاح الآن</span>
+                  <h3>{task.title}</h3>
+                  <p>{task.description}</p>
+                  <strong>فتح مكتبة المناهج</strong>
+                </button>
+              );
+            }
+
             return (
               <article className="science-task-coming-card" key={task.title}>
                 <div className="science-task-coming-icon">

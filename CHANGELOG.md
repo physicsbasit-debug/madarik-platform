@@ -157,3 +157,13 @@
 - Repaired the Phase 0-B ScienceTaskHome import placement in App.tsx.
 - Added responsive RTL styling, documentation, and focused tests.
 - No Backend API contract, persistence model, or export implementation was changed.
+
+### Phase 2: Curriculum Structure for Grades 1–12
+
+- Added curriculum types for grades, semesters, science subjects, units, lessons, and learning outcomes.
+- Added a local science curriculum seed covering the structural range from grades 1 to 12.
+- Added a repository boundary so UI components do not import seed content directly.
+- Added a responsive RTL curriculum browser.
+- Activated the curriculum library card on the V2 task home.
+- Added documentation and focused tests.
+- No Google Drive, Backend persistence, or official curriculum content was added.
