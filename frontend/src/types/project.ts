@@ -1,5 +1,20 @@
 export type StepKey = 'setup' | 'upload' | 'extract' | 'glossary' | 'review' | 'export';
 
+export type InitialExtractionPhase =
+  | 'idle'
+  | 'uploading'
+  | 'reading'
+  | 'ocr'
+  | 'success'
+  | 'error';
+
+export interface InitialExtractionStatus {
+  phase: InitialExtractionPhase;
+  startedAt: number | null;
+  message: string;
+  canRetry: boolean;
+}
+
 export type QuestionStatus = 'approved' | 'needs_review' | 'deleted';
 
 export type OutputMode = 'arabic' | 'bilingual';

@@ -1,5 +1,5 @@
 import type { VisualCropRequest } from "../../types/project";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { VisualCropDialog } from "./VisualCropDialog";
 import {
   AlertTriangle,
@@ -12,6 +12,7 @@ import {
   ImagePlus,
   Languages,
   Link2,
+  Loader2,
   Plus,
   RotateCcw,
   Trash2,
@@ -57,6 +58,8 @@ interface ReviewStepProps {
   translationBatchSummary?: TranslationBatchSummary | null;
   fullExamIntakeReport?: FullExamIntakeReport | null;
   fullExamTranslationReport?: FullExamTranslationReport | null;
+  simplified?: boolean;
+  isBusy?: boolean;
 }
 
 const statusLabels: Record<QuestionStatus, string> = {
@@ -78,14 +81,11 @@ function formatProviderApiMode(apiMode?: string) {
   return apiMode ?? "";
 }
 
-function formatFullExamIntakeStatus(
-  status: FullExamIntakeReport["status"],
-) {
+function formatFullExamIntakeStatus(status: FullExamIntakeReport["status"]) {
   if (status === "accepted") return "مقبولة هيكليًا";
   if (status === "needs_review") return "تحتاج مراجعة هيكلية";
   return "مرفوضة هيكليًا";
 }
-
 
 function formatFullExamTranslationStatus(
   status: FullExamTranslationReport["status"],
@@ -106,7 +106,6 @@ function formatQuestionTranslationStatus(
   return "محذوف";
 }
 
-
 function formatTranslationBatchStatus(
   status: TranslationBatchSummary["status"],
 ) {
@@ -125,9 +124,7 @@ function normalizeQuestionPartHierarchy(parts: QuestionPart[]) {
   const sanitizedParts = sortedParts.map((part) => ({
     ...part,
     parentId:
-      part.parentId &&
-      part.parentId !== part.id &&
-      partIds.has(part.parentId)
+      part.parentId && part.parentId !== part.id && partIds.has(part.parentId)
         ? part.parentId
         : null,
   }));
@@ -310,6 +307,8 @@ export function ReviewStep({
   translationBatchSummary,
   fullExamIntakeReport,
   fullExamTranslationReport,
+  simplified = false,
+  isBusy = false,
 }: ReviewStepProps) {
   const sortedQuestions = [...questions].sort(
     (a, b) => a.orderIndex - b.orderIndex,
@@ -318,15 +317,12 @@ export function ReviewStep({
     (question) => question.status !== "deleted",
   );
   const linkedLayoutAssetIds = new Set(
-    activeQuestions.flatMap(
-      (question) => question.linkedLayoutAssetIds ?? [],
-    ),
+    activeQuestions.flatMap((question) => question.linkedLayoutAssetIds ?? []),
   );
   const linkedLayoutAssetCount = layoutAssets.filter((asset) =>
     linkedLayoutAssetIds.has(asset.id),
   ).length;
-  const unlinkedLayoutAssetCount =
-    layoutAssets.length - linkedLayoutAssetCount;
+  const unlinkedLayoutAssetCount = layoutAssets.length - linkedLayoutAssetCount;
 
   const [cropTarget, setCropTarget] = useState<{
     questionId: string;
@@ -336,22 +332,49 @@ export function ReviewStep({
   const [layoutAssetTargets, setLayoutAssetTargets] = useState<
     Record<string, string>
   >({});
-  const [showLayoutAssetLibrary, setShowLayoutAssetLibrary] =
-    useState(false);
+  const [showLayoutAssetLibrary, setShowLayoutAssetLibrary] = useState(false);
+  const [selectedQuestionId, setSelectedQuestionId] = useState(
+    activeQuestions[0]?.id ?? "",
+  );
 
-  async function handleSaveCrop(
-    crop: VisualCropRequest,
-  ) {
+  useEffect(() => {
+    if (
+      selectedQuestionId &&
+      activeQuestions.some((question) => question.id === selectedQuestionId)
+    ) {
+      return;
+    }
+
+    setSelectedQuestionId(activeQuestions[0]?.id ?? "");
+  }, [activeQuestions, selectedQuestionId]);
+
+  const selectedQuestion = useMemo(
+    () =>
+      activeQuestions.find((question) => question.id === selectedQuestionId) ??
+      activeQuestions[0] ??
+      null,
+    [activeQuestions, selectedQuestionId],
+  );
+
+  const questionsForDisplay = simplified
+    ? selectedQuestion
+      ? [selectedQuestion]
+      : []
+    : sortedQuestions;
+
+  const selectedLinkedLayoutAssets = selectedQuestion
+    ? layoutAssets.filter((asset) =>
+        (selectedQuestion.linkedLayoutAssetIds ?? []).includes(asset.id),
+      )
+    : [];
+
+  async function handleSaveCrop(crop: VisualCropRequest) {
     if (!cropTarget) return;
 
     setCropSaving(true);
 
     try {
-      await onCropLayoutAsset(
-        cropTarget.questionId,
-        cropTarget.asset.id,
-        crop,
-      );
+      await onCropLayoutAsset(cropTarget.questionId, cropTarget.asset.id, crop);
       setCropTarget(null);
     } finally {
       setCropSaving(false);
@@ -387,8 +410,7 @@ export function ReviewStep({
 
     return (
       activeQuestions.find(
-        (question) =>
-          !(question.linkedLayoutAssetIds ?? []).includes(asset.id),
+        (question) => !(question.linkedLayoutAssetIds ?? []).includes(asset.id),
       )?.id ??
       activeQuestions[0]?.id ??
       ""
@@ -435,16 +457,11 @@ export function ReviewStep({
     const childIndex = currentParts.filter(
       (part) => part.parentId === parentId,
     ).length;
-    const childLabel =
-      childPartLabels[childIndex] ?? `(${childIndex + 1})`;
+    const childLabel = childPartLabels[childIndex] ?? `(${childIndex + 1})`;
 
     saveQuestionParts(question, [
       ...currentParts,
-      createQuestionPart(
-        currentParts.length + 1,
-        parentId,
-        childLabel,
-      ),
+      createQuestionPart(currentParts.length + 1, parentId, childLabel),
     ]);
   }
 
@@ -480,9 +497,7 @@ export function ReviewStep({
       (part) => part.id === partId,
     );
     const targetSiblingIndex =
-      direction === "up"
-        ? currentSiblingIndex - 1
-        : currentSiblingIndex + 1;
+      direction === "up" ? currentSiblingIndex - 1 : currentSiblingIndex + 1;
 
     if (
       currentSiblingIndex < 0 ||
@@ -514,27 +529,72 @@ export function ReviewStep({
     saveQuestionParts(question, nextParts);
   }
 
+  const approvedQuestionsCount = activeQuestions.filter(
+    (question) => question.status === "approved",
+  ).length;
+  const reviewQuestionsCount = activeQuestions.filter(
+    (question) => question.status === "needs_review",
+  ).length;
+  const linkedQuestionsCount = activeQuestions.filter(
+    (question) =>
+      (question.linkedLayoutAssetIds?.length ?? 0) > 0 ||
+      question.attachments.length > 0,
+  ).length;
+
   return (
-    <section className="review-layout">
+    <section
+      className={`review-layout review-layout-redesign ${simplified ? "review-layout-compact" : ""}`}
+    >
+      <section className="review-overview-panel">
+        <div className="review-overview-copy">
+          <p className="eyebrow">مراجعة موحدة</p>
+          <h3>راجع التنبيهات بدل مراجعة كل شيء من الصفر</h3>
+          <p>الأسئلة والترجمة والمراجع البصرية في مساحة واحدة، مع إبقاء التفاصيل المتقدمة مطوية حتى تحتاجها.</p>
+        </div>
+        <div className="review-overview-metrics">
+          <article><CheckCircle2 size={20} /><strong>{activeQuestions.length}</strong><span>سؤال نشط</span></article>
+          <article><AlertTriangle size={20} /><strong>{reviewQuestionsCount}</strong><span>يحتاج مراجعة</span></article>
+          <article><Link2 size={20} /><strong>{linkedQuestionsCount}</strong><span>مرتبط بصريًا</span></article>
+          <article><Languages size={20} /><strong>{approvedQuestionsCount}</strong><span>معتمد</span></article>
+        </div>
+      </section>
       <div className="section-heading split-heading">
         <div>
           <p className="eyebrow">مراجعة الأسئلة</p>
-          <h3>بطاقات مستقلة قابلة للتعديل والحذف والترتيب</h3>
+          <h3>مساحة تحرير منظمة لكل سؤال</h3>
           <p>
-            أي سؤال محذوف لا يدخل في التصدير النهائي، ويُعاد ترقيم الأسئلة
-            المعتمدة تلقائيًا. يمكن الآن ربط صورة أو جدول بكل سؤال يدويًا.
+            اختر السؤال من القائمة، راجع النص والترجمة في الوسط، وأدر المراجع البصرية من اللوحة المقابلة.
           </p>
         </div>
-        <button
-          className="primary-button"
-          type="button"
-          onClick={onTranslateQuestions}
-          disabled={activeQuestions.length === 0}
-        >
-          <Languages size={18} />
-          ترجمة الأسئلة وأجزائها
-        </button>
       </div>
+
+      {simplified ? (
+        <details className="review-technical-details">
+          <summary>تفاصيل الفحص والترجمة</summary>
+          <div className="review-diagnostics-grid">
+            <span>
+              حالة البنية:{" "}
+              <strong>{fullExamIntakeReport?.status ?? "غير مفحوصة"}</strong>
+            </span>
+            <span>
+              حالة الترجمة:{" "}
+              <strong>
+                {fullExamTranslationReport?.status ?? "غير مشغلة"}
+              </strong>
+            </span>
+            <span>
+              مزود الترجمة:{" "}
+              <strong>
+                {translationProviderStatus?.provider ?? "غير محدد"}
+              </strong>
+            </span>
+            <span>
+              دفعة الترجمة:{" "}
+              <strong>{translationBatchSummary?.status ?? "غير متاحة"}</strong>
+            </span>
+          </div>
+        </details>
+      ) : null}
 
       {fullExamIntakeReport ? (
         <div className="notice-card translation-notice">
@@ -546,10 +606,10 @@ export function ReviewStep({
             {fullExamIntakeReport.blankPageCount}، الأسئلة الرئيسية:{" "}
             {fullExamIntakeReport.detectedQuestionCount}، الدرجة المكتشفة:{" "}
             {fullExamIntakeReport.detectedTotalMarks ?? "—"} من{" "}
-            {fullExamIntakeReport.reportedTotalMarks ?? "—"}، الأسئلة الممتدة عبر صفحات:{" "}
-            {fullExamIntakeReport.multiPageQuestionCount}، المراجع البصرية:{" "}
-            {fullExamIntakeReport.visualReferenceCount}، روابط لقطات PDF الآلية:{" "}
-            {fullExamIntakeReport.autoLinkedLayoutAssetCount}.
+            {fullExamIntakeReport.reportedTotalMarks ?? "—"}، الأسئلة الممتدة
+            عبر صفحات: {fullExamIntakeReport.multiPageQuestionCount}، المراجع
+            البصرية: {fullExamIntakeReport.visualReferenceCount}، روابط لقطات
+            PDF الآلية: {fullExamIntakeReport.autoLinkedLayoutAssetCount}.
             {fullExamIntakeReport.warnings.length > 0
               ? ` تنبيهات: ${fullExamIntakeReport.warnings.join(" ")}`
               : " جميع فحوص البنية الأساسية ناجحة."}
@@ -590,19 +650,18 @@ export function ReviewStep({
         <div className="notice-card translation-notice">
           <strong>قبول ترجمة الورقة ومراجعتها:</strong>
           <span>
-            {formatFullExamTranslationStatus(
-              fullExamTranslationReport.status,
-            )}. اكتمال الترجمة:{" "}
-            {fullExamTranslationReport.completionPercent}%، الأسئلة المترجمة:{" "}
-            {fullExamTranslationReport.translatedQuestions} من{" "}
+            {formatFullExamTranslationStatus(fullExamTranslationReport.status)}.
+            اكتمال الترجمة: {fullExamTranslationReport.completionPercent}%،
+            الأسئلة المترجمة: {fullExamTranslationReport.translatedQuestions} من{" "}
             {fullExamTranslationReport.activeQuestions}، المعتمدة:{" "}
             {fullExamTranslationReport.acceptedQuestions}، تحتاج مراجعة:{" "}
             {fullExamTranslationReport.needsReviewQuestions}، غير المكتملة:{" "}
             {fullExamTranslationReport.untranslatedQuestions}، الفاشلة:{" "}
             {fullExamTranslationReport.failedQuestions}، مخالفات القاموس:{" "}
             {fullExamTranslationReport.glossaryViolationCount}، مخالفات السلامة
-            العلمية: {fullExamTranslationReport.fidelityViolationCount}، مخالفات جودة
-            العربية: {fullExamTranslationReport.languageQualityViolationCount}.
+            العلمية: {fullExamTranslationReport.fidelityViolationCount}، مخالفات
+            جودة العربية:{" "}
+            {fullExamTranslationReport.languageQualityViolationCount}.
             {fullExamTranslationReport.warnings.length > 0
               ? ` تنبيهات: ${fullExamTranslationReport.warnings.join(" ")}`
               : " جميع فحوص قبول الترجمة والمراجعة ناجحة."}
@@ -629,6 +688,19 @@ export function ReviewStep({
       ) : null}
 
       <div className="review-bulk-actions">
+        <button
+          className="primary-button compact review-translate-action"
+          type="button"
+          onClick={onTranslateQuestions}
+          disabled={activeQuestions.length === 0 || isBusy}
+        >
+          {isBusy ? (
+            <Loader2 size={16} className="spin-icon" />
+          ) : (
+            <Languages size={16} />
+          )}
+          {isBusy ? "جاري الترجمة..." : "ترجمة الأسئلة وأجزائها"}
+        </button>
         <button
           type="button"
           className="secondary-button compact"
@@ -680,9 +752,7 @@ export function ReviewStep({
               <button
                 type="button"
                 className="secondary-button compact"
-                onClick={() =>
-                  setShowLayoutAssetLibrary((current) => !current)
-                }
+                onClick={() => setShowLayoutAssetLibrary((current) => !current)}
                 aria-expanded={showLayoutAssetLibrary}
                 aria-controls="layout-asset-library-content"
               >
@@ -715,7 +785,10 @@ export function ReviewStep({
                     );
 
                     return (
-                      <article key={asset.id} className="layout-asset-library-card">
+                      <article
+                        key={asset.id}
+                        className="layout-asset-library-card"
+                      >
                         <img
                           src={`data:${asset.type};base64,${asset.dataBase64}`}
                           alt={`لقطة متاحة من الصفحة ${asset.pageNumber}`}
@@ -740,9 +813,9 @@ export function ReviewStep({
                               {activeQuestions.map((question) => (
                                 <option key={question.id} value={question.id}>
                                   {questionDisplayLabel(question)}
-                                  {(question.linkedLayoutAssetIds ?? []).includes(
-                                    asset.id,
-                                  )
+                                  {(
+                                    question.linkedLayoutAssetIds ?? []
+                                  ).includes(asset.id)
                                     ? " — مرتبط"
                                     : ""}
                                 </option>
@@ -800,553 +873,669 @@ export function ReviewStep({
         </section>
       ) : null}
 
-      <div className="question-card-list">
-        {sortedQuestions.map((question) => {
-          const linkedAssetIds = question.linkedLayoutAssetIds ?? [];
-          const linkedLayoutAssets = layoutAssets.filter((asset) =>
-            linkedAssetIds.includes(asset.id),
-          );
-          const questionParts = normalizeQuestionPartHierarchy(
-            question.parts ?? [],
-          );
-          const questionPartsTotalMarks =
-            getQuestionPartsTotalMarks(questionParts);
-          const hasQuestionMarksGuidance =
-            questionPartsTotalMarks !== null &&
-            question.marks !== questionPartsTotalMarks;
-          const translationAcceptance =
-            fullExamTranslationReport?.questions.find(
-              (item) => item.questionId === question.id,
-            );
-          const canRetryTranslation =
-            question.status !== "deleted" &&
-            translationAcceptance !== undefined &&
-            translationAcceptance.status !== "accepted";
+      <div className="rtl-review-workspace">
+        <aside className="rtl-review-question-list" aria-label="قائمة الأسئلة">
+          <div className="rtl-review-column-heading">
+            <div>
+              <p className="eyebrow">الأسئلة</p>
+              <h4>قائمة الأسئلة</h4>
+            </div>
+            <span>{activeQuestions.length}</span>
+          </div>
+          <div className="rtl-review-question-items">
+            {activeQuestions.map((question) => {
+              const number = getCurrentNumber(question.id);
+              return (
+                <button
+                  key={question.id}
+                  type="button"
+                  className={`rtl-review-question-item ${
+                    selectedQuestion?.id === question.id ? "is-active" : ""
+                  }`}
+                  onClick={() => setSelectedQuestionId(question.id)}
+                >
+                  <strong>س {number}</strong>
+                  <span>{question.marks ?? "—"} درجات</span>
+                  <small
+                    className={`question-state question-state-${question.status}`}
+                  >
+                    {statusLabels[question.status]}
+                  </small>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
 
-          return (
-            <article
-              key={question.id}
-              className={`question-card ${question.status === "deleted" ? "is-deleted" : ""}`}
-            >
-              <header className="question-card-header">
-                <div>
-                  <span className="status-pill">
-                    السؤال {getCurrentNumber(question.id)}
-                  </span>
-                  <strong>الأصل: {question.originalNumber}</strong>
-                  {(question.sourcePageNumbers?.length ?? 0) > 0 ? (
-                    <small>
-                      المصدر: صفحة {question.sourcePageNumbers?.join("، ")}
-                    </small>
+        <main className="rtl-review-question-main">
+          <div className="question-card-list">
+            {questionsForDisplay.map((question) => {
+              const linkedAssetIds = question.linkedLayoutAssetIds ?? [];
+              const linkedLayoutAssets = layoutAssets.filter((asset) =>
+                linkedAssetIds.includes(asset.id),
+              );
+              const questionParts = normalizeQuestionPartHierarchy(
+                question.parts ?? [],
+              );
+              const questionPartsTotalMarks =
+                getQuestionPartsTotalMarks(questionParts);
+              const hasQuestionMarksGuidance =
+                questionPartsTotalMarks !== null &&
+                question.marks !== questionPartsTotalMarks;
+              const translationAcceptance =
+                fullExamTranslationReport?.questions.find(
+                  (item) => item.questionId === question.id,
+                );
+              const canRetryTranslation =
+                question.status !== "deleted" &&
+                translationAcceptance !== undefined &&
+                translationAcceptance.status !== "accepted";
+
+              return (
+                <article
+                  key={question.id}
+                  className={`question-card ${question.status === "deleted" ? "is-deleted" : ""}`}
+                >
+                  <header className="question-card-header">
+                    <div>
+                      <span className="status-pill">
+                        السؤال {getCurrentNumber(question.id)}
+                      </span>
+                      <strong>الأصل: {question.originalNumber}</strong>
+                      {(question.sourcePageNumbers?.length ?? 0) > 0 ? (
+                        <small>
+                          المصدر: صفحة {question.sourcePageNumbers?.join("، ")}
+                        </small>
+                      ) : null}
+                      {translationAcceptance ? (
+                        <small>
+                          حالة الترجمة:{" "}
+                          {formatQuestionTranslationStatus(
+                            translationAcceptance.status,
+                          )}
+                          . {translationAcceptance.message}
+                        </small>
+                      ) : null}
+                    </div>
+                    <div className="question-header-actions">
+                      {canRetryTranslation ? (
+                        <button
+                          type="button"
+                          className="secondary-button compact"
+                          onClick={() =>
+                            onRetryQuestionTranslation(question.id)
+                          }
+                        >
+                          <RotateCcw size={15} />
+                          إعادة ترجمة السؤال
+                        </button>
+                      ) : null}
+                      <select
+                        value={question.status}
+                        onChange={(event) =>
+                          onUpdateQuestion(question.id, {
+                            status: event.target.value as QuestionStatus,
+                          })
+                        }
+                      >
+                        <option value="approved">
+                          {statusLabels.approved}
+                        </option>
+                        <option value="needs_review">
+                          {statusLabels.needs_review}
+                        </option>
+                        <option value="deleted">{statusLabels.deleted}</option>
+                      </select>
+                    </div>
+                  </header>
+
+                  <label>
+                    النص الأصلي
+                    <textarea
+                      value={question.originalText}
+                      readOnly
+                      dir="ltr"
+                    />
+                  </label>
+
+                  <label>
+                    الترجمة العربية
+                    <textarea
+                      value={question.translatedText}
+                      onChange={(event) =>
+                        onUpdateQuestion(question.id, {
+                          translatedText: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+
+                  <section className="question-parts-panel">
+                    <div className="question-parts-header">
+                      <div>
+                        <strong>أجزاء السؤال</strong>
+                        <span>
+                          {questionParts.length > 0
+                            ? `${questionParts.length} جزء محفوظ بهيكل رئيسي وفرعي`
+                            : "لا توجد أجزاء منظمة لهذا السؤال"}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="secondary-button compact"
+                        onClick={() => addQuestionPart(question)}
+                        disabled={question.status === "deleted"}
+                      >
+                        <Plus size={16} />
+                        إضافة جزء رئيسي
+                      </button>
+                    </div>
+
+                    {questionParts.length > 0 ? (
+                      <div className="question-parts-list">
+                        {questionParts.map((part, partIndex) => {
+                          const partDepth = getQuestionPartDepth(
+                            part,
+                            questionParts,
+                          );
+                          const parentPart = part.parentId
+                            ? questionParts.find(
+                                (candidate) => candidate.id === part.parentId,
+                              )
+                            : null;
+                          const parentCandidates = questionParts.filter(
+                            (candidate) =>
+                              candidate.id !== part.id &&
+                              !candidate.parentId &&
+                              candidate.orderIndex < part.orderIndex,
+                          );
+
+                          return (
+                            <article
+                              key={part.id}
+                              className={`question-part-card ${
+                                partDepth > 0 ? "is-child" : "is-root"
+                              }`}
+                              style={
+                                {
+                                  "--question-part-depth": partDepth,
+                                } as CSSProperties
+                              }
+                            >
+                              <header className="question-part-card-header">
+                                <div>
+                                  <span>
+                                    {partDepth > 0
+                                      ? `جزء فرعي تابع لـ ${
+                                          parentPart?.label || "جزء رئيسي"
+                                        }`
+                                      : `جزء رئيسي · الترتيب ${partIndex + 1}`}
+                                  </span>
+                                  <strong>
+                                    {part.label.trim() || "بدون وسم"}
+                                  </strong>
+                                </div>
+                                <div className="question-part-actions">
+                                  {partDepth === 0 ? (
+                                    <button
+                                      type="button"
+                                      className="secondary-button compact"
+                                      onClick={() =>
+                                        addChildQuestionPart(question, part.id)
+                                      }
+                                      disabled={question.status === "deleted"}
+                                    >
+                                      <Plus size={15} />
+                                      إضافة فرعي
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    className="secondary-button compact"
+                                    onClick={() =>
+                                      moveQuestionPart(question, part.id, "up")
+                                    }
+                                    disabled={
+                                      question.status === "deleted" ||
+                                      !canMoveQuestionPart(
+                                        part,
+                                        questionParts,
+                                        "up",
+                                      )
+                                    }
+                                  >
+                                    <ArrowUp size={15} />
+                                    رفع
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="secondary-button compact"
+                                    onClick={() =>
+                                      moveQuestionPart(
+                                        question,
+                                        part.id,
+                                        "down",
+                                      )
+                                    }
+                                    disabled={
+                                      question.status === "deleted" ||
+                                      !canMoveQuestionPart(
+                                        part,
+                                        questionParts,
+                                        "down",
+                                      )
+                                    }
+                                  >
+                                    <ArrowDown size={15} />
+                                    إنزال
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="danger-button compact"
+                                    onClick={() =>
+                                      deleteQuestionPart(question, part.id)
+                                    }
+                                    disabled={question.status === "deleted"}
+                                  >
+                                    <Trash2 size={15} />
+                                    حذف الجزء
+                                  </button>
+                                </div>
+                              </header>
+
+                              <div className="question-part-fields">
+                                <label>
+                                  وسم الجزء
+                                  <input
+                                    value={part.label}
+                                    dir="ltr"
+                                    onChange={(event) =>
+                                      updateQuestionPart(question, part.id, {
+                                        label: event.target.value,
+                                      })
+                                    }
+                                    disabled={question.status === "deleted"}
+                                    placeholder="مثل (a) أو (i)"
+                                  />
+                                </label>
+
+                                <label>
+                                  الدرجة
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={part.marks ?? ""}
+                                    onChange={(event) => {
+                                      const rawValue = event.target.value;
+                                      updateQuestionPart(question, part.id, {
+                                        marks:
+                                          rawValue === ""
+                                            ? null
+                                            : Number(rawValue),
+                                      });
+                                    }}
+                                    disabled={question.status === "deleted"}
+                                  />
+                                </label>
+
+                                <label className="question-part-parent-field">
+                                  التبعية
+                                  <select
+                                    value={part.parentId ?? ""}
+                                    onChange={(event) =>
+                                      updateQuestionPart(question, part.id, {
+                                        parentId: event.target.value || null,
+                                      })
+                                    }
+                                    disabled={question.status === "deleted"}
+                                  >
+                                    <option value="">جزء رئيسي</option>
+                                    {parentCandidates.map((candidate) => (
+                                      <option
+                                        key={candidate.id}
+                                        value={candidate.id}
+                                      >
+                                        فرعي تابع لـ{" "}
+                                        {candidate.label.trim() || "جزء رئيسي"}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+
+                                <label className="question-part-field-wide">
+                                  النص الأصلي
+                                  <textarea
+                                    value={part.originalText}
+                                    dir="ltr"
+                                    onChange={(event) =>
+                                      updateQuestionPart(question, part.id, {
+                                        originalText: event.target.value,
+                                      })
+                                    }
+                                    disabled={question.status === "deleted"}
+                                  />
+                                </label>
+
+                                <label className="question-part-field-wide">
+                                  الترجمة العربية
+                                  <textarea
+                                    value={part.translatedText}
+                                    onChange={(event) =>
+                                      updateQuestionPart(question, part.id, {
+                                        translatedText: event.target.value,
+                                      })
+                                    }
+                                    disabled={question.status === "deleted"}
+                                  />
+                                </label>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="question-parts-empty">
+                        أضف الأجزاء يدويًا عند الحاجة، أو اترك السؤال دون أجزاء
+                        إذا كان سؤالًا مستقلًا أو اختيارًا من متعدد.
+                      </div>
+                    )}
+                  </section>
+
+                  <div className="question-tools-grid">
+                    <label>
+                      الدرجة
+                      <input
+                        type="number"
+                        min="0"
+                        value={question.marks ?? ""}
+                        onChange={(event) => {
+                          const rawValue = event.target.value;
+                          onUpdateQuestion(question.id, {
+                            marks: rawValue === "" ? null : Number(rawValue),
+                          });
+                        }}
+                      />
+                    </label>
+
+                    <label>
+                      ملاحظة مراجعة
+                      <input
+                        value={question.reviewNotes ?? ""}
+                        onChange={(event) =>
+                          onUpdateQuestion(question.id, {
+                            reviewNotes: event.target.value,
+                          })
+                        }
+                        placeholder="اختياري"
+                      />
+                    </label>
+                  </div>
+
+                  {hasQuestionMarksGuidance ? (
+                    <div className="question-marks-guidance">
+                      <AlertTriangle size={22} />
+                      <div>
+                        <strong>
+                          {question.marks === null
+                            ? "درجة السؤال العامة غير محددة"
+                            : "درجة السؤال لا تتطابق مع مجموع أجزائه"}
+                        </strong>
+                        <span>
+                          {question.marks === null
+                            ? `مجموع الأجزاء المحسوب هو ${questionPartsTotalMarks}. سيُستخدم هذا المجموع في التصدير عند بقاء الدرجة العامة فارغة.`
+                            : `الدرجة الحالية ${question.marks}، بينما مجموع الأجزاء المحسوب ${questionPartsTotalMarks}. التصدير متاح وسيستخدم الدرجة العامة الحالية حتى اعتماد المجموع.`}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="secondary-button compact"
+                        onClick={() =>
+                          onUpdateQuestion(question.id, {
+                            marks: questionPartsTotalMarks,
+                          })
+                        }
+                        disabled={question.status === "deleted"}
+                      >
+                        اعتماد مجموع الأجزاء: {questionPartsTotalMarks}
+                      </button>
+                    </div>
                   ) : null}
-                  {translationAcceptance ? (
-                    <small>
-                      حالة الترجمة:{" "}
-                      {formatQuestionTranslationStatus(
-                        translationAcceptance.status,
-                      )}. {translationAcceptance.message}
-                    </small>
-                  ) : null}
-                </div>
-                <div className="question-header-actions">
-                  {canRetryTranslation ? (
+
+                  <section className="asset-panel">
+                    <div className="asset-panel-header">
+                      <div>
+                        <strong>مرفقات السؤال</strong>
+                        <span>
+                          {question.attachments.length > 0
+                            ? `${question.attachments.length} مرفق`
+                            : "لا توجد مرفقات بعد"}
+                        </span>
+                      </div>
+                      <label className="secondary-button compact asset-upload-button">
+                        <ImagePlus size={16} />
+                        إضافة صورة/جدول
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          onChange={(event) =>
+                            handleAssetInput(question.id, event)
+                          }
+                        />
+                      </label>
+                    </div>
+
+                    {question.attachments.length > 0 ? (
+                      <div className="asset-gallery">
+                        {question.attachments.map((asset) => (
+                          <figure key={asset.id} className="asset-card">
+                            <img
+                              src={`data:${asset.type};base64,${asset.dataBase64}`}
+                              alt={asset.name}
+                            />
+                            <figcaption>
+                              <span>{asset.name}</span>
+                              <small>{formatFileSize(asset.size)}</small>
+                            </figcaption>
+                            <button
+                              type="button"
+                              className="asset-delete-button"
+                              onClick={() =>
+                                onDeleteQuestionAsset(question.id, asset.id)
+                              }
+                              aria-label="حذف المرفق"
+                            >
+                              <X size={15} />
+                            </button>
+                          </figure>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="attachment-box">
+                        {question.attachmentNote ??
+                          "يمكنك إضافة صورة رسم أو جدول لهذا السؤال يدويًا."}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="layout-link-panel">
+                    <div className="asset-panel-header">
+                      <div>
+                        <strong>صفحات PDF المرجعية</strong>
+                        <span>
+                          {linkedLayoutAssets.length > 0
+                            ? `${linkedLayoutAssets.length} صفحة مرجعية مرتبطة بهذا السؤال`
+                            : "لا توجد صفحة PDF مرجعية مرتبطة بهذا السؤال"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {linkedLayoutAssets.length > 0 ? (
+                      <div className="question-layout-assets-grid">
+                        {linkedLayoutAssets.map((asset) => (
+                          <article
+                            key={asset.id}
+                            className="question-layout-asset-card is-linked"
+                          >
+                            <img
+                              src={`data:${asset.type};base64,${asset.dataBase64}`}
+                              alt={`لقطة مرتبطة من الصفحة ${asset.pageNumber}`}
+                            />
+                            <div className="question-layout-asset-body">
+                              <strong>صفحة {asset.pageNumber}</strong>
+                              <span>{asset.note || asset.name}</span>
+                              <div className="question-layout-asset-actions">
+                                <button
+                                  type="button"
+                                  className="primary-button compact"
+                                  onClick={() =>
+                                    setCropTarget({
+                                      questionId: question.id,
+                                      asset,
+                                    })
+                                  }
+                                  disabled={question.status === "deleted"}
+                                >
+                                  <Crop size={15} />
+                                  قص الشكل
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="secondary-button compact"
+                                  onClick={() =>
+                                    onUnlinkLayoutAsset(question.id, asset.id)
+                                  }
+                                  disabled={question.status === "deleted"}
+                                >
+                                  <Unlink size={15} />
+                                  فك الربط
+                                </button>
+                              </div>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="attachment-box">
+                        لم تُربط أي صفحة PDF مرجعية بهذا السؤال بعد.
+                      </div>
+                    )}
+                  </section>
+
+                  <footer className="card-actions">
+                    <button
+                      type="button"
+                      className="secondary-button compact"
+                      disabled={!canMove(question, "up")}
+                      onClick={() => onMoveQuestion(question.id, "up")}
+                    >
+                      <ArrowUp size={16} />
+                      رفع
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button compact"
+                      disabled={!canMove(question, "down")}
+                      onClick={() => onMoveQuestion(question.id, "down")}
+                    >
+                      <ArrowDown size={16} />
+                      إنزال
+                    </button>
+                    {question.status === "deleted" ? (
+                      <button
+                        type="button"
+                        className="primary-button compact"
+                        onClick={() =>
+                          onUpdateQuestion(question.id, {
+                            status: "needs_review",
+                          })
+                        }
+                      >
+                        <RotateCcw size={16} />
+                        استعادة
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="danger-button compact"
+                        onClick={() =>
+                          onUpdateQuestion(question.id, { status: "deleted" })
+                        }
+                      >
+                        <Trash2 size={16} />
+                        حذف
+                      </button>
+                    )}
+                  </footer>
+                </article>
+              );
+            })}
+          </div>
+        </main>
+
+        <aside
+          className="rtl-review-visual-panel"
+          aria-label="الرسم أو الجدول المرتبط"
+        >
+          <div className="rtl-review-column-heading">
+            <div>
+              <p className="eyebrow">المراجع البصرية</p>
+              <h4>الرسم أو الجدول المرتبط</h4>
+            </div>
+            <span>{selectedLinkedLayoutAssets.length}</span>
+          </div>
+
+          {selectedQuestion && selectedLinkedLayoutAssets.length > 0 ? (
+            <div className="rtl-review-visual-list">
+              {selectedLinkedLayoutAssets.map((asset) => (
+                <article key={asset.id} className="rtl-review-visual-card">
+                  <img
+                    src={`data:${asset.type};base64,${asset.dataBase64}`}
+                    alt={`لقطة مرتبطة من الصفحة ${asset.pageNumber}`}
+                  />
+                  <div>
+                    <strong>صفحة {asset.pageNumber}</strong>
+                    <span>{asset.note || asset.name}</span>
+                  </div>
+                  <div className="rtl-review-visual-actions">
                     <button
                       type="button"
                       className="secondary-button compact"
                       onClick={() =>
-                        onRetryQuestionTranslation(question.id)
+                        setCropTarget({
+                          questionId: selectedQuestion.id,
+                          asset,
+                        })
                       }
                     >
-                      <RotateCcw size={15} />
-                      إعادة ترجمة السؤال
+                      <Crop size={15} />
+                      قص
                     </button>
-                  ) : null}
-                  <select
-                    value={question.status}
-                    onChange={(event) =>
-                      onUpdateQuestion(question.id, {
-                        status: event.target.value as QuestionStatus,
-                      })
-                    }
-                  >
-                    <option value="approved">{statusLabels.approved}</option>
-                    <option value="needs_review">
-                      {statusLabels.needs_review}
-                    </option>
-                    <option value="deleted">{statusLabels.deleted}</option>
-                  </select>
-                </div>
-              </header>
-
-              <label>
-                النص الأصلي
-                <textarea value={question.originalText} readOnly dir="ltr" />
-              </label>
-
-              <label>
-                الترجمة العربية
-                <textarea
-                  value={question.translatedText}
-                  onChange={(event) =>
-                    onUpdateQuestion(question.id, {
-                      translatedText: event.target.value,
-                    })
-                  }
-                />
-              </label>
-
-              <section className="question-parts-panel">
-                <div className="question-parts-header">
-                  <div>
-                    <strong>أجزاء السؤال</strong>
-                    <span>
-                      {questionParts.length > 0
-                        ? `${questionParts.length} جزء محفوظ بهيكل رئيسي وفرعي`
-                        : "لا توجد أجزاء منظمة لهذا السؤال"}
-                    </span>
+                    <button
+                      type="button"
+                      className="secondary-button compact"
+                      onClick={() =>
+                        onUnlinkLayoutAsset(selectedQuestion.id, asset.id)
+                      }
+                    >
+                      <Unlink size={15} />
+                      فك الربط
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="secondary-button compact"
-                    onClick={() => addQuestionPart(question)}
-                    disabled={question.status === "deleted"}
-                  >
-                    <Plus size={16} />
-                    إضافة جزء رئيسي
-                  </button>
-                </div>
-
-                {questionParts.length > 0 ? (
-                  <div className="question-parts-list">
-                    {questionParts.map((part, partIndex) => {
-                      const partDepth = getQuestionPartDepth(
-                        part,
-                        questionParts,
-                      );
-                      const parentPart = part.parentId
-                        ? questionParts.find(
-                            (candidate) => candidate.id === part.parentId,
-                          )
-                        : null;
-                      const parentCandidates = questionParts.filter(
-                        (candidate) =>
-                          candidate.id !== part.id &&
-                          !candidate.parentId &&
-                          candidate.orderIndex < part.orderIndex,
-                      );
-
-                      return (
-                        <article
-                        key={part.id}
-                        className={`question-part-card ${
-                          partDepth > 0 ? "is-child" : "is-root"
-                        }`}
-                        style={
-                          {
-                            "--question-part-depth": partDepth,
-                          } as CSSProperties
-                        }
-                      >
-                        <header className="question-part-card-header">
-                          <div>
-                            <span>
-                              {partDepth > 0
-                                ? `جزء فرعي تابع لـ ${
-                                    parentPart?.label || "جزء رئيسي"
-                                  }`
-                                : `جزء رئيسي · الترتيب ${partIndex + 1}`}
-                            </span>
-                            <strong>{part.label.trim() || "بدون وسم"}</strong>
-                          </div>
-                          <div className="question-part-actions">
-                            {partDepth === 0 ? (
-                              <button
-                                type="button"
-                                className="secondary-button compact"
-                                onClick={() =>
-                                  addChildQuestionPart(question, part.id)
-                                }
-                                disabled={question.status === "deleted"}
-                              >
-                                <Plus size={15} />
-                                إضافة فرعي
-                              </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              className="secondary-button compact"
-                              onClick={() =>
-                                moveQuestionPart(question, part.id, "up")
-                              }
-                              disabled={
-                                question.status === "deleted" ||
-                                !canMoveQuestionPart(
-                                  part,
-                                  questionParts,
-                                  "up",
-                                )
-                              }
-                            >
-                              <ArrowUp size={15} />
-                              رفع
-                            </button>
-                            <button
-                              type="button"
-                              className="secondary-button compact"
-                              onClick={() =>
-                                moveQuestionPart(question, part.id, "down")
-                              }
-                              disabled={
-                                question.status === "deleted" ||
-                                !canMoveQuestionPart(
-                                  part,
-                                  questionParts,
-                                  "down",
-                                )
-                              }
-                            >
-                              <ArrowDown size={15} />
-                              إنزال
-                            </button>
-                            <button
-                              type="button"
-                              className="danger-button compact"
-                              onClick={() =>
-                                deleteQuestionPart(question, part.id)
-                              }
-                              disabled={question.status === "deleted"}
-                            >
-                              <Trash2 size={15} />
-                              حذف الجزء
-                            </button>
-                          </div>
-                        </header>
-
-                        <div className="question-part-fields">
-                          <label>
-                            وسم الجزء
-                            <input
-                              value={part.label}
-                              dir="ltr"
-                              onChange={(event) =>
-                                updateQuestionPart(question, part.id, {
-                                  label: event.target.value,
-                                })
-                              }
-                              disabled={question.status === "deleted"}
-                              placeholder="مثل (a) أو (i)"
-                            />
-                          </label>
-
-                          <label>
-                            الدرجة
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={part.marks ?? ""}
-                              onChange={(event) => {
-                                const rawValue = event.target.value;
-                                updateQuestionPart(question, part.id, {
-                                  marks:
-                                    rawValue === "" ? null : Number(rawValue),
-                                });
-                              }}
-                              disabled={question.status === "deleted"}
-                            />
-                          </label>
-
-                          <label className="question-part-parent-field">
-                            التبعية
-                            <select
-                              value={part.parentId ?? ""}
-                              onChange={(event) =>
-                                updateQuestionPart(question, part.id, {
-                                  parentId: event.target.value || null,
-                                })
-                              }
-                              disabled={question.status === "deleted"}
-                            >
-                              <option value="">جزء رئيسي</option>
-                              {parentCandidates.map((candidate) => (
-                                <option
-                                  key={candidate.id}
-                                  value={candidate.id}
-                                >
-                                  فرعي تابع لـ{" "}
-                                  {candidate.label.trim() || "جزء رئيسي"}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-
-                          <label className="question-part-field-wide">
-                            النص الأصلي
-                            <textarea
-                              value={part.originalText}
-                              dir="ltr"
-                              onChange={(event) =>
-                                updateQuestionPart(question, part.id, {
-                                  originalText: event.target.value,
-                                })
-                              }
-                              disabled={question.status === "deleted"}
-                            />
-                          </label>
-
-                          <label className="question-part-field-wide">
-                            الترجمة العربية
-                            <textarea
-                              value={part.translatedText}
-                              onChange={(event) =>
-                                updateQuestionPart(question, part.id, {
-                                  translatedText: event.target.value,
-                                })
-                              }
-                              disabled={question.status === "deleted"}
-                            />
-                          </label>
-                        </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="question-parts-empty">
-                    أضف الأجزاء يدويًا عند الحاجة، أو اترك السؤال دون أجزاء إذا
-                    كان سؤالًا مستقلًا أو اختيارًا من متعدد.
-                  </div>
-                )}
-              </section>
-
-              <div className="question-tools-grid">
-                <label>
-                  الدرجة
-                  <input
-                    type="number"
-                    min="0"
-                    value={question.marks ?? ""}
-                    onChange={(event) => {
-                      const rawValue = event.target.value;
-                      onUpdateQuestion(question.id, {
-                        marks: rawValue === "" ? null : Number(rawValue),
-                      });
-                    }}
-                  />
-                </label>
-
-                <label>
-                  ملاحظة مراجعة
-                  <input
-                    value={question.reviewNotes ?? ""}
-                    onChange={(event) =>
-                      onUpdateQuestion(question.id, {
-                        reviewNotes: event.target.value,
-                      })
-                    }
-                    placeholder="اختياري"
-                  />
-                </label>
-              </div>
-
-              {hasQuestionMarksGuidance ? (
-                <div className="question-marks-guidance">
-                  <AlertTriangle size={22} />
-                  <div>
-                    <strong>
-                      {question.marks === null
-                        ? "درجة السؤال العامة غير محددة"
-                        : "درجة السؤال لا تتطابق مع مجموع أجزائه"}
-                    </strong>
-                    <span>
-                      {question.marks === null
-                        ? `مجموع الأجزاء المحسوب هو ${questionPartsTotalMarks}. سيُستخدم هذا المجموع في التصدير عند بقاء الدرجة العامة فارغة.`
-                        : `الدرجة الحالية ${question.marks}، بينما مجموع الأجزاء المحسوب ${questionPartsTotalMarks}. التصدير متاح وسيستخدم الدرجة العامة الحالية حتى اعتماد المجموع.`}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="secondary-button compact"
-                    onClick={() =>
-                      onUpdateQuestion(question.id, {
-                        marks: questionPartsTotalMarks,
-                      })
-                    }
-                    disabled={question.status === "deleted"}
-                  >
-                    اعتماد مجموع الأجزاء: {questionPartsTotalMarks}
-                  </button>
-                </div>
-              ) : null}
-
-              <section className="asset-panel">
-                <div className="asset-panel-header">
-                  <div>
-                    <strong>مرفقات السؤال</strong>
-                    <span>
-                      {question.attachments.length > 0
-                        ? `${question.attachments.length} مرفق`
-                        : "لا توجد مرفقات بعد"}
-                    </span>
-                  </div>
-                  <label className="secondary-button compact asset-upload-button">
-                    <ImagePlus size={16} />
-                    إضافة صورة/جدول
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      onChange={(event) => handleAssetInput(question.id, event)}
-                    />
-                  </label>
-                </div>
-
-                {question.attachments.length > 0 ? (
-                  <div className="asset-gallery">
-                    {question.attachments.map((asset) => (
-                      <figure key={asset.id} className="asset-card">
-                        <img
-                          src={`data:${asset.type};base64,${asset.dataBase64}`}
-                          alt={asset.name}
-                        />
-                        <figcaption>
-                          <span>{asset.name}</span>
-                          <small>{formatFileSize(asset.size)}</small>
-                        </figcaption>
-                        <button
-                          type="button"
-                          className="asset-delete-button"
-                          onClick={() =>
-                            onDeleteQuestionAsset(question.id, asset.id)
-                          }
-                          aria-label="حذف المرفق"
-                        >
-                          <X size={15} />
-                        </button>
-                      </figure>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="attachment-box">
-                    {question.attachmentNote ??
-                      "يمكنك إضافة صورة رسم أو جدول لهذا السؤال يدويًا."}
-                  </div>
-                )}
-              </section>
-
-              <section className="layout-link-panel">
-                <div className="asset-panel-header">
-                  <div>
-                    <strong>صفحات PDF المرجعية</strong>
-                    <span>
-                      {linkedLayoutAssets.length > 0
-                        ? `${linkedLayoutAssets.length} صفحة مرجعية مرتبطة بهذا السؤال`
-                        : "لا توجد صفحة PDF مرجعية مرتبطة بهذا السؤال"}
-                    </span>
-                  </div>
-                </div>
-
-                {linkedLayoutAssets.length > 0 ? (
-                  <div className="question-layout-assets-grid">
-                    {linkedLayoutAssets.map((asset) => (
-                      <article
-                        key={asset.id}
-                        className="question-layout-asset-card is-linked"
-                      >
-                        <img
-                          src={`data:${asset.type};base64,${asset.dataBase64}`}
-                          alt={`لقطة مرتبطة من الصفحة ${asset.pageNumber}`}
-                        />
-                        <div className="question-layout-asset-body">
-                          <strong>صفحة {asset.pageNumber}</strong>
-                          <span>{asset.note || asset.name}</span>
-                          <div className="question-layout-asset-actions">
-                            <button
-                              type="button"
-                              className="primary-button compact"
-                              onClick={() =>
-                                setCropTarget({
-                                  questionId: question.id,
-                                  asset,
-                                })
-                              }
-                              disabled={question.status === "deleted"}
-                            >
-                              <Crop size={15} />
-                              قص الشكل
-                            </button>
-
-                            <button
-                              type="button"
-                              className="secondary-button compact"
-                              onClick={() =>
-                                onUnlinkLayoutAsset(
-                                  question.id,
-                                  asset.id,
-                                )
-                              }
-                              disabled={question.status === "deleted"}
-                            >
-                              <Unlink size={15} />
-                              فك الربط
-                            </button>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="attachment-box">
-                    لم تُربط أي صفحة PDF مرجعية بهذا السؤال بعد.
-                  </div>
-                )}
-              </section>
-
-              <footer className="card-actions">
-                <button
-                  type="button"
-                  className="secondary-button compact"
-                  disabled={!canMove(question, "up")}
-                  onClick={() => onMoveQuestion(question.id, "up")}
-                >
-                  <ArrowUp size={16} />
-                  رفع
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button compact"
-                  disabled={!canMove(question, "down")}
-                  onClick={() => onMoveQuestion(question.id, "down")}
-                >
-                  <ArrowDown size={16} />
-                  إنزال
-                </button>
-                {question.status === "deleted" ? (
-                  <button
-                    type="button"
-                    className="primary-button compact"
-                    onClick={() =>
-                      onUpdateQuestion(question.id, { status: "needs_review" })
-                    }
-                  >
-                    <RotateCcw size={16} />
-                    استعادة
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="danger-button compact"
-                    onClick={() =>
-                      onUpdateQuestion(question.id, { status: "deleted" })
-                    }
-                  >
-                    <Trash2 size={16} />
-                    حذف
-                  </button>
-                )}
-              </footer>
-            </article>
-          );
-        })}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="rtl-review-visual-empty">
+              <ImagePlus size={34} />
+              <strong>لا يوجد رسم مرتبط بهذا السؤال</strong>
+              <span>
+                استخدم معرض اللقطات المتقدم عند الحاجة إلى الربط اليدوي.
+              </span>
+            </div>
+          )}
+        </aside>
       </div>
       {cropTarget ? (
         <VisualCropDialog
@@ -1360,7 +1549,6 @@ export function ReviewStep({
           onSave={handleSaveCrop}
         />
       ) : null}
-
     </section>
   );
 }
