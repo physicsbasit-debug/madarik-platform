@@ -46,6 +46,12 @@ from app.models.differentiated_activity import (
     DifferentiatedActivityListResponse,
     DifferentiatedActivityGenerationRequest,
     DifferentiatedActivityGenerationResponse,
+    DifferentiatedActivityPreview,
+    DifferentiatedActivityExportResponse,
+)
+from app.services.differentiated_activity_export import (
+    build_activity_preview,
+    export_activity,
 )
 from app.services.differentiated_activity_generator import (
     generate_differentiated_activity_set,
@@ -1658,4 +1664,69 @@ def generate_differentiated_activities(
         differentiated_activity_repository,
         owner_account_id=account.id if account else None,
         bank_item=bank_item,
+    )
+
+
+@router.get(
+    "/differentiated-activities/{activity_id}/preview",
+    response_model=DifferentiatedActivityPreview,
+)
+def get_differentiated_activity_preview(
+    activity_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> DifferentiatedActivityPreview:
+    activity = differentiated_activity_repository.get(activity_id)
+    if activity is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Differentiated activity not found",
+        )
+    return build_activity_preview(activity)
+
+
+@router.post(
+    "/differentiated-activities/{activity_id}/export/{output_format}",
+)
+def export_differentiated_activity(
+    activity_id: str,
+    output_format: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+):
+    if output_format not in {"docx", "pdf"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported activity export format",
+        )
+
+    activity = differentiated_activity_repository.get(activity_id)
+    if activity is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Differentiated activity not found",
+        )
+
+    result = export_activity(activity, output_format)
+    if not result.export_ready:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Activity is not export ready",
+                "issues": result.issues,
+            },
+        )
+
+    media_type = (
+        "application/vnd.openxmlformats-officedocument."
+        "wordprocessingml.document"
+        if output_format == "docx"
+        else "application/pdf"
+    )
+    return FileResponse(
+        path=result.path,
+        media_type=media_type,
+        filename=result.filename,
     )

@@ -7739,3 +7739,59 @@ button:disabled {
   background: #eaf6ee;
   color: #2d7048;
 }
+
+/* Phase 7-C: Activity Preview and Export */
+.differentiated-preview {
+  width: min(100%, 52rem);
+  margin: 1rem auto;
+  padding: 1.5rem;
+  border: 1px solid #dce4dc;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(32, 51, 38, 0.08);
+}
+.differentiated-preview > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #3d7450;
+}
+.differentiated-preview > header span {
+  display: inline-flex;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #eaf3ec;
+  color: #356a47;
+  font-weight: 800;
+}
+.differentiated-preview h2,
+.differentiated-preview h3 { margin: 0.3rem 0; }
+.differentiated-preview section { margin-top: 1rem; }
+.differentiated-preview p,
+.differentiated-preview li { line-height: 1.8; }
+.differentiated-preview-meta {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+.differentiated-preview-meta span {
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: #eef3ef;
+}
+.differentiated-workspace-lines {
+  display: grid;
+  gap: 0.7rem;
+}
+.differentiated-workspace-lines span {
+  display: block;
+  min-height: 1rem;
+  border-bottom: 1px dotted #7e8a81;
+}
+.differentiated-card-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}

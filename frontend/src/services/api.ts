@@ -2755,3 +2755,85 @@ export async function generateDifferentiatedActivities(
       payload.source_question_bank_item_id,
   };
 }
+
+
+export async function getDifferentiatedActivityPreview(
+  activityId: string,
+): Promise<DifferentiatedActivityPreview> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/differentiated-activities/${activityId}/preview`,
+    { headers: buildAuthHeaders() },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to load differentiated activity preview');
+  }
+  const payload = await response.json();
+  return {
+    id: payload.id,
+    title: payload.title,
+    level: payload.level,
+    levelLabel: payload.level_label,
+    grade: payload.grade,
+    scienceDomain: payload.science_domain,
+    subjectId: payload.subject_id,
+    unitId: payload.unit_id,
+    lessonId: payload.lesson_id,
+    objective: payload.objective,
+    instructions: payload.instructions,
+    successCriteria: payload.success_criteria,
+    estimatedMinutes: payload.estimated_minutes,
+    materials: payload.materials,
+    exportReady: payload.export_ready,
+    issues: payload.issues,
+  };
+}
+
+export async function exportDifferentiatedActivity(
+  activityId: string,
+  format: "docx" | "pdf",
+): Promise<{
+  exportReady: boolean;
+  filename: string;
+  issues: string[];
+}> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/differentiated-activities/${activityId}/export/${format}`,
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    return {
+      exportReady: false,
+      filename: "",
+      issues:
+        payload?.detail?.issues ??
+        ["تعذر تصدير النشاط."],
+    };
+  }
+
+  const blob = await response.blob();
+  const disposition =
+    response.headers.get('content-disposition') ?? '';
+  const match = disposition.match(/filename="?([^"]+)"?/i);
+  const filename =
+    match?.[1] ?? `activity-${activityId}.${format}`;
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+
+  return {
+    exportReady: true,
+    filename,
+    issues: [],
+  };
+}

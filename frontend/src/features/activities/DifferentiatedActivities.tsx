@@ -10,10 +10,13 @@ import {
   createDifferentiatedActivity,
   deleteDifferentiatedActivity,
   generateDifferentiatedActivities,
+  getDifferentiatedActivityPreview,
+  exportDifferentiatedActivity,
   listDifferentiatedActivities,
   searchQuestionBankLibrary,
 } from "../../services/api";
 import type {
+import { DifferentiatedActivityPreviewCard } from "./DifferentiatedActivityPreview";
   DifferentiatedActivity,
   DifferentiationLevel,
   QuestionBankItem,
@@ -48,6 +51,7 @@ export default function DifferentiatedActivities({
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [preview, setPreview] = useState<DifferentiatedActivityPreview | null>(null);
 
   async function refresh() {
     try {
@@ -122,6 +126,47 @@ export default function DifferentiatedActivities({
       setWorking(false);
     }
   }
+
+
+async function openPreview(activityId: string) {
+  setWorking(true);
+  setError("");
+  try {
+    setPreview(
+      await getDifferentiatedActivityPreview(activityId),
+    );
+  } catch {
+    setError("تعذر تحميل معاينة النشاط.");
+  } finally {
+    setWorking(false);
+  }
+}
+
+async function runExport(
+  activityId: string,
+  format: "docx" | "pdf",
+) {
+  setWorking(true);
+  setError("");
+  setMessage("");
+  try {
+    const result = await exportDifferentiatedActivity(
+      activityId,
+      format,
+    );
+    if (result.exportReady) {
+      setMessage(
+        `تم تنزيل ملف ${format.toUpperCase()}: ${result.filename}`,
+      );
+    } else {
+      setError(result.issues.join(" "));
+    }
+  } catch {
+    setError("تعذر تصدير النشاط.");
+  } finally {
+    setWorking(false);
+  }
+}
 
   async function remove(id: string) {
     try {
@@ -250,6 +295,13 @@ export default function DifferentiatedActivities({
         </div>
       ) : null}
 
+      {preview ? (
+        <DifferentiatedActivityPreviewCard
+          preview={preview}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
+
       <section className="differentiated-list">
         <h2>الأنشطة المحفوظة</h2>
         {items.map((item) => (
@@ -263,14 +315,41 @@ export default function DifferentiatedActivities({
                 </span>
                 <h3>{item.title}</h3>
               </div>
-              <button
-                type="button"
-                className="secondary-button compact"
-                onClick={() => void remove(item.id)}
-              >
-                <Trash2 size={15} />
-                حذف
-              </button>
+              <div className="differentiated-card-actions">
+                <button
+                  type="button"
+                  className="secondary-button compact"
+                  disabled={working}
+                  onClick={() => void openPreview(item.id)}
+                >
+                  معاينة
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button compact"
+                  disabled={working}
+                  onClick={() => void runExport(item.id, "docx")}
+                >
+                  DOCX
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button compact"
+                  disabled={working}
+                  onClick={() => void runExport(item.id, "pdf")}
+                >
+                  PDF
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button compact"
+                  disabled={working}
+                  onClick={() => void remove(item.id)}
+                >
+                  <Trash2 size={15} />
+                  حذف
+                </button>
+              </div>
             </div>
             <p>{item.objective}</p>
             <section>

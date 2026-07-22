@@ -321,3 +321,13 @@
 - Added generation controls to the differentiated-activities workspace.
 - Updated README.
 - No external AI provider or activity export was added.
+
+
+### Phase 7-C: Differentiated Activity Preview and Export
+
+- Added structured differentiated-activity preview.
+- Added activity level, objective, instructions, criteria, materials, and work space.
+- Added native RTL DOCX export.
+- Added native PDF export.
+- Added browser downloads and readiness checks.
+- Updated README and closed the differentiated-activities workflow.

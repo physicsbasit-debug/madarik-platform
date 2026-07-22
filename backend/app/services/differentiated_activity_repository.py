@@ -96,6 +96,17 @@ class DifferentiatedActivityRepository:
             items = [item for item in items if item.level.value == level]
         return items
 
+
+def get(self, activity_id: str) -> DifferentiatedActivity | None:
+    with self._connect() as connection:
+        row = connection.execute(
+            "SELECT payload FROM differentiated_activities WHERE id = ?",
+            (activity_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return DifferentiatedActivity.model_validate_json(row["payload"])
+
     def delete(self, activity_id: str) -> DifferentiatedActivity | None:
         with self._connect() as connection:
             row = connection.execute(

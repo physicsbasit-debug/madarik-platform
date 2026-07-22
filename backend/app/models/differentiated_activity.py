@@ -75,3 +75,31 @@ class DifferentiatedActivityGenerationResponse(BaseModel):
     items: list[DifferentiatedActivity]
     total: int
     source_question_bank_item_id: str | None = None
+
+
+class DifferentiatedActivityPreview(BaseModel):
+    id: str
+    title: str
+    level: DifferentiationLevel
+    level_label: str
+    grade: int
+    science_domain: str
+    subject_id: str
+    unit_id: str | None = None
+    lesson_id: str | None = None
+    objective: str
+    instructions: str
+    success_criteria: list[str] = Field(default_factory=list)
+    estimated_minutes: int
+    materials: list[str] = Field(default_factory=list)
+    export_ready: bool
+    issues: list[str] = Field(default_factory=list)
+
+
+class DifferentiatedActivityExportResponse(BaseModel):
+    activity_id: str
+    format: str
+    filename: str
+    path: str
+    export_ready: bool
+    issues: list[str] = Field(default_factory=list)

@@ -961,3 +961,23 @@ export interface DifferentiatedActivityGenerationResult {
   total: number;
   sourceQuestionBankItemId: string | null;
 }
+
+
+export interface DifferentiatedActivityPreview {
+  id: string;
+  title: string;
+  level: DifferentiationLevel;
+  levelLabel: string;
+  grade: number;
+  scienceDomain: ScienceDomain;
+  subjectId: string;
+  unitId: string | null;
+  lessonId: string | null;
+  objective: string;
+  instructions: string;
+  successCriteria: string[];
+  estimatedMinutes: number;
+  materials: string[];
+  exportReady: boolean;
+  issues: string[];
+}

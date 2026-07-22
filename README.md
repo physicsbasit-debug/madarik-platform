@@ -361,18 +361,22 @@ Completed V2 phases:
 - Phase 6-D: Student paper preview and assessment export foundation.
 - Phase 6-E: Native DOCX and PDF assessment export.
 - Phase 7-A: Differentiated science activities foundation.
-- Phase 7-B: Generate Differentiated Activities from Curriculum and Questions.
+- Phase 7-B: Generate differentiated activities from curriculum and questions.
+- Phase 7-C: Differentiated Activity Preview and Export.
 
-Phase 7-B adds:
+Phase 7-C adds:
 
-- support, core, and extension generation from one task;
-- optional question-bank context;
-- distinct scaffolding, independence, and challenge;
-- direct persistence of the generated set;
-- deterministic and reviewable output.
+- structured student-facing activity preview;
+- level, objective, instructions, criteria, materials, and work space;
+- native RTL DOCX export;
+- native PDF export;
+- browser downloads;
+- export-readiness checks.
+
+The differentiated-activities workflow is now functionally closed.
 
 Next planned phase:
 
 ```text
-Phase 7-C: Differentiated Activity Preview and Export
+Phase 8-A: Scientific Diagram Data Model and Workspace Foundation
 ```
