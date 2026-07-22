@@ -185,7 +185,7 @@ async function runExport(
     );
     setExportMessage(
       result.exportReady
-        ? `تم إنشاء أساس تصدير ${format.toUpperCase()}: ${result.filename}`
+        ? `تم إنشاء ملف ${format.toUpperCase()}: ${result.filename}`
         : `تم إنشاء ملف مراجعة أولي مع ${result.issues.length} ملاحظات.`,
     );
   } catch {
@@ -470,8 +470,8 @@ async function removeItem(itemId: string) {
             <button type="button" className="secondary-button" disabled={loading} onClick={() => void runAutomaticSelection()}>اختيار آلي</button>
             <button type="button" className="secondary-button" disabled={loading} onClick={() => void runValidation()}>تحقق من الجاهزية</button>
             <button type="button" className="secondary-button" disabled={loading} onClick={() => void loadStudentPreview()}>معاينة ورقة الطالب</button>
-            <button type="button" className="secondary-button" disabled={loading} onClick={() => void runExport("docx")}>تصدير DOCX أولي</button>
-            <button type="button" className="secondary-button" disabled={loading} onClick={() => void runExport("pdf")}>تصدير PDF أولي</button>
+            <button type="button" className="secondary-button" disabled={loading} onClick={() => void runExport("docx")}>تصدير DOCX</button>
+            <button type="button" className="secondary-button" disabled={loading} onClick={() => void runExport("pdf")}>تصدير PDF</button>
           </div>
         ) : null}
       </section>

@@ -2554,6 +2554,7 @@ export async function getAssessmentStudentPreview(
   };
 }
 
+
 export async function exportAssessmentDraft(
   draftId: string,
   format: "docx" | "pdf",
@@ -2565,19 +2566,47 @@ export async function exportAssessmentDraft(
       headers: buildAuthHeaders(),
     },
   );
+
   if (!response.ok) {
-    throw new Error(
-      'Failed to export assessment draft',
-    );
+    const payload = await response.json().catch(() => null);
+    const issues =
+      payload?.detail?.issues ??
+      ["تعذر تصدير الاختبار."];
+    return {
+      draftId,
+      format,
+      filename: "",
+      path: "",
+      exportReady: false,
+      issues,
+    };
   }
 
-  const payload = await response.json();
+  const blob = await response.blob();
+  const disposition =
+    response.headers.get('content-disposition') ?? '';
+  const match = disposition.match(
+    /filename="?([^"]+)"?/i,
+  );
+  const filename =
+    match?.[1] ??
+    `assessment-${draftId}.${format}`;
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+
   return {
-    draftId: payload.draft_id,
-    format: payload.format,
-    filename: payload.filename,
-    path: payload.path,
-    exportReady: payload.export_ready,
-    issues: payload.issues,
+    draftId,
+    format,
+    filename,
+    path: "",
+    exportReady: true,
+    issues: [],
   };
 }

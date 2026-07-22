@@ -358,21 +358,20 @@ Completed V2 phases:
 - Phase 6-A: Assessment blueprint and test builder foundation.
 - Phase 6-B: Automatic question selection and blueprint validation.
 - Phase 6-C: Assessment ordering, sections, and manual marks.
-- Phase 6-D: Student Paper Preview and Assessment Export Foundation.
+- Phase 6-D: Student paper preview and assessment export foundation.
+- Phase 6-E: Native DOCX and PDF Assessment Export.
 
-Phase 6-D adds:
+Phase 6-E adds:
 
-- student-paper preview grouped by assessment sections;
-- assessment metadata, marks, instructions, and answer space;
-- a separate answer-sheet preview;
-- export-readiness checks;
-- foundational DOCX and PDF export endpoints.
-
-The current export files are structural text foundations. Native formatted
-DOCX and PDF generation remains the next implementation step.
+- native DOCX generation with RTL structure;
+- native PDF generation;
+- assessment metadata, sections, marks, and answer spaces;
+- a separate answer sheet;
+- browser download for generated files;
+- export blocking when the draft is not ready.
 
 Next planned phase:
 
 ```text
-Phase 6-E: Native DOCX and PDF Assessment Export
+Phase 7-A: Differentiated Science Activities Foundation
 ```

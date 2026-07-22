@@ -292,3 +292,13 @@
 - Added student preview and export controls to the assessment builder.
 - Updated README while preserving the new end-to-end platform description.
 - Native formatted DOCX and PDF generation remains deferred.
+
+### Phase 6-E: Native DOCX and PDF Assessment Export
+
+- Replaced text foundations with native DOCX and PDF files.
+- Added RTL DOCX structure with sections, marks, answer spaces, and answer sheet.
+- Added native PDF generation.
+- Added browser file downloads.
+- Blocked final export when assessment readiness checks fail.
+- Updated README with the current V2 status.
+- No school branding or answer-key generation was added.

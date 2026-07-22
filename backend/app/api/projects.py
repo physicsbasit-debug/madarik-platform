@@ -1,4 +1,5 @@
 import base64
+from fastapi.responses import FileResponse
 from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
 from fastapi.responses import Response
 
@@ -1530,7 +1531,6 @@ def get_assessment_student_preview(
 
 @router.post(
     "/assessment-builder/{draft_id}/export/{output_format}",
-    response_model=AssessmentExportResponse,
 )
 def export_assessment_draft(
     draft_id: str,
@@ -1538,7 +1538,7 @@ def export_assessment_draft(
     account: AuthAccountPublic | None = Depends(
         _resolve_current_account
     ),
-) -> AssessmentExportResponse:
+):
     if output_format not in {"docx", "pdf"}:
         raise HTTPException(
             status_code=400,
@@ -1549,8 +1549,29 @@ def export_assessment_draft(
         draft_id,
         account,
     )
-    return export_assessment_foundation(
+    result = export_assessment_foundation(
         draft,
         question_bank_repository,
         output_format,
+    )
+
+    if not result.export_ready:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Assessment is not export ready",
+                "issues": result.issues,
+            },
+        )
+
+    media_type = (
+        "application/vnd.openxmlformats-officedocument."
+        "wordprocessingml.document"
+        if output_format == "docx"
+        else "application/pdf"
+    )
+    return FileResponse(
+        path=result.path,
+        media_type=media_type,
+        filename=result.filename,
     )
