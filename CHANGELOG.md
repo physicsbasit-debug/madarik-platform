@@ -302,3 +302,11 @@
 - Blocked final export when assessment readiness checks fail.
 - Updated README with the current V2 status.
 - No school branding or answer-key generation was added.
+
+### Phase 7-A: Differentiated Science Activities Foundation
+
+- Added persistent differentiated activities.
+- Added support, core, and extension levels.
+- Added create, list, and delete APIs.
+- Activated the RTL differentiated-activities workspace.
+- Updated README.

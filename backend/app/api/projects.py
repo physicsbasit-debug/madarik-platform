@@ -40,6 +40,14 @@ from app.services.question_bank_reuse import (
 from app.services.question_bank_repository import (
     question_bank_repository,
 )
+from app.models.differentiated_activity import (
+    DifferentiatedActivity,
+    DifferentiatedActivityCreateRequest,
+    DifferentiatedActivityListResponse,
+)
+from app.services.differentiated_activity_repository import (
+    differentiated_activity_repository,
+)
 from app.models.project import (
     ExportFormat,
     ExtractedPdfPageInfo,
@@ -1575,3 +1583,45 @@ def export_assessment_draft(
         media_type=media_type,
         filename=result.filename,
     )
+
+@router.get("/differentiated-activities", response_model=DifferentiatedActivityListResponse)
+def list_differentiated_activities(
+    grade: int | None = None,
+    level: str | None = None,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> DifferentiatedActivityListResponse:
+    items = differentiated_activity_repository.list(
+        owner_account_id=account.id if account else None,
+        grade=grade,
+        level=level,
+    )
+    return DifferentiatedActivityListResponse(items=items, total=len(items))
+
+
+@router.post("/differentiated-activities", response_model=DifferentiatedActivity)
+def create_differentiated_activity(
+    payload: DifferentiatedActivityCreateRequest,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> DifferentiatedActivity:
+    return differentiated_activity_repository.create(
+        payload,
+        owner_account_id=account.id if account else None,
+    )
+
+
+@router.delete("/differentiated-activities/{activity_id}", response_model=DifferentiatedActivity)
+def delete_differentiated_activity(
+    activity_id: str,
+    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+) -> DifferentiatedActivity:
+    activity = differentiated_activity_repository.delete(activity_id)
+    if activity is None:
+        raise HTTPException(status_code=404, detail="Differentiated activity not found")
+    if (
+        account is not None
+        and activity.owner_account_id is not None
+        and activity.owner_account_id != account.id
+    ):
+        raise HTTPException(status_code=403, detail="Differentiated activity access denied")
+    return activity
+

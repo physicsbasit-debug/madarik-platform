@@ -340,38 +340,14 @@ Development branch:
 feat/madarik-science-platform-v2
 ```
 
-Completed V2 phases:
+Completed V2 phases now include translation, curriculum linking, question-bank management, assessment construction, native DOCX/PDF export, and:
 
-- Phase 0-A: Scope, architecture, and data contracts.
-- Phase 0-B: Task-oriented home.
-- Phase 1: Quick translation workflow.
-- Phase 2: Curriculum structure for grades 1–12.
-- Phase 3-A: Google Drive source foundation.
-- Phase 3-B: Curriculum source persistence.
-- Phase 3-C: Source refresh detection.
-- Phase 3-D: Source version history and manual update acceptance.
-- Phase 4-A: Science question classification foundation.
-- Phase 4-B: Curriculum linking and classification review.
-- Phase 5-A: Question bank data model and persistence.
-- Phase 5-B: Question bank library, search, and filters.
-- Phase 5-C: Reuse question bank items in projects.
-- Phase 6-A: Assessment blueprint and test builder foundation.
-- Phase 6-B: Automatic question selection and blueprint validation.
-- Phase 6-C: Assessment ordering, sections, and manual marks.
-- Phase 6-D: Student paper preview and assessment export foundation.
-- Phase 6-E: Native DOCX and PDF Assessment Export.
+- Phase 7-A: Differentiated Science Activities Foundation.
 
-Phase 6-E adds:
-
-- native DOCX generation with RTL structure;
-- native PDF generation;
-- assessment metadata, sections, marks, and answer spaces;
-- a separate answer sheet;
-- browser download for generated files;
-- export blocking when the draft is not ready.
+Phase 7-A introduces persistent support, core, and extension science activities with objectives, instructions, curriculum context, and duration.
 
 Next planned phase:
 
 ```text
-Phase 7-A: Differentiated Science Activities Foundation
+Phase 7-B: Generate Differentiated Activities from Curriculum and Questions
 ```

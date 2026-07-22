@@ -75,6 +75,7 @@ import CurriculumBrowser from "../features/curriculum/CurriculumBrowser";
 import AssessmentBuilder from "../features/assessment/AssessmentBuilder";
 import QuestionBankLibrary from "../features/question-bank/QuestionBankLibrary";
 import type {
+import DifferentiatedActivities from "../features/activities/DifferentiatedActivities";
   AnswerKeyItem,
   EducationalAnalysisReport,
   EducationalQualityToolsReport,
@@ -169,7 +170,7 @@ function applyProjectSession(
 
 export function App() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional" | "curriculum" | "question-bank" | "assessment">("home");
+  const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional" | "curriculum" | "question-bank" | "assessment" | "differentiated-activities">("home");
   const [quickRunStatus, setQuickRunStatus] = useState<
     "idle" | "parsing" | "translating" | "checking" | "completed" | "error"
   >("idle");
@@ -667,6 +668,10 @@ function openQuickTranslation() {
   setActiveIndex(0);
   setQuickRunStatus("idle");
   setQuickRunMessage("ارفع ورقة اختبار علمية ثم شغّل الترجمة السريعة.");
+}
+
+function openDifferentiatedActivities() {
+  setWorkspaceMode("differentiated-activities");
 }
 
 function openAssessmentBuilder() {
@@ -1954,6 +1959,16 @@ if (workspaceMode === "home") {
       onOpenCurriculum={openCurriculum}
       onOpenQuestionBank={openQuestionBank}
       onOpenAssessmentBuilder={openAssessmentBuilder}
+      onOpenDifferentiatedActivities={openDifferentiatedActivities}
+    />
+  );
+}
+
+if (workspaceMode === "differentiated-activities") {
+  return (
+    <DifferentiatedActivities
+      projectId={projectId}
+      onReturnHome={returnToTaskHome}
     />
   );
 }

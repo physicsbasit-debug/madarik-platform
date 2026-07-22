@@ -16,6 +16,7 @@ type ScienceTaskHomeProps = {
   onOpenCurriculum: () => void;
   onOpenQuestionBank: () => void;
   onOpenAssessmentBuilder: () => void;
+  onOpenDifferentiatedActivities: () => void;
 };
 
 const comingSoonTasks = [
@@ -51,6 +52,7 @@ export default function ScienceTaskHome({
   onOpenCurriculum,
   onOpenQuestionBank,
   onOpenAssessmentBuilder,
+  onOpenDifferentiatedActivities,
 }: ScienceTaskHomeProps) {
   return (
     <main className="science-task-home" dir="rtl">
@@ -139,17 +141,20 @@ export default function ScienceTaskHome({
             const isCurriculum = task.title === "مكتبة المناهج والمصادر";
             const isQuestionBank = task.title === "بنك الأسئلة";
             const isAssessment = task.title === "إنشاء اختبار";
+            const isDifferentiated = task.title === "أنشطة متمايزة";
 
-            if (isCurriculum || isQuestionBank || isAssessment) {
+            if (isCurriculum || isQuestionBank || isAssessment || isDifferentiated) {
               return (
                 <button
                   type="button"
                   className="science-task-coming-card is-available"
                   key={task.title}
                   onClick={
-                    isAssessment
-                      ? onOpenAssessmentBuilder
-                      : isQuestionBank
+                    isDifferentiated
+                      ? onOpenDifferentiatedActivities
+                      : isAssessment
+                        ? onOpenAssessmentBuilder
+                        : isQuestionBank
                         ? onOpenQuestionBank
                         : onOpenCurriculum
                   }
@@ -161,9 +166,11 @@ export default function ScienceTaskHome({
                   <h3>{task.title}</h3>
                   <p>{task.description}</p>
                   <strong>
-                    {isAssessment
-                      ? "فتح منشئ الاختبارات"
-                      : isQuestionBank
+                    {isDifferentiated
+                      ? "فتح الأنشطة المتمايزة"
+                      : isAssessment
+                        ? "فتح منشئ الاختبارات"
+                        : isQuestionBank
                         ? "فتح بنك الأسئلة"
                         : "فتح مكتبة المناهج"}
                   </strong>

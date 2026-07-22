@@ -7706,3 +7706,21 @@ button:disabled {
     text-align: right;
   }
 }
+
+/* Phase 7-A: Differentiated Activities */
+.differentiated-activities { min-height: 100vh; padding: clamp(1rem, 2vw, 2rem); background: #f1f5f0; }
+.differentiated-header,.differentiated-form-card,.differentiated-list,.differentiated-error { width: min(100%, 82rem); margin-inline: auto; }
+.differentiated-header { display:flex; justify-content:space-between; gap:1rem; padding:1.3rem; border:1px solid #dce5db; border-radius:1.2rem; background:#fff; }
+.differentiated-header span { display:flex; gap:.45rem; color:#3d7450; font-weight:800; }
+.differentiated-form-card,.differentiated-list { margin-top:1rem; padding:1rem; border:1px solid #dce5db; border-radius:1rem; background:#fff; }
+.differentiated-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.7rem; margin:1rem 0; }
+.differentiated-form-grid input,.differentiated-form-grid select,.differentiated-form-grid textarea { padding:.6rem; border:1px solid #d7e0d7; border-radius:.7rem; }
+.differentiated-form-grid textarea { min-height:7rem; }
+.differentiated-error { margin-top:1rem; padding:.8rem; background:#fff0ee; color:#944a40; }
+.differentiated-item-heading { display:flex; justify-content:space-between; gap:.8rem; }
+.differentiated-list article { margin-top:.8rem; padding:1rem; border:1px solid #e0e7e0; border-radius:.9rem; background:#fbfdfb; }
+.differentiated-level { padding:.2rem .55rem; border-radius:999px; font-weight:800; }
+.differentiated-level.support { background:#fff3dc; color:#8a641c; }
+.differentiated-level.core { background:#e8f1fb; color:#315f8f; }
+.differentiated-level.extension { background:#eee9fb; color:#66529a; }
+@media (max-width:760px) { .differentiated-header { flex-direction:column; } .differentiated-form-grid { grid-template-columns:1fr; } }

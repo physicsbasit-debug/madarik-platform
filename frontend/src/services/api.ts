@@ -23,6 +23,8 @@ import type {
   AssessmentBlueprintValidation,
   AssessmentStudentPaperPreview,
   AssessmentExportResult,
+  DifferentiatedActivity,
+  DifferentiatedActivityCreateInput,
   CognitiveCategory,
   QuestionAssetInfo,
   QuestionPart,
@@ -2610,3 +2612,107 @@ export async function exportAssessmentDraft(
     issues: [],
   };
 }
+
+interface ApiDifferentiatedActivity {
+  id: string;
+  owner_account_id: string | null;
+  source_project_id: string | null;
+  title: string;
+  grade: number;
+  science_domain: ScienceDomain;
+  subject_id: string;
+  unit_id: string | null;
+  lesson_id: string | null;
+  learning_outcome_ids: string[];
+  level: "support" | "core" | "extension";
+  objective: string;
+  instructions: string;
+  success_criteria: string[];
+  estimated_minutes: number;
+  materials: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+function fromApiDifferentiatedActivity(
+  item: ApiDifferentiatedActivity,
+): DifferentiatedActivity {
+  return {
+    id: item.id,
+    ownerAccountId: item.owner_account_id,
+    sourceProjectId: item.source_project_id,
+    title: item.title,
+    grade: item.grade,
+    scienceDomain: item.science_domain,
+    subjectId: item.subject_id,
+    unitId: item.unit_id,
+    lessonId: item.lesson_id,
+    learningOutcomeIds: item.learning_outcome_ids,
+    level: item.level,
+    objective: item.objective,
+    instructions: item.instructions,
+    successCriteria: item.success_criteria,
+    estimatedMinutes: item.estimated_minutes,
+    materials: item.materials,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  };
+}
+
+export async function listDifferentiatedActivities(): Promise<DifferentiatedActivity[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/differentiated-activities`,
+    { headers: buildAuthHeaders() },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to list differentiated activities');
+  }
+  const payload = await response.json();
+  return payload.items.map(fromApiDifferentiatedActivity);
+}
+
+export async function createDifferentiatedActivity(
+  input: DifferentiatedActivityCreateInput,
+): Promise<DifferentiatedActivity> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/differentiated-activities`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify({
+        source_project_id: input.sourceProjectId ?? null,
+        title: input.title,
+        grade: input.grade,
+        science_domain: input.scienceDomain,
+        subject_id: input.subjectId,
+        level: input.level,
+        objective: input.objective,
+        instructions: input.instructions,
+        estimated_minutes: input.estimatedMinutes,
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to create differentiated activity');
+  }
+  return fromApiDifferentiatedActivity(await response.json());
+}
+
+export async function deleteDifferentiatedActivity(
+  activityId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/differentiated-activities/${activityId}`,
+    {
+      method: 'DELETE',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to delete differentiated activity');
+  }
+}
+

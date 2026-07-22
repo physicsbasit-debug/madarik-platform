@@ -925,3 +925,19 @@ export interface AssessmentExportResult {
   exportReady: boolean;
   issues: string[];
 }
+
+
+export type DifferentiationLevel = "support" | "core" | "extension";
+export interface DifferentiatedActivity {
+  id: string; ownerAccountId: string | null; sourceProjectId: string | null;
+  title: string; grade: number; scienceDomain: ScienceDomain; subjectId: string;
+  unitId: string | null; lessonId: string | null; learningOutcomeIds: string[];
+  level: DifferentiationLevel; objective: string; instructions: string;
+  successCriteria: string[]; estimatedMinutes: number; materials: string[];
+  createdAt: string; updatedAt: string;
+}
+export interface DifferentiatedActivityCreateInput {
+  sourceProjectId?: string | null; title: string; grade: number; scienceDomain: ScienceDomain;
+  subjectId: string; level: DifferentiationLevel; objective: string; instructions: string;
+  estimatedMinutes: number;
+}
