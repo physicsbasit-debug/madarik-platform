@@ -9,6 +9,10 @@ from app.models.cloud_source import (
 from app.models.curriculum_source import (
     AttachCurriculumSourceRequest,
     CurriculumSourceListResponse,
+    RefreshCurriculumSourcesResponse,
+)
+from app.services.curriculum_source_refresh import (
+    check_project_curriculum_sources,
 )
 from app.services.curriculum_sources import (
     CurriculumSourceError,
@@ -134,3 +138,38 @@ def delete_project_curriculum_source(
             status_code=404,
             detail=str(exc),
         ) from exc
+
+
+@router.post(
+    "/projects/{project_id}/curriculum-sources/check-refresh",
+    response_model=RefreshCurriculumSourcesResponse,
+)
+def check_curriculum_source_updates(
+    project_id: str,
+) -> RefreshCurriculumSourcesResponse:
+    project = project_store.get(project_id)
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found",
+        )
+
+    items = check_project_curriculum_sources(project)
+    project_store.touch(project_id)
+
+    return RefreshCurriculumSourcesResponse(
+        items=items,
+        checked_count=len(items),
+        changed_count=sum(
+            item.source_refresh_status == "changed"
+            for item in items
+        ),
+        missing_count=sum(
+            item.source_refresh_status == "missing"
+            for item in items
+        ),
+        unverifiable_count=sum(
+            item.source_refresh_status == "unverifiable"
+            for item in items
+        ),
+    )

@@ -33,6 +33,7 @@ import type {
   GoogleDriveImportResult,
   CurriculumSourceAttachment,
   AttachCurriculumSourceRequest,
+  RefreshCurriculumSourcesResult,
 } from '../types/project';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -1684,6 +1685,9 @@ interface ApiCurriculumSourceAttachment {
   source_document_type: string;
   imported_at: string;
   source_modified_at: string | null;
+  source_refresh_status: 'unknown' | 'current' | 'changed' | 'missing' | 'unverifiable';
+  last_checked_at: string | null;
+  refresh_message: string | null;
 }
 
 interface ApiCurriculumSourceListResponse {
@@ -1709,6 +1713,9 @@ function fromApiCurriculumSource(
     sourceDocumentType: source.source_document_type,
     importedAt: source.imported_at,
     sourceModifiedAt: source.source_modified_at,
+    sourceRefreshStatus: source.source_refresh_status,
+    lastCheckedAt: source.last_checked_at,
+    refreshMessage: source.refresh_message,
   };
 }
 
@@ -1775,4 +1782,41 @@ export async function deleteProjectCurriculumSource(
   return fromApiCurriculumSource(
     (await response.json()) as ApiCurriculumSourceAttachment,
   );
+}
+
+
+interface ApiRefreshCurriculumSourcesResponse {
+  items: ApiCurriculumSourceAttachment[];
+  checked_count: number;
+  changed_count: number;
+  missing_count: number;
+  unverifiable_count: number;
+}
+
+export async function checkProjectCurriculumSourceUpdates(
+  projectId: string,
+): Promise<RefreshCurriculumSourcesResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/cloud-sources/projects/${projectId}/curriculum-sources/check-refresh`,
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      'Failed to check curriculum source updates',
+    );
+  }
+
+  const payload =
+    (await response.json()) as ApiRefreshCurriculumSourcesResponse;
+
+  return {
+    items: payload.items.map(fromApiCurriculumSource),
+    checkedCount: payload.checked_count,
+    changedCount: payload.changed_count,
+    missingCount: payload.missing_count,
+    unverifiableCount: payload.unverifiable_count,
+  };
 }

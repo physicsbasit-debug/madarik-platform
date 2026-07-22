@@ -502,6 +502,9 @@ class CurriculumSourceAttachment(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc)
     )
     source_modified_at: datetime | None = None
+    source_refresh_status: str = "unknown"
+    last_checked_at: datetime | None = None
+    refresh_message: str | None = None
 
 
 class ProjectSession(BaseModel):

@@ -6707,3 +6707,65 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Phase 3-C: Source Version Tracking */
+.cloud-source-heading-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.cloud-refresh-summary {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  background: #edf4fb;
+  color: #315d88;
+  line-height: 1.65;
+}
+
+.cloud-refresh-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #eef1f4;
+  color: #6b7987;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.cloud-refresh-badge.is-current {
+  background: #e7f4eb;
+  color: #2c7048;
+}
+
+.cloud-refresh-badge.is-changed {
+  background: #fff2d9;
+  color: #8b641d;
+}
+
+.cloud-refresh-badge.is-missing {
+  background: #ffe8e5;
+  color: #9b3d34;
+}
+
+.cloud-refresh-badge.is-unverifiable {
+  background: #eceaf8;
+  color: #5d5688;
+}
+
+.cloud-linked-sources article small {
+  margin-top: 0.25rem;
+  color: #718177;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .cloud-source-heading-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+}

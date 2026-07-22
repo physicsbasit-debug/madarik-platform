@@ -186,3 +186,11 @@
 - Added list, attach, and delete API operations.
 - Added persisted source display and unlinking in the curriculum browser.
 - No binary persistence, automatic parsing, source sync, or question linking was added.
+
+### Phase 3-C: Source Version Tracking
+
+- Added current, changed, missing, and unverifiable source states.
+- Added checksum-first and modified-time fallback comparison.
+- Added project-level source refresh checks.
+- Added per-source status metadata and frontend badges.
+- No automatic download, replacement, polling, or content reprocessing was added.

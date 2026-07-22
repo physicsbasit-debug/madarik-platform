@@ -680,6 +680,9 @@ export type CurriculumSourceAttachment = {
   sourceDocumentType: string;
   importedAt: string;
   sourceModifiedAt: string | null;
+  sourceRefreshStatus: "unknown" | "current" | "changed" | "missing" | "unverifiable";
+  lastCheckedAt: string | null;
+  refreshMessage: string | null;
 };
 
 export type AttachCurriculumSourceRequest = {
@@ -690,4 +693,13 @@ export type AttachCurriculumSourceRequest = {
   subjectId: string;
   unitId: string | null;
   sourceDocumentType: string;
+};
+
+
+export type RefreshCurriculumSourcesResult = {
+  items: CurriculumSourceAttachment[];
+  checkedCount: number;
+  changedCount: number;
+  missingCount: number;
+  unverifiableCount: number;
 };

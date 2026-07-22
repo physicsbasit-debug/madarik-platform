@@ -19,3 +19,11 @@ class AttachCurriculumSourceRequest(BaseModel):
 
 class CurriculumSourceListResponse(BaseModel):
     items: list[CurriculumSourceAttachment]
+
+
+class RefreshCurriculumSourcesResponse(BaseModel):
+    items: list[CurriculumSourceAttachment]
+    checked_count: int
+    changed_count: int
+    missing_count: int
+    unverifiable_count: int

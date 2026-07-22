@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   attachGoogleDriveCurriculumSource,
+  checkProjectCurriculumSourceUpdates,
   deleteProjectCurriculumSource,
   getGoogleDriveSourceStatus,
   listGoogleDriveSourceFiles,
@@ -32,6 +33,16 @@ type GoogleDriveSourcePanelProps = {
   unitId: string | null;
 };
 
+function refreshLabel(
+  status: CurriculumSourceAttachment["sourceRefreshStatus"],
+) {
+  if (status === "current") return "محدث";
+  if (status === "changed") return "تغيّر المصدر";
+  if (status === "missing") return "المصدر مفقود";
+  if (status === "unverifiable") return "تعذر التحقق";
+  return "لم يُفحص";
+}
+
 export default function GoogleDriveSourcePanel({
   projectId,
   grade,
@@ -42,13 +53,17 @@ export default function GoogleDriveSourcePanel({
 }: GoogleDriveSourcePanelProps) {
   const [status, setStatus] =
     useState<GoogleDriveSourceStatus | null>(null);
-  const [files, setFiles] = useState<GoogleDriveSourceFile[]>([]);
+  const [files, setFiles] =
+    useState<GoogleDriveSourceFile[]>([]);
   const [attached, setAttached] = useState<
     CurriculumSourceAttachment[]
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [workingId, setWorkingId] = useState<string | null>(null);
+  const [workingId, setWorkingId] =
+    useState<string | null>(null);
+  const [refreshSummary, setRefreshSummary] =
+    useState("");
 
   async function refresh() {
     setLoading(true);
@@ -143,6 +158,37 @@ export default function GoogleDriveSourcePanel({
     }
   }
 
+  async function checkForSourceUpdates() {
+    if (!projectId) {
+      setError(
+        "يجب فتح مشروع قبل فحص تحديثات المصادر.",
+      );
+      return;
+    }
+
+    setWorkingId("refresh-check");
+    setError("");
+    setRefreshSummary("");
+
+    try {
+      const result =
+        await checkProjectCurriculumSourceUpdates(
+          projectId,
+        );
+      setAttached(result.items);
+      setRefreshSummary(
+        `تم فحص ${result.checkedCount} مصدرًا: ` +
+          `${result.changedCount} متغير، ` +
+          `${result.missingCount} مفقود، ` +
+          `${result.unverifiableCount} غير قابل للتحقق.`,
+      );
+    } catch {
+      setError("تعذر فحص تحديثات المصادر.");
+    } finally {
+      setWorkingId(null);
+    }
+  }
+
   function isAttached(file: GoogleDriveSourceFile) {
     return attached.some(
       (item) =>
@@ -171,22 +217,47 @@ export default function GoogleDriveSourcePanel({
             <h2>Google Drive</h2>
           </div>
         </div>
-        <button
-          type="button"
-          className="secondary-button compact"
-          onClick={() => void refresh()}
-          disabled={loading}
-        >
-          {loading ? (
-            <Loader2
-              size={16}
-              className="spin-icon"
-            />
-          ) : (
-            <RefreshCw size={16} />
-          )}
-          تحديث
-        </button>
+
+        <div className="cloud-source-heading-actions">
+          <button
+            type="button"
+            className="secondary-button compact"
+            onClick={() => void refresh()}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2
+                size={16}
+                className="spin-icon"
+              />
+            ) : (
+              <RefreshCw size={16} />
+            )}
+            تحديث القائمة
+          </button>
+
+          <button
+            type="button"
+            className="secondary-button compact"
+            onClick={() =>
+              void checkForSourceUpdates()
+            }
+            disabled={
+              !projectId ||
+              workingId === "refresh-check"
+            }
+          >
+            {workingId === "refresh-check" ? (
+              <Loader2
+                size={16}
+                className="spin-icon"
+              />
+            ) : (
+              <RefreshCw size={16} />
+            )}
+            فحص التحديثات
+          </button>
+        </div>
       </div>
 
       {!projectId ? (
@@ -231,12 +302,22 @@ export default function GoogleDriveSourcePanel({
               </strong>
               <span>{status?.reason}</span>
             </div>
-            <code>{status?.mode ?? "disabled"}</code>
+            <code>
+              {status?.mode ?? "disabled"}
+            </code>
           </div>
+
+          {refreshSummary ? (
+            <div className="cloud-refresh-summary">
+              {refreshSummary}
+            </div>
+          ) : null}
 
           {visibleAttachments.length > 0 ? (
             <div className="cloud-linked-sources">
-              <h3>المصادر المرتبطة بهذا المنهج</h3>
+              <h3>
+                المصادر المرتبطة بهذا المنهج
+              </h3>
               {visibleAttachments.map((item) => (
                 <article key={item.id}>
                   <Link2 size={18} />
@@ -246,6 +327,21 @@ export default function GoogleDriveSourcePanel({
                       الصف {item.grade} ·{" "}
                       {item.sourceDocumentType}
                     </span>
+                    <span
+                      className={
+                        `cloud-refresh-badge ` +
+                        `is-${item.sourceRefreshStatus}`
+                      }
+                    >
+                      {refreshLabel(
+                        item.sourceRefreshStatus,
+                      )}
+                    </span>
+                    {item.refreshMessage ? (
+                      <small>
+                        {item.refreshMessage}
+                      </small>
+                    ) : null}
                   </div>
                   <button
                     type="button"
