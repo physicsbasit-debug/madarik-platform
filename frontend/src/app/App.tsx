@@ -70,6 +70,7 @@ import {
   updateAuthAccount,
 } from "../services/api";
 import type {
+import ScienceTaskHome from "../features/workflow/ScienceTaskHome";
   AnswerKeyItem,
   EducationalAnalysisReport,
   EducationalQualityToolsReport,
@@ -164,6 +165,7 @@ function applyProjectSession(
 
 export function App() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional">("home");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [isProjectHydrating, setProjectHydrating] = useState(true);
   const [apiStatus, setApiStatus] = useState<ApiConnectionStatus>("connecting");
@@ -647,6 +649,22 @@ export function App() {
       },
     );
   }, [activeStep.key, apiStatus, isProjectHydrating, projectId]);
+
+
+function openQuickTranslation() {
+  setWorkspaceMode("quick");
+  setActiveIndex(0);
+}
+
+function openProfessionalTranslation() {
+  setWorkspaceMode("professional");
+  setActiveIndex(0);
+}
+
+function returnToTaskHome() {
+  setWorkspaceMode("home");
+  setActiveIndex(0);
+}
 
   function goNext() {
     setActiveIndex((current) => Math.min(current + 1, steps.length - 1));
@@ -1821,6 +1839,16 @@ export function App() {
     }
   }
 
+
+if (workspaceMode === "home") {
+  return (
+    <ScienceTaskHome
+      onQuickTranslation={openQuickTranslation}
+      onProfessionalTranslation={openProfessionalTranslation}
+    />
+  );
+}
+
   return (
     <WorkspaceShell
       sidebar={
@@ -1852,6 +1880,13 @@ export function App() {
         />
       }
     >
+      <button
+        type="button"
+        className="workspace-task-home-button"
+        onClick={returnToTaskHome}
+      >
+        العودة إلى المهام
+      </button>
       <details
         className="workspace-settings-panel"
         open={isAuthPanelOpen}

@@ -138,3 +138,12 @@
 - Added V2 architecture, roadmap, data contracts, decisions, and UI simplification plan.
 - Added a machine-readable V2 scope contract and focused tests.
 - No production UI, Backend logic, persistence, or API behavior was changed.
+
+### Phase 0-B: V2 Navigation and Task-Oriented Home
+
+- Added a task-oriented V2 home for science teachers.
+- Added real entry points for quick and professional translation.
+- Added non-interactive roadmap cards for future V2 modules.
+- Added a return-to-tasks control from the current workspace.
+- Added responsive RTL styling and focused tests.
+- No Backend, API, persistence, extraction, translation, or export logic was changed.
