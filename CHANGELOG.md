@@ -342,3 +342,13 @@
 - Activated a dedicated RTL diagram workspace.
 - Updated README.
 - No automatic generation or SVG export was added.
+
+
+### Phase 8-B: Scientific Diagram Preview and SVG Rendering
+
+- Added deterministic positioning for six diagram types.
+- Added SVG rendering for nodes, arrows, and edge labels.
+- Added browser preview and SVG download.
+- Added readiness validation.
+- Updated README.
+- No PNG/PDF export or drag editing was added.

@@ -363,18 +363,20 @@ Completed V2 phases:
 - Phase 7-A: Differentiated science activities foundation.
 - Phase 7-B: Generate differentiated activities from curriculum and questions.
 - Phase 7-C: Differentiated activity preview and export.
-- Phase 8-A: Scientific Diagram Data Model and Workspace Foundation.
+- Phase 8-A: Scientific diagram data model and workspace foundation.
+- Phase 8-B: Scientific Diagram Preview and SVG Rendering.
 
-Phase 8-A adds:
+Phase 8-B adds:
 
-- persistent scientific-diagram models;
-- process, cycle, comparison, sequence, structure, and cause-effect types;
-- nodes and directed edges;
-- curriculum context;
-- a dedicated RTL workspace.
+- deterministic node positioning by diagram type;
+- SVG rendering for nodes and directed edges;
+- arrowheads and edge labels;
+- browser preview;
+- SVG download;
+- readiness validation.
 
 Next planned phase:
 
 ```text
-Phase 8-B: Scientific Diagram Preview and SVG Rendering
+Phase 8-C: Scientific Diagram PNG and PDF Export
 ```

@@ -1041,3 +1041,46 @@ export interface ScientificDiagramCreateInput {
   nodes: ScientificDiagramNode[];
   edges: ScientificDiagramEdge[];
 }
+
+
+export interface ScientificDiagramPreviewNode {
+  id: string;
+  label: string;
+  description: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface ScientificDiagramPreviewEdge {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  label: string | null;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+export interface ScientificDiagramPreview {
+  id: string;
+  title: string;
+  diagramType: ScientificDiagramType;
+  width: number;
+  height: number;
+  nodes: ScientificDiagramPreviewNode[];
+  edges: ScientificDiagramPreviewEdge[];
+  svg: string;
+  exportReady: boolean;
+  issues: string[];
+}
+
+export interface ScientificDiagramSvgExportResult {
+  diagramId: string;
+  filename: string;
+  svg: string;
+  exportReady: boolean;
+  issues: string[];
+}

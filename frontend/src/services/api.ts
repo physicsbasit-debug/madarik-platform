@@ -2982,3 +2982,76 @@ export async function deleteScientificDiagram(
   }
   return fromApiScientificDiagram(await response.json());
 }
+
+
+export async function getScientificDiagramPreview(
+  diagramId: string,
+): Promise<ScientificDiagramPreview> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/scientific-diagrams/${diagramId}/preview`,
+    {
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      'Failed to load scientific diagram preview',
+    );
+  }
+
+  const payload = await response.json();
+  return {
+    id: payload.id,
+    title: payload.title,
+    diagramType: payload.diagram_type,
+    width: payload.width,
+    height: payload.height,
+    nodes: payload.nodes.map((node: any) => ({
+      id: node.id,
+      label: node.label,
+      description: node.description,
+      x: node.x,
+      y: node.y,
+      width: node.width,
+      height: node.height,
+    })),
+    edges: payload.edges.map((edge: any) => ({
+      id: edge.id,
+      sourceNodeId: edge.source_node_id,
+      targetNodeId: edge.target_node_id,
+      label: edge.label,
+      x1: edge.x1,
+      y1: edge.y1,
+      x2: edge.x2,
+      y2: edge.y2,
+    })),
+    svg: payload.svg,
+    exportReady: payload.export_ready,
+    issues: payload.issues,
+  };
+}
+
+export async function exportScientificDiagramSvg(
+  diagramId: string,
+): Promise<ScientificDiagramSvgExportResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/scientific-diagrams/${diagramId}/svg`,
+    {
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      'Failed to export scientific diagram SVG',
+    );
+  }
+
+  const payload = await response.json();
+  return {
+    diagramId: payload.diagram_id,
+    filename: payload.filename,
+    svg: payload.svg,
+    exportReady: payload.export_ready,
+    issues: payload.issues,
+  };
+}

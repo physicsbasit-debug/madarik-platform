@@ -7877,3 +7877,79 @@ button:disabled {
   background: #fff0ee;
   color: #944a40;
 }
+
+
+/* Phase 8-B: SVG Diagram Preview */
+.scientific-diagram-preview,
+.scientific-diagram-message {
+  width: min(100%, 82rem);
+  margin-inline: auto;
+}
+
+.scientific-diagram-preview {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #dbe2ee;
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.scientific-diagram-preview > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid #e0e5ed;
+}
+
+.scientific-diagram-preview > header span {
+  color: #415d91;
+  font-weight: 800;
+}
+
+.scientific-diagram-preview h2 {
+  margin: 0.25rem 0 0;
+}
+
+.scientific-diagram-svg-frame {
+  overflow: auto;
+  margin-top: 1rem;
+  border: 1px solid #e2e7ef;
+  border-radius: 0.8rem;
+  background: #f8faff;
+}
+
+.scientific-diagram-svg-frame svg {
+  display: block;
+  width: 100%;
+  min-width: 42rem;
+  height: auto;
+}
+
+.scientific-diagram-preview-issues {
+  color: #944a40;
+}
+
+.scientific-diagram-message {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  background: #eef5ff;
+  color: #315f8f;
+}
+
+.scientific-diagram-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .scientific-diagram-preview > header {
+    flex-direction: column;
+  }
+
+  .scientific-diagram-actions {
+    width: 100%;
+  }
+}

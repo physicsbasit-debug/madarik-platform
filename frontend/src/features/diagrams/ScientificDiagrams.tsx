@@ -9,8 +9,11 @@ import {
   createScientificDiagram,
   deleteScientificDiagram,
   listScientificDiagrams,
+  getScientificDiagramPreview,
+  exportScientificDiagramSvg,
 } from "../../services/api";
 import type {
+import { ScientificDiagramPreviewCard } from "./ScientificDiagramPreview";
   ScienceDomain,
   ScientificDiagram,
   ScientificDiagramNode,
@@ -42,6 +45,8 @@ export default function ScientificDiagrams({
     useState<ScientificDiagramType>("process");
   const [nodesText, setNodesText] = useState("");
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState<ScientificDiagramPreview | null>(null);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     void listScientificDiagrams()
@@ -96,6 +101,54 @@ export default function ScientificDiagrams({
       setError("تعذر حفظ الرسم العلمي.");
     }
   }
+
+
+async function openPreview(diagramId: string) {
+  setError("");
+  try {
+    setPreview(
+      await getScientificDiagramPreview(
+        diagramId,
+      ),
+    );
+  } catch {
+    setError("تعذر تحميل معاينة الرسم.");
+  }
+}
+
+async function downloadSvg(diagramId: string) {
+  setError("");
+  setMessage("");
+  try {
+    const result =
+      await exportScientificDiagramSvg(
+        diagramId,
+      );
+
+    if (!result.exportReady) {
+      setError(result.issues.join(" "));
+      return;
+    }
+
+    const blob = new Blob([result.svg], {
+      type: "image/svg+xml;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = result.filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    setMessage(
+      `تم تنزيل الرسم: ${result.filename}`,
+    );
+  } catch {
+    setError("تعذر تنزيل SVG.");
+  }
+}
 
   async function remove(diagramId: string) {
     try {
@@ -187,6 +240,19 @@ export default function ScientificDiagrams({
         </div>
       ) : null}
 
+      {message ? (
+        <div className="scientific-diagram-message">
+          {message}
+        </div>
+      ) : null}
+
+      {preview ? (
+        <ScientificDiagramPreviewCard
+          preview={preview}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
+
       <section className="scientific-diagram-list">
         <h2>الرسوم المحفوظة</h2>
         {items.map((item) => (
@@ -201,14 +267,30 @@ export default function ScientificDiagrams({
                 <span key={node.id}>{node.label}</span>
               ))}
             </div>
-            <button
-              type="button"
-              className="secondary-button compact"
-              onClick={() => void remove(item.id)}
-            >
-              <Trash2 size={15} />
-              حذف
-            </button>
+            <div className="scientific-diagram-actions">
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={() => void openPreview(item.id)}
+              >
+                معاينة
+              </button>
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={() => void downloadSvg(item.id)}
+              >
+                تنزيل SVG
+              </button>
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={() => void remove(item.id)}
+              >
+                <Trash2 size={15} />
+                حذف
+              </button>
+            </div>
           </article>
         ))}
       </section>

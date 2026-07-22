@@ -63,6 +63,12 @@ from app.models.scientific_diagram import (
     ScientificDiagram,
     ScientificDiagramCreateRequest,
     ScientificDiagramListResponse,
+    ScientificDiagramPreview,
+    ScientificDiagramSvgExportResponse,
+)
+from app.services.scientific_diagram_renderer import (
+    build_scientific_diagram_preview,
+    export_scientific_diagram_svg,
 )
 from app.services.scientific_diagram_repository import (
     scientific_diagram_repository,
@@ -1801,3 +1807,49 @@ def delete_scientific_diagram(
             detail="Scientific diagram not found",
         )
     return diagram
+
+
+@router.get(
+    "/scientific-diagrams/{diagram_id}/preview",
+    response_model=ScientificDiagramPreview,
+)
+def get_scientific_diagram_preview(
+    diagram_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> ScientificDiagramPreview:
+    diagram = scientific_diagram_repository.get(
+        diagram_id
+    )
+    if diagram is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Scientific diagram not found",
+        )
+    return build_scientific_diagram_preview(
+        diagram
+    )
+
+
+@router.get(
+    "/scientific-diagrams/{diagram_id}/svg",
+    response_model=ScientificDiagramSvgExportResponse,
+)
+def export_scientific_diagram_as_svg(
+    diagram_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> ScientificDiagramSvgExportResponse:
+    diagram = scientific_diagram_repository.get(
+        diagram_id
+    )
+    if diagram is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Scientific diagram not found",
+        )
+    return export_scientific_diagram_svg(
+        diagram
+    )

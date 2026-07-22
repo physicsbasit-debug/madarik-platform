@@ -72,3 +72,49 @@ class ScientificDiagramCreateRequest(BaseModel):
 class ScientificDiagramListResponse(BaseModel):
     items: list[ScientificDiagram]
     total: int
+
+
+class ScientificDiagramPreviewNode(BaseModel):
+    id: str
+    label: str
+    description: str | None = None
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+class ScientificDiagramPreviewEdge(BaseModel):
+    id: str
+    source_node_id: str
+    target_node_id: str
+    label: str | None = None
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
+class ScientificDiagramPreview(BaseModel):
+    id: str
+    title: str
+    diagram_type: ScientificDiagramType
+    width: int
+    height: int
+    nodes: list[ScientificDiagramPreviewNode] = Field(
+        default_factory=list
+    )
+    edges: list[ScientificDiagramPreviewEdge] = Field(
+        default_factory=list
+    )
+    svg: str
+    export_ready: bool
+    issues: list[str] = Field(default_factory=list)
+
+
+class ScientificDiagramSvgExportResponse(BaseModel):
+    diagram_id: str
+    filename: str
+    svg: str
+    export_ready: bool
+    issues: list[str] = Field(default_factory=list)
