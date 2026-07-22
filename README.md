@@ -319,21 +319,19 @@ Completed V2 phases:
 - Phase 4-A: Science question classification foundation.
 - Phase 4-B: Curriculum linking and classification review.
 - Phase 5-A: Question bank data model and persistence.
-- Phase 5-B: Question Bank Library, Search, and Filters.
+- Phase 5-B: Question bank library, search, and filters.
+- Phase 5-C: Reuse Question Bank Items in Projects.
 
-The question-bank library supports:
+Reuse behavior:
 
-- text search;
-- grade and science-domain filters;
-- curriculum-unit filters;
-- cognitive-category filters;
-- result preview and deletion.
-
-Search results are limited to the authenticated owner's bank when account
-information is available.
+- creates a new question ID and new nested part and attachment IDs;
+- preserves text, marks, options, classification, and curriculum links;
+- clears project-specific layout-asset and source-page links;
+- marks the reused question as `needs_review`;
+- prevents the same bank item from being inserted twice into one project.
 
 Next planned phase:
 
 ```text
-Phase 5-C: Reuse Question Bank Items in Projects
+Phase 6-A: Assessment Blueprint and Test Builder Foundation
 ```

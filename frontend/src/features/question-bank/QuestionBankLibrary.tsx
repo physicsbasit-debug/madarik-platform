@@ -8,19 +8,24 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  CopyPlus,
 } from "lucide-react";
 import {
   deleteQuestionBankItem,
   searchQuestionBankLibrary,
+  reuseQuestionBankItemInProject,
 } from "../../services/api";
 import { localCurriculumRepository } from "../curriculum/local-curriculum.repository";
 import type {
   CognitiveCategory,
   QuestionBankItem,
+  QuestionItem,
   ScienceDomain,
 } from "../../types/project";
 
 interface QuestionBankLibraryProps {
+  projectId: string | null;
+  onQuestionReused: (question: QuestionItem) => void;
   onReturnHome: () => void;
 }
 
@@ -35,6 +40,8 @@ const categoryLabels: Record<
 };
 
 export default function QuestionBankLibrary({
+  projectId,
+  onQuestionReused,
   onReturnHome,
 }: QuestionBankLibraryProps) {
   const [query, setQuery] = useState("");
@@ -55,6 +62,7 @@ export default function QuestionBankLibrary({
   const [error, setError] = useState("");
   const [workingId, setWorkingId] =
     useState<string | null>(null);
+  const [reuseMessage, setReuseMessage] = useState("");
 
   const subjects = useMemo(
     () =>
@@ -126,6 +134,36 @@ export default function QuestionBankLibrary({
     setUnitId(null);
     setCategory(null);
   }
+
+
+async function reuseSelectedItem() {
+  if (!selectedItem || !projectId) {
+    setError("يجب فتح مشروع قبل إعادة استخدام السؤال.");
+    return;
+  }
+
+  setWorkingId(`reuse-${selectedItem.id}`);
+  setError("");
+  setReuseMessage("");
+
+  try {
+    const result =
+      await reuseQuestionBankItemInProject(
+        selectedItem.id,
+        projectId,
+      );
+    onQuestionReused(result.question);
+    setReuseMessage(
+      result.reused
+        ? "تمت إضافة نسخة مستقلة إلى المشروع الحالي، وحالتها تحتاج مراجعة."
+        : "هذا السؤال مضاف مسبقًا إلى المشروع الحالي.",
+    );
+  } catch {
+    setError("تعذر إعادة استخدام السؤال في المشروع.");
+  } finally {
+    setWorkingId(null);
+  }
+}
 
   async function removeItem(item: QuestionBankItem) {
     setWorkingId(item.id);
@@ -349,6 +387,11 @@ export default function QuestionBankLibrary({
           {error}
         </div>
       ) : null}
+      {reuseMessage ? (
+        <div className="question-bank-library-success">
+          {reuseMessage}
+        </div>
+      ) : null}
 
       <section className="question-bank-library-layout">
         <aside className="question-bank-results">
@@ -474,26 +517,49 @@ export default function QuestionBankLibrary({
                 </section>
               </div>
 
-              <button
-                type="button"
-                className="secondary-button danger"
-                disabled={
-                  workingId === selectedItem.id
-                }
-                onClick={() =>
-                  void removeItem(selectedItem)
-                }
-              >
-                {workingId === selectedItem.id ? (
-                  <Loader2
-                    size={16}
-                    className="spin-icon"
-                  />
-                ) : (
-                  <Trash2 size={16} />
-                )}
-                حذف من البنك
-              </button>
+              <div className="question-bank-preview-actions">
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={
+                    !projectId ||
+                    workingId === `reuse-${selectedItem.id}`
+                  }
+                  onClick={() =>
+                    void reuseSelectedItem()
+                  }
+                >
+                  {workingId === `reuse-${selectedItem.id}` ? (
+                    <Loader2
+                      size={16}
+                      className="spin-icon"
+                    />
+                  ) : (
+                    <CopyPlus size={16} />
+                  )}
+                  إضافة إلى المشروع الحالي
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button danger"
+                  disabled={
+                    workingId === selectedItem.id
+                  }
+                  onClick={() =>
+                    void removeItem(selectedItem)
+                  }
+                >
+                  {workingId === selectedItem.id ? (
+                    <Loader2
+                      size={16}
+                      className="spin-icon"
+                    />
+                  ) : (
+                    <Trash2 size={16} />
+                  )}
+                  حذف من البنك
+                </button>
+              </div>
             </>
           ) : (
             <div className="question-bank-preview-empty">

@@ -34,3 +34,10 @@ class QuestionBankSearchResponse(BaseModel):
     science_domain: str | None = None
     unit_id: str | None = None
     cognitive_category: str | None = None
+
+
+class QuestionBankReuseResponse(BaseModel):
+    target_project_id: str
+    source_bank_item_id: str
+    reused: bool
+    question: QuestionItem

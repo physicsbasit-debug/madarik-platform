@@ -15,6 +15,7 @@ import type {
   QuestionBankList,
   QuestionBankSearchFilters,
   QuestionBankSearchResult,
+  QuestionBankReuseResult,
   CognitiveCategory,
   QuestionAssetInfo,
   QuestionPart,
@@ -226,6 +227,9 @@ interface ApiQuestionPart {
 }
 
 interface ApiQuestionItem {
+  reused_from_question_bank_item_id?: string | null;
+  reused_from_source_project_id?: string | null;
+  reused_at?: string | null;
   curriculum_grade?: number | null;
   curriculum_science_domain?: 'general_science' | 'physics' | 'chemistry' | 'biology' | 'environmental_science' | null;
   curriculum_semester_id?: string | null;
@@ -747,6 +751,9 @@ function toApiQuestionPart(part: QuestionPart): ApiQuestionPart {
 function fromApiQuestion(question: ApiQuestionItem): QuestionItem {
   return {
     id: question.id,
+    reusedFromQuestionBankItemId: question.reused_from_question_bank_item_id ?? null,
+    reusedFromSourceProjectId: question.reused_from_source_project_id ?? null,
+    reusedAt: question.reused_at ?? null,
     curriculumGrade: question.curriculum_grade ?? null,
     curriculumScienceDomain: question.curriculum_science_domain ?? null,
     curriculumSemesterId: question.curriculum_semester_id ?? null,
@@ -2074,4 +2081,40 @@ export async function getQuestionBankLibraryItem(
   return fromApiQuestionBankItem(
     (await response.json()) as ApiQuestionBankItem,
   );
+}
+
+
+interface ApiQuestionBankReuseResponse {
+  target_project_id: string;
+  source_bank_item_id: string;
+  reused: boolean;
+  question: ApiQuestionItem;
+}
+
+export async function reuseQuestionBankItemInProject(
+  itemId: string,
+  targetProjectId: string,
+): Promise<QuestionBankReuseResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/question-bank/library/${itemId}/reuse/${targetProjectId}`,
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      'Failed to reuse question bank item',
+    );
+  }
+
+  const payload =
+    (await response.json()) as ApiQuestionBankReuseResponse;
+
+  return {
+    targetProjectId: payload.target_project_id,
+    sourceBankItemId: payload.source_bank_item_id,
+    reused: payload.reused,
+    question: fromApiQuestion(payload.question),
+  };
 }

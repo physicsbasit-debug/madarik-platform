@@ -7471,3 +7471,26 @@ button:disabled {
     grid-column: auto;
   }
 }
+
+
+/* Phase 5-C: Reuse Question Bank Items */
+.question-bank-library-success {
+  width: min(100%, 84rem);
+  margin: 1rem auto 0;
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  background: #eaf6ee;
+  color: #2d7048;
+}
+
+.question-bank-preview-actions {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .question-bank-preview-actions {
+    flex-direction: column;
+  }
+}

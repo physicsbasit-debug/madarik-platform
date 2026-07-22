@@ -236,6 +236,9 @@ class QuestionItem(BaseModel):
     curriculum_lesson_id: str | None = None
     curriculum_learning_outcome_ids: list[str] = Field(default_factory=list)
     curriculum_link_source: str = "manual"
+    reused_from_question_bank_item_id: str | None = None
+    reused_from_source_project_id: str | None = None
+    reused_at: datetime | None = None
     id: str
     original_number: str
     original_text: str

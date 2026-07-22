@@ -116,6 +116,9 @@ export interface QuestionPart {
 }
 
 export interface QuestionItem {
+  reusedFromQuestionBankItemId?: string | null;
+  reusedFromSourceProjectId?: string | null;
+  reusedAt?: string | null;
   curriculumGrade?: number | null;
   curriculumScienceDomain?: ScienceDomain | null;
   curriculumSemesterId?: string | null;
@@ -765,4 +768,12 @@ export interface QuestionBankSearchResult {
   items: QuestionBankItem[];
   total: number;
   filters: QuestionBankSearchFilters;
+}
+
+
+export interface QuestionBankReuseResult {
+  targetProjectId: string;
+  sourceBankItemId: string;
+  reused: boolean;
+  question: QuestionItem;
 }

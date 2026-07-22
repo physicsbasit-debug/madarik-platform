@@ -7,6 +7,10 @@ from app.models.question_bank import (
     QuestionBankItem,
     QuestionBankListResponse,
     QuestionBankSearchResponse,
+    QuestionBankReuseResponse,
+)
+from app.services.question_bank_reuse import (
+    reuse_question_bank_item,
 )
 from app.services.question_bank_repository import (
     question_bank_repository,
@@ -1188,3 +1192,51 @@ def get_question_bank_library_item(
         )
 
     return item
+
+
+@router.post(
+    "/question-bank/library/{item_id}/reuse/{target_project_id}",
+    response_model=QuestionBankReuseResponse,
+)
+def reuse_question_bank_library_item(
+    item_id: str,
+    target_project_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> QuestionBankReuseResponse:
+    target_project = _get_or_404(
+        target_project_id,
+        account,
+    )
+    bank_item = question_bank_repository.get(item_id)
+
+    if bank_item is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Question bank item not found",
+        )
+
+    if (
+        account is not None
+        and bank_item.owner_account_id is not None
+        and bank_item.owner_account_id != account.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Question bank item access denied",
+        )
+
+    question, reused = reuse_question_bank_item(
+        target_project,
+        bank_item,
+    )
+    if reused:
+        project_store.touch(target_project_id)
+
+    return QuestionBankReuseResponse(
+        target_project_id=target_project_id,
+        source_bank_item_id=item_id,
+        reused=reused,
+        question=question,
+    )

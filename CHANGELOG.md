@@ -243,3 +243,14 @@
 - Added result preview and deletion.
 - Updated README with the current V2 status.
 - No question reuse, multi-select, assessment generation, or bank sharing was added.
+
+### Phase 5-C: Reuse Question Bank Items in Projects
+
+- Added safe cloning of question-bank items into the current project.
+- Added fresh question, part, and attachment IDs.
+- Preserved classification, curriculum links, options, marks, and embedded assets.
+- Cleared source-project layout and page references.
+- Added duplicate protection for the same bank item within a project.
+- Added reuse controls and project-state updates in the question-bank library.
+- Updated README with the current V2 status.
+- No multi-project target picker, bulk reuse, synchronization, or assessment generation was added.

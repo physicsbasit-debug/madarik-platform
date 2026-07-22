@@ -1955,6 +1955,17 @@ if (workspaceMode === "home") {
 if (workspaceMode === "question-bank") {
   return (
     <QuestionBankLibrary
+      projectId={projectId}
+      onQuestionReused={(question) => {
+        setQuestions((current) =>
+          current.some((item) => item.id === question.id)
+            ? current
+            : [...current, question],
+        );
+        setLastSyncNote(
+          "تمت إضافة سؤال من بنك الأسئلة إلى المشروع الحالي.",
+        );
+      }}
       onReturnHome={returnToTaskHome}
     />
   );
