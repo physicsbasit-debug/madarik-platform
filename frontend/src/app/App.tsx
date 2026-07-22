@@ -71,8 +71,8 @@ import {
 } from "../services/api";
 import ScienceTaskHome from "../features/workflow/ScienceTaskHome";
 import QuickTranslationWorkspace from "../features/workflow/QuickTranslationWorkspace";
-import type {
 import CurriculumBrowser from "../features/curriculum/CurriculumBrowser";
+import type {
   AnswerKeyItem,
   EducationalAnalysisReport,
   EducationalQualityToolsReport,

@@ -10,6 +10,7 @@ import {
   ListTree,
 } from "lucide-react";
 import { localCurriculumRepository } from "./local-curriculum.repository";
+import GoogleDriveSourcePanel from "./GoogleDriveSourcePanel";
 
 type CurriculumBrowserProps = {
   onReturnHome: () => void;
@@ -200,6 +201,8 @@ export default function CurriculumBrowser({
           )}
         </section>
       </section>
+
+      <GoogleDriveSourcePanel />
     </main>
   );
 }

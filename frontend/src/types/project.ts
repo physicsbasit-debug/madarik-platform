@@ -625,3 +625,40 @@ export type CurriculumCatalog = {
   learningOutcomes: CurriculumLearningOutcome[];
 };
 
+
+export type GoogleDriveSourceStatus = {
+  provider: "google_drive";
+  mode: string;
+  configured: boolean;
+  ready: boolean;
+  reason: string;
+  folderConfigured: boolean;
+  tokenConfigured: boolean;
+  supportedMimeTypes: string[];
+  readOnly: boolean;
+};
+
+export type GoogleDriveSourceFile = {
+  id: string;
+  provider: "google_drive";
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number | null;
+  webUrl: string | null;
+  folderId: string | null;
+  modifiedAt: string | null;
+  checksum: string | null;
+  accessScope: "read_only";
+};
+
+export type GoogleDriveSourceList = {
+  status: GoogleDriveSourceStatus;
+  files: GoogleDriveSourceFile[];
+};
+
+export type GoogleDriveImportResult = {
+  source: GoogleDriveSourceFile;
+  downloaded: boolean;
+  byteCount: number;
+  message: string;
+};

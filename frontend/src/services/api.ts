@@ -27,6 +27,10 @@ import type {
   AuthStatus,
   AuthUpdateAccountInput,
   VisualCropRequest,
+  GoogleDriveSourceStatus,
+  GoogleDriveSourceFile,
+  GoogleDriveSourceList,
+  GoogleDriveImportResult,
 } from '../types/project';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -1540,4 +1544,123 @@ export async function importProjectSnapshot(snapshot: unknown): Promise<ProjectS
     body: JSON.stringify(snapshot),
   });
   return fromApiProject(project);
+}
+
+
+interface ApiGoogleDriveSourceStatus {
+  provider: 'google_drive';
+  mode: string;
+  configured: boolean;
+  ready: boolean;
+  reason: string;
+  folder_configured: boolean;
+  token_configured: boolean;
+  supported_mime_types: string[];
+  read_only: boolean;
+}
+
+interface ApiGoogleDriveSourceFile {
+  id: string;
+  provider: 'google_drive';
+  file_name: string;
+  mime_type: string;
+  size_bytes: number | null;
+  web_url: string | null;
+  folder_id: string | null;
+  modified_at: string | null;
+  checksum: string | null;
+  access_scope: 'read_only';
+}
+
+interface ApiGoogleDriveSourceList {
+  status: ApiGoogleDriveSourceStatus;
+  files: ApiGoogleDriveSourceFile[];
+}
+
+interface ApiGoogleDriveImportResult {
+  source: ApiGoogleDriveSourceFile;
+  downloaded: boolean;
+  byte_count: number;
+  message: string;
+}
+
+function fromApiGoogleDriveStatus(
+  status: ApiGoogleDriveSourceStatus,
+): GoogleDriveSourceStatus {
+  return {
+    provider: status.provider,
+    mode: status.mode,
+    configured: status.configured,
+    ready: status.ready,
+    reason: status.reason,
+    folderConfigured: status.folder_configured,
+    tokenConfigured: status.token_configured,
+    supportedMimeTypes: status.supported_mime_types,
+    readOnly: status.read_only,
+  };
+}
+
+function fromApiGoogleDriveFile(
+  file: ApiGoogleDriveSourceFile,
+): GoogleDriveSourceFile {
+  return {
+    id: file.id,
+    provider: file.provider,
+    fileName: file.file_name,
+    mimeType: file.mime_type,
+    sizeBytes: file.size_bytes,
+    webUrl: file.web_url,
+    folderId: file.folder_id,
+    modifiedAt: file.modified_at,
+    checksum: file.checksum,
+    accessScope: file.access_scope,
+  };
+}
+
+export async function getGoogleDriveSourceStatus(): Promise<GoogleDriveSourceStatus> {
+  const response = await fetch(
+    `${API_BASE_URL}/cloud-sources/google-drive/status`,
+    { headers: buildAuthHeaders() },
+  );
+  if (!response.ok) throw new Error('Failed to read Google Drive status');
+  return fromApiGoogleDriveStatus(
+    (await response.json()) as ApiGoogleDriveSourceStatus,
+  );
+}
+
+export async function listGoogleDriveSourceFiles(): Promise<GoogleDriveSourceList> {
+  const response = await fetch(
+    `${API_BASE_URL}/cloud-sources/google-drive/files`,
+    { headers: buildAuthHeaders() },
+  );
+  if (!response.ok) throw new Error('Failed to list Google Drive files');
+  const payload = (await response.json()) as ApiGoogleDriveSourceList;
+  return {
+    status: fromApiGoogleDriveStatus(payload.status),
+    files: payload.files.map(fromApiGoogleDriveFile),
+  };
+}
+
+export async function importGoogleDriveSourceFile(
+  fileId: string,
+): Promise<GoogleDriveImportResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/cloud-sources/google-drive/import`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify({ file_id: fileId }),
+    },
+  );
+  if (!response.ok) throw new Error('Failed to import Google Drive file');
+  const payload = (await response.json()) as ApiGoogleDriveImportResult;
+  return {
+    source: fromApiGoogleDriveFile(payload.source),
+    downloaded: payload.downloaded,
+    byteCount: payload.byte_count,
+    message: payload.message,
+  };
 }

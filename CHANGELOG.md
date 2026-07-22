@@ -167,3 +167,14 @@
 - Activated the curriculum library card on the V2 task home.
 - Added documentation and focused tests.
 - No Google Drive, Backend persistence, or official curriculum content was added.
+
+### Phase 3-A: Google Drive Source Foundation
+
+- Added read-only Google Drive source models, service, and API routes.
+- Added disabled, mock, and Google API provider modes.
+- Added safe status reporting without exposing access tokens.
+- Added folder-scoped file listing and import foundation.
+- Added a Google Drive source panel inside the curriculum browser.
+- Repaired the malformed CurriculumBrowser import from Phase 2.
+- Added documentation and focused tests.
+- No OAuth flow, project persistence, question bank, or OneDrive integration was added.

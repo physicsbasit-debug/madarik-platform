@@ -6510,3 +6510,155 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+
+/* Phase 3-A: Google Drive Source Foundation */
+.google-drive-source-panel {
+  width: min(100%, 82rem);
+  margin: 1rem auto 0;
+  padding: 1.2rem;
+  border: 1px solid rgba(31, 73, 125, 0.11);
+  border-radius: 1.25rem;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(24, 58, 94, 0.055);
+}
+
+.google-drive-panel-heading,
+.google-drive-panel-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.google-drive-panel-heading {
+  justify-content: space-between;
+}
+
+.google-drive-panel-heading > div > svg {
+  color: #2b5f92;
+}
+
+.google-drive-panel-heading span {
+  color: #6b8095;
+}
+
+.google-drive-panel-heading h2 {
+  margin: 0.15rem 0 0;
+}
+
+.cloud-source-state {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border-radius: 0.9rem;
+  background: #f2f5f8;
+}
+
+.cloud-source-state > div {
+  display: grid;
+  flex: 1;
+}
+
+.cloud-source-state span {
+  color: #687b8e;
+}
+
+.cloud-source-state code {
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.cloud-source-state.is-ready {
+  background: #ebf7ef;
+  color: #286c45;
+}
+
+.cloud-source-state.is-error {
+  background: #fff0ee;
+  color: #9d4439;
+}
+
+.cloud-source-state.is-disabled {
+  background: #fff8e9;
+  color: #79602d;
+}
+
+.cloud-source-file-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.cloud-source-file-list article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px solid #dfe6ed;
+  border-radius: 0.85rem;
+  background: #fbfcfe;
+}
+
+.cloud-source-file-icon {
+  display: grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 0.8rem;
+  background: #eaf2fa;
+  color: #2b5f92;
+}
+
+.cloud-source-file-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.cloud-source-file-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cloud-source-file-copy span,
+.cloud-source-file-copy small {
+  color: #708192;
+}
+
+.cloud-source-empty {
+  padding: 2rem 1rem;
+  border: 1px dashed #aebdca;
+  border-radius: 0.85rem;
+  color: #6e8091;
+  text-align: center;
+}
+
+.cloud-source-import-result {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border-radius: 0.85rem;
+  background: #eaf6ee;
+  color: #286c45;
+}
+
+.cloud-source-import-result > div {
+  display: grid;
+}
+
+@media (max-width: 640px) {
+  .google-drive-panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cloud-source-file-list article {
+    grid-template-columns: 1fr;
+  }
+}

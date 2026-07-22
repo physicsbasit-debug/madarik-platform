@@ -52,4 +52,22 @@ class Settings(BaseModel):
     }
 
 
+    # Phase 3-A: Google Drive source foundation.
+    google_drive_provider: str = os.getenv(
+        "MADARIK_GOOGLE_DRIVE_PROVIDER",
+        "disabled",
+    )
+    google_drive_access_token: str = os.getenv(
+        "MADARIK_GOOGLE_DRIVE_ACCESS_TOKEN",
+        "",
+    )
+    google_drive_folder_id: str = os.getenv(
+        "MADARIK_GOOGLE_DRIVE_FOLDER_ID",
+        "",
+    )
+    google_drive_timeout_seconds: float = float(
+        os.getenv("MADARIK_GOOGLE_DRIVE_TIMEOUT_SECONDS", "30")
+    )
+
+
 settings = Settings()
