@@ -13,10 +13,12 @@ import { localCurriculumRepository } from "./local-curriculum.repository";
 import GoogleDriveSourcePanel from "./GoogleDriveSourcePanel";
 
 type CurriculumBrowserProps = {
+  projectId: string | null;
   onReturnHome: () => void;
 };
 
 export default function CurriculumBrowser({
+  projectId,
   onReturnHome,
 }: CurriculumBrowserProps) {
   const grades = useMemo(
@@ -202,7 +204,16 @@ export default function CurriculumBrowser({
         </section>
       </section>
 
-      <GoogleDriveSourcePanel />
+      <GoogleDriveSourcePanel
+        projectId={projectId}
+        grade={grade}
+        scienceDomain={
+          subject?.scienceDomain ?? "general_science"
+        }
+        semesterId={semester?.id ?? ""}
+        subjectId={subject?.id ?? ""}
+        unitId={activeUnit?.id ?? null}
+      />
     </main>
   );
 }

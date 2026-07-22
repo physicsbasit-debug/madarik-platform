@@ -5,45 +5,75 @@ import {
   Cloud,
   Download,
   FileText,
+  Link2,
   Loader2,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import {
+  attachGoogleDriveCurriculumSource,
+  deleteProjectCurriculumSource,
   getGoogleDriveSourceStatus,
-  importGoogleDriveSourceFile,
   listGoogleDriveSourceFiles,
+  listProjectCurriculumSources,
 } from "../../services/api";
 import type {
-  GoogleDriveImportResult,
+  CurriculumSourceAttachment,
   GoogleDriveSourceFile,
   GoogleDriveSourceStatus,
 } from "../../types/project";
 
-export default function GoogleDriveSourcePanel() {
+type GoogleDriveSourcePanelProps = {
+  projectId: string | null;
+  grade: number;
+  scienceDomain: string;
+  semesterId: string;
+  subjectId: string;
+  unitId: string | null;
+};
+
+export default function GoogleDriveSourcePanel({
+  projectId,
+  grade,
+  scienceDomain,
+  semesterId,
+  subjectId,
+  unitId,
+}: GoogleDriveSourcePanelProps) {
   const [status, setStatus] =
     useState<GoogleDriveSourceStatus | null>(null);
   const [files, setFiles] = useState<GoogleDriveSourceFile[]>([]);
+  const [attached, setAttached] = useState<
+    CurriculumSourceAttachment[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [importingId, setImportingId] = useState<string | null>(null);
-  const [importResult, setImportResult] =
-    useState<GoogleDriveImportResult | null>(null);
+  const [workingId, setWorkingId] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
     setError("");
     try {
-      const currentStatus = await getGoogleDriveSourceStatus();
+      const currentStatus =
+        await getGoogleDriveSourceStatus();
       setStatus(currentStatus);
+
       if (currentStatus.ready) {
-        const listing = await listGoogleDriveSourceFiles();
+        const listing =
+          await listGoogleDriveSourceFiles();
         setStatus(listing.status);
         setFiles(listing.files);
       } else {
         setFiles([]);
       }
+
+      setAttached(
+        projectId
+          ? await listProjectCurriculumSources(projectId)
+          : [],
+      );
     } catch {
-      setError("تعذر قراءة حالة Google Drive من الخادم.");
+      setError("تعذر قراءة المصادر المرتبطة.");
     } finally {
       setLoading(false);
     }
@@ -51,20 +81,85 @@ export default function GoogleDriveSourcePanel() {
 
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [
+    projectId,
+    grade,
+    scienceDomain,
+    semesterId,
+    subjectId,
+    unitId,
+  ]);
 
-  async function importFile(fileId: string) {
-    setImportingId(fileId);
-    setImportResult(null);
+  async function attachFile(fileId: string) {
+    if (!projectId) {
+      setError("يجب فتح مشروع قبل ربط المصدر.");
+      return;
+    }
+
+    setWorkingId(fileId);
     setError("");
     try {
-      setImportResult(await importGoogleDriveSourceFile(fileId));
+      await attachGoogleDriveCurriculumSource(
+        projectId,
+        {
+          sourceFileId: fileId,
+          grade,
+          scienceDomain,
+          semesterId,
+          subjectId,
+          unitId,
+          sourceDocumentType: "student_book",
+        },
+      );
+      setAttached(
+        await listProjectCurriculumSources(projectId),
+      );
     } catch {
-      setError("تعذر استيراد الملف المحدد.");
+      setError("تعذر حفظ المصدر وربطه بالمنهج.");
     } finally {
-      setImportingId(null);
+      setWorkingId(null);
     }
   }
+
+  async function removeAttachment(
+    attachmentId: string,
+  ) {
+    if (!projectId) return;
+
+    setWorkingId(attachmentId);
+    setError("");
+    try {
+      await deleteProjectCurriculumSource(
+        projectId,
+        attachmentId,
+      );
+      setAttached(
+        await listProjectCurriculumSources(projectId),
+      );
+    } catch {
+      setError("تعذر حذف ارتباط المصدر.");
+    } finally {
+      setWorkingId(null);
+    }
+  }
+
+  function isAttached(file: GoogleDriveSourceFile) {
+    return attached.some(
+      (item) =>
+        item.provider === file.provider &&
+        item.sourceFileId === file.id &&
+        item.checksum === file.checksum,
+    );
+  }
+
+  const visibleAttachments = attached.filter(
+    (item) =>
+      item.grade === grade &&
+      item.scienceDomain === scienceDomain &&
+      item.semesterId === semesterId &&
+      item.subjectId === subjectId &&
+      (unitId ? item.unitId === unitId : true),
+  );
 
   return (
     <section className="google-drive-source-panel">
@@ -83,7 +178,10 @@ export default function GoogleDriveSourcePanel() {
           disabled={loading}
         >
           {loading ? (
-            <Loader2 size={16} className="spin-icon" />
+            <Loader2
+              size={16}
+              className="spin-icon"
+            />
           ) : (
             <RefreshCw size={16} />
           )}
@@ -91,9 +189,19 @@ export default function GoogleDriveSourcePanel() {
         </button>
       </div>
 
+      {!projectId ? (
+        <div className="cloud-source-state is-disabled">
+          <AlertTriangle size={20} />
+          افتح مشروعًا قبل حفظ المصادر.
+        </div>
+      ) : null}
+
       {loading ? (
         <div className="cloud-source-state">
-          <Loader2 size={20} className="spin-icon" />
+          <Loader2
+            size={20}
+            className="spin-icon"
+          />
           جارٍ قراءة حالة المصدر...
         </div>
       ) : error ? (
@@ -105,7 +213,9 @@ export default function GoogleDriveSourcePanel() {
         <>
           <div
             className={`cloud-source-state ${
-              status?.ready ? "is-ready" : "is-disabled"
+              status?.ready
+                ? "is-ready"
+                : "is-disabled"
             }`}
           >
             {status?.ready ? (
@@ -124,10 +234,47 @@ export default function GoogleDriveSourcePanel() {
             <code>{status?.mode ?? "disabled"}</code>
           </div>
 
+          {visibleAttachments.length > 0 ? (
+            <div className="cloud-linked-sources">
+              <h3>المصادر المرتبطة بهذا المنهج</h3>
+              {visibleAttachments.map((item) => (
+                <article key={item.id}>
+                  <Link2 size={18} />
+                  <div>
+                    <strong>{item.fileName}</strong>
+                    <span>
+                      الصف {item.grade} ·{" "}
+                      {item.sourceDocumentType}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-button compact"
+                    disabled={workingId === item.id}
+                    onClick={() =>
+                      void removeAttachment(item.id)
+                    }
+                  >
+                    {workingId === item.id ? (
+                      <Loader2
+                        size={15}
+                        className="spin-icon"
+                      />
+                    ) : (
+                      <Trash2 size={15} />
+                    )}
+                    حذف الربط
+                  </button>
+                </article>
+              ))}
+            </div>
+          ) : null}
+
           {status?.ready ? (
             <div className="cloud-source-file-list">
-              {files.length > 0 ? (
-                files.map((file) => (
+              {files.map((file) => {
+                const linked = isAttached(file);
+                return (
                   <article key={file.id}>
                     <div className="cloud-source-file-icon">
                       <FileText size={21} />
@@ -139,7 +286,9 @@ export default function GoogleDriveSourcePanel() {
                         {file.sizeBytes
                           ? `${Math.max(
                               1,
-                              Math.round(file.sizeBytes / 1024),
+                              Math.round(
+                                file.sizeBytes / 1024,
+                              ),
                             )} كيلوبايت`
                           : "الحجم غير متاح"}
                       </small>
@@ -147,41 +296,36 @@ export default function GoogleDriveSourcePanel() {
                     <button
                       type="button"
                       className="secondary-button compact"
-                      disabled={importingId === file.id}
-                      onClick={() => void importFile(file.id)}
+                      disabled={
+                        linked ||
+                        !projectId ||
+                        workingId === file.id
+                      }
+                      onClick={() =>
+                        void attachFile(file.id)
+                      }
                     >
-                      {importingId === file.id ? (
-                        <Loader2 size={16} className="spin-icon" />
+                      {workingId === file.id ? (
+                        <Loader2
+                          size={16}
+                          className="spin-icon"
+                        />
+                      ) : linked ? (
+                        <CheckCircle2 size={16} />
                       ) : (
                         <Download size={16} />
                       )}
-                      استيراد
+                      {linked
+                        ? "مرتبط"
+                        : "استيراد وربط"}
                     </button>
                   </article>
-                ))
-              ) : (
-                <div className="cloud-source-empty">
-                  لا توجد ملفات مدعومة في المجلد المحدد.
-                </div>
-              )}
+                );
+              })}
             </div>
           ) : null}
         </>
       )}
-
-      {importResult ? (
-        <div className="cloud-source-import-result">
-          <CheckCircle2 size={19} />
-          <div>
-            <strong>
-              تم استيراد {importResult.source.fileName}
-            </strong>
-            <span>
-              {importResult.byteCount.toLocaleString("ar")} بايت
-            </span>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }

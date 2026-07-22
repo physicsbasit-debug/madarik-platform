@@ -483,7 +483,29 @@ class EducationalQualityToolsReport(BaseModel):
     needs_review: bool = True
 
 
+
+class CurriculumSourceAttachment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    provider: str
+    source_file_id: str
+    file_name: str
+    mime_type: str
+    size_bytes: int | None = None
+    checksum: str | None = None
+    grade: int = Field(ge=1, le=12)
+    science_domain: str
+    semester_id: str
+    subject_id: str
+    unit_id: str | None = None
+    source_document_type: str = "other"
+    imported_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    source_modified_at: datetime | None = None
+
+
 class ProjectSession(BaseModel):
+    curriculum_sources: list[CurriculumSourceAttachment] = Field(default_factory=list)
     id: str = Field(default_factory=lambda: str(uuid4()))
     owner_account_id: str | None = None
     metadata: ProjectMetadata = Field(default_factory=ProjectMetadata)

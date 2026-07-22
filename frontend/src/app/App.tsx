@@ -1947,7 +1947,12 @@ if (workspaceMode === "home") {
 }
 
 if (workspaceMode === "curriculum") {
-  return <CurriculumBrowser onReturnHome={returnToTaskHome} />;
+  return (
+    <CurriculumBrowser
+      projectId={projectId}
+      onReturnHome={returnToTaskHome}
+    />
+  );
 }
 
 if (workspaceMode === "quick") {

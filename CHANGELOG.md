@@ -178,3 +178,11 @@
 - Repaired the malformed CurriculumBrowser import from Phase 2.
 - Added documentation and focused tests.
 - No OAuth flow, project persistence, question bank, or OneDrive integration was added.
+
+### Phase 3-B: Curriculum Source Persistence
+
+- Added persistent curriculum source attachments to projects.
+- Added curriculum context metadata and duplicate protection.
+- Added list, attach, and delete API operations.
+- Added persisted source display and unlinking in the curriculum browser.
+- No binary persistence, automatic parsing, source sync, or question linking was added.

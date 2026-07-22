@@ -31,6 +31,8 @@ import type {
   GoogleDriveSourceFile,
   GoogleDriveSourceList,
   GoogleDriveImportResult,
+  CurriculumSourceAttachment,
+  AttachCurriculumSourceRequest,
 } from '../types/project';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -1663,4 +1665,114 @@ export async function importGoogleDriveSourceFile(
     byteCount: payload.byte_count,
     message: payload.message,
   };
+}
+
+
+interface ApiCurriculumSourceAttachment {
+  id: string;
+  provider: string;
+  source_file_id: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number | null;
+  checksum: string | null;
+  grade: number;
+  science_domain: string;
+  semester_id: string;
+  subject_id: string;
+  unit_id: string | null;
+  source_document_type: string;
+  imported_at: string;
+  source_modified_at: string | null;
+}
+
+interface ApiCurriculumSourceListResponse {
+  items: ApiCurriculumSourceAttachment[];
+}
+
+function fromApiCurriculumSource(
+  source: ApiCurriculumSourceAttachment,
+): CurriculumSourceAttachment {
+  return {
+    id: source.id,
+    provider: source.provider,
+    sourceFileId: source.source_file_id,
+    fileName: source.file_name,
+    mimeType: source.mime_type,
+    sizeBytes: source.size_bytes,
+    checksum: source.checksum,
+    grade: source.grade,
+    scienceDomain: source.science_domain,
+    semesterId: source.semester_id,
+    subjectId: source.subject_id,
+    unitId: source.unit_id,
+    sourceDocumentType: source.source_document_type,
+    importedAt: source.imported_at,
+    sourceModifiedAt: source.source_modified_at,
+  };
+}
+
+export async function listProjectCurriculumSources(
+  projectId: string,
+): Promise<CurriculumSourceAttachment[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/cloud-sources/projects/${projectId}/curriculum-sources`,
+    { headers: buildAuthHeaders() },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to list curriculum sources');
+  }
+  const payload =
+    (await response.json()) as ApiCurriculumSourceListResponse;
+  return payload.items.map(fromApiCurriculumSource);
+}
+
+export async function attachGoogleDriveCurriculumSource(
+  projectId: string,
+  request: AttachCurriculumSourceRequest,
+): Promise<CurriculumSourceAttachment> {
+  const response = await fetch(
+    `${API_BASE_URL}/cloud-sources/projects/${projectId}/curriculum-sources/google-drive`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify({
+        source_file_id: request.sourceFileId,
+        grade: request.grade,
+        science_domain: request.scienceDomain,
+        semester_id: request.semesterId,
+        subject_id: request.subjectId,
+        unit_id: request.unitId,
+        source_document_type: request.sourceDocumentType,
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to attach curriculum source');
+  }
+  return fromApiCurriculumSource(
+    (await response.json()) as ApiCurriculumSourceAttachment,
+  );
+}
+
+export async function deleteProjectCurriculumSource(
+  projectId: string,
+  attachmentId: string,
+): Promise<CurriculumSourceAttachment> {
+  const response = await fetch(
+    `${API_BASE_URL}/cloud-sources/projects/${projectId}/curriculum-sources/${attachmentId}`,
+    {
+      method: 'DELETE',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to delete curriculum source');
+  }
+  return fromApiCurriculumSource(
+    (await response.json()) as ApiCurriculumSourceAttachment,
+  );
 }

@@ -6662,3 +6662,48 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Phase 3-B: Persisted Curriculum Sources */
+.cloud-linked-sources {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border: 1px solid #cfe1d6;
+  border-radius: 0.9rem;
+  background: #f2f8f4;
+}
+
+.cloud-linked-sources h3 {
+  margin: 0;
+  color: #2d6b47;
+}
+
+.cloud-linked-sources article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.75rem;
+  border-radius: 0.8rem;
+  background: #fff;
+}
+
+.cloud-linked-sources article > svg {
+  color: #2f7a4e;
+}
+
+.cloud-linked-sources article > div {
+  display: grid;
+}
+
+.cloud-linked-sources article span {
+  color: #6b7d70;
+}
+
+@media (max-width: 640px) {
+  .cloud-linked-sources article {
+    grid-template-columns: 1fr;
+  }
+}

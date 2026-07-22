@@ -6,6 +6,16 @@ from app.models.cloud_source import (
     CloudSourceListResponse,
     CloudSourceStatus,
 )
+from app.models.curriculum_source import (
+    AttachCurriculumSourceRequest,
+    CurriculumSourceListResponse,
+)
+from app.services.curriculum_sources import (
+    CurriculumSourceError,
+    attach_curriculum_source,
+    remove_curriculum_source,
+)
+from app.services.session_store import project_store
 from app.services.google_drive import (
     GoogleDriveSourceError,
     get_google_drive_status,
@@ -38,3 +48,89 @@ def google_drive_import(
         return import_google_drive_file(request.file_id)
     except GoogleDriveSourceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get(
+    "/projects/{project_id}/curriculum-sources",
+    response_model=CurriculumSourceListResponse,
+)
+def list_project_curriculum_sources(
+    project_id: str,
+) -> CurriculumSourceListResponse:
+    project = project_store.get(project_id)
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found",
+        )
+    return CurriculumSourceListResponse(
+        items=project.curriculum_sources,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/curriculum-sources/google-drive",
+)
+def attach_google_drive_source_to_project(
+    project_id: str,
+    request: AttachCurriculumSourceRequest,
+):
+    project = project_store.get(project_id)
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found",
+        )
+
+    try:
+        imported = import_google_drive_file(
+            request.source_file_id
+        )
+        attachment = attach_curriculum_source(
+            project,
+            imported.source,
+            grade=request.grade,
+            science_domain=request.science_domain,
+            semester_id=request.semester_id,
+            subject_id=request.subject_id,
+            unit_id=request.unit_id,
+            source_document_type=request.source_document_type,
+        )
+        project_store.touch(project_id)
+        return attachment
+    except (
+        GoogleDriveSourceError,
+        CurriculumSourceError,
+    ) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+
+@router.delete(
+    "/projects/{project_id}/curriculum-sources/{attachment_id}",
+)
+def delete_project_curriculum_source(
+    project_id: str,
+    attachment_id: str,
+):
+    project = project_store.get(project_id)
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found",
+        )
+
+    try:
+        removed = remove_curriculum_source(
+            project,
+            attachment_id,
+        )
+        project_store.touch(project_id)
+        return removed
+    except CurriculumSourceError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc

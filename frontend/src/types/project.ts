@@ -662,3 +662,32 @@ export type GoogleDriveImportResult = {
   byteCount: number;
   message: string;
 };
+
+
+export type CurriculumSourceAttachment = {
+  id: string;
+  provider: string;
+  sourceFileId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number | null;
+  checksum: string | null;
+  grade: number;
+  scienceDomain: string;
+  semesterId: string;
+  subjectId: string;
+  unitId: string | null;
+  sourceDocumentType: string;
+  importedAt: string;
+  sourceModifiedAt: string | null;
+};
+
+export type AttachCurriculumSourceRequest = {
+  sourceFileId: string;
+  grade: number;
+  scienceDomain: string;
+  semesterId: string;
+  subjectId: string;
+  unitId: string | null;
+  sourceDocumentType: string;
+};
