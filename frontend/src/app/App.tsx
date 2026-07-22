@@ -76,6 +76,7 @@ import AssessmentBuilder from "../features/assessment/AssessmentBuilder";
 import QuestionBankLibrary from "../features/question-bank/QuestionBankLibrary";
 import type {
 import DifferentiatedActivities from "../features/activities/DifferentiatedActivities";
+import ScientificDiagrams from "../features/diagrams/ScientificDiagrams";
   AnswerKeyItem,
   EducationalAnalysisReport,
   EducationalQualityToolsReport,
@@ -170,7 +171,7 @@ function applyProjectSession(
 
 export function App() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional" | "curriculum" | "question-bank" | "assessment" | "differentiated-activities">("home");
+  const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional" | "curriculum" | "question-bank" | "assessment" | "differentiated-activities" | "scientific-diagrams">("home");
   const [quickRunStatus, setQuickRunStatus] = useState<
     "idle" | "parsing" | "translating" | "checking" | "completed" | "error"
   >("idle");
@@ -668,6 +669,10 @@ function openQuickTranslation() {
   setActiveIndex(0);
   setQuickRunStatus("idle");
   setQuickRunMessage("ارفع ورقة اختبار علمية ثم شغّل الترجمة السريعة.");
+}
+
+function openScientificDiagrams() {
+  setWorkspaceMode("scientific-diagrams");
 }
 
 function openDifferentiatedActivities() {
@@ -1960,6 +1965,16 @@ if (workspaceMode === "home") {
       onOpenQuestionBank={openQuestionBank}
       onOpenAssessmentBuilder={openAssessmentBuilder}
       onOpenDifferentiatedActivities={openDifferentiatedActivities}
+      onOpenScientificDiagrams={openScientificDiagrams}
+    />
+  );
+}
+
+if (workspaceMode === "scientific-diagrams") {
+  return (
+    <ScientificDiagrams
+      projectId={projectId}
+      onReturnHome={returnToTaskHome}
     />
   );
 }

@@ -17,6 +17,7 @@ type ScienceTaskHomeProps = {
   onOpenQuestionBank: () => void;
   onOpenAssessmentBuilder: () => void;
   onOpenDifferentiatedActivities: () => void;
+  onOpenScientificDiagrams: () => void;
 };
 
 const comingSoonTasks = [
@@ -53,6 +54,7 @@ export default function ScienceTaskHome({
   onOpenQuestionBank,
   onOpenAssessmentBuilder,
   onOpenDifferentiatedActivities,
+  onOpenScientificDiagrams,
 }: ScienceTaskHomeProps) {
   return (
     <main className="science-task-home" dir="rtl">

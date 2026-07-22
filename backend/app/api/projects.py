@@ -59,6 +59,14 @@ from app.services.differentiated_activity_generator import (
 from app.services.differentiated_activity_repository import (
     differentiated_activity_repository,
 )
+from app.models.scientific_diagram import (
+    ScientificDiagram,
+    ScientificDiagramCreateRequest,
+    ScientificDiagramListResponse,
+)
+from app.services.scientific_diagram_repository import (
+    scientific_diagram_repository,
+)
 from app.models.project import (
     ExportFormat,
     ExtractedPdfPageInfo,
@@ -1730,3 +1738,66 @@ def export_differentiated_activity(
         media_type=media_type,
         filename=result.filename,
     )
+
+
+@router.get(
+    "/scientific-diagrams",
+    response_model=ScientificDiagramListResponse,
+)
+def list_scientific_diagrams(
+    grade: int | None = None,
+    science_domain: str | None = None,
+    unit_id: str | None = None,
+    diagram_type: str | None = None,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> ScientificDiagramListResponse:
+    items = scientific_diagram_repository.list(
+        owner_account_id=account.id if account else None,
+        grade=grade,
+        science_domain=science_domain,
+        unit_id=unit_id,
+        diagram_type=diagram_type,
+    )
+    return ScientificDiagramListResponse(
+        items=items,
+        total=len(items),
+    )
+
+
+@router.post(
+    "/scientific-diagrams",
+    response_model=ScientificDiagram,
+)
+def create_scientific_diagram(
+    payload: ScientificDiagramCreateRequest,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> ScientificDiagram:
+    return scientific_diagram_repository.create(
+        payload,
+        owner_account_id=account.id if account else None,
+    )
+
+
+@router.delete(
+    "/scientific-diagrams/{diagram_id}",
+    response_model=ScientificDiagram,
+)
+def delete_scientific_diagram(
+    diagram_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> ScientificDiagram:
+    diagram = scientific_diagram_repository.delete(
+        diagram_id
+    )
+    if diagram is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Scientific diagram not found",
+        )
+    return diagram

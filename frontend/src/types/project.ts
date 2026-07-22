@@ -981,3 +981,63 @@ export interface DifferentiatedActivityPreview {
   exportReady: boolean;
   issues: string[];
 }
+
+
+export type ScientificDiagramType =
+  | "process"
+  | "cycle"
+  | "comparison"
+  | "sequence"
+  | "structure"
+  | "cause_effect";
+
+export interface ScientificDiagramNode {
+  id: string;
+  label: string;
+  description: string | null;
+  orderIndex: number;
+}
+
+export interface ScientificDiagramEdge {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  label: string | null;
+  orderIndex: number;
+}
+
+export interface ScientificDiagram {
+  id: string;
+  ownerAccountId: string | null;
+  sourceProjectId: string | null;
+  title: string;
+  diagramType: ScientificDiagramType;
+  grade: number;
+  scienceDomain: ScienceDomain;
+  subjectId: string;
+  semesterId: string | null;
+  unitId: string | null;
+  lessonId: string | null;
+  learningOutcomeIds: string[];
+  description: string | null;
+  nodes: ScientificDiagramNode[];
+  edges: ScientificDiagramEdge[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScientificDiagramCreateInput {
+  sourceProjectId?: string | null;
+  title: string;
+  diagramType: ScientificDiagramType;
+  grade: number;
+  scienceDomain: ScienceDomain;
+  subjectId: string;
+  semesterId?: string | null;
+  unitId?: string | null;
+  lessonId?: string | null;
+  learningOutcomeIds?: string[];
+  description?: string | null;
+  nodes: ScientificDiagramNode[];
+  edges: ScientificDiagramEdge[];
+}

@@ -362,21 +362,19 @@ Completed V2 phases:
 - Phase 6-E: Native DOCX and PDF assessment export.
 - Phase 7-A: Differentiated science activities foundation.
 - Phase 7-B: Generate differentiated activities from curriculum and questions.
-- Phase 7-C: Differentiated Activity Preview and Export.
+- Phase 7-C: Differentiated activity preview and export.
+- Phase 8-A: Scientific Diagram Data Model and Workspace Foundation.
 
-Phase 7-C adds:
+Phase 8-A adds:
 
-- structured student-facing activity preview;
-- level, objective, instructions, criteria, materials, and work space;
-- native RTL DOCX export;
-- native PDF export;
-- browser downloads;
-- export-readiness checks.
-
-The differentiated-activities workflow is now functionally closed.
+- persistent scientific-diagram models;
+- process, cycle, comparison, sequence, structure, and cause-effect types;
+- nodes and directed edges;
+- curriculum context;
+- a dedicated RTL workspace.
 
 Next planned phase:
 
 ```text
-Phase 8-A: Scientific Diagram Data Model and Workspace Foundation
+Phase 8-B: Scientific Diagram Preview and SVG Rendering
 ```

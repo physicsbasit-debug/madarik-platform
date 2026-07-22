@@ -331,3 +331,14 @@
 - Added native PDF export.
 - Added browser downloads and readiness checks.
 - Updated README and closed the differentiated-activities workflow.
+
+
+### Phase 8-A: Scientific Diagram Data Model and Workspace Foundation
+
+- Added persistent scientific-diagram models and SQLite storage.
+- Added six diagram types.
+- Added nodes and directed edges.
+- Added list, create, and delete APIs.
+- Activated a dedicated RTL diagram workspace.
+- Updated README.
+- No automatic generation or SVG export was added.

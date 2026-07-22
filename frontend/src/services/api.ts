@@ -2837,3 +2837,148 @@ export async function exportDifferentiatedActivity(
     issues: [],
   };
 }
+
+
+interface ApiScientificDiagram {
+  id: string;
+  owner_account_id: string | null;
+  source_project_id: string | null;
+  title: string;
+  diagram_type: ScientificDiagramType;
+  grade: number;
+  science_domain: ScienceDomain;
+  subject_id: string;
+  semester_id: string | null;
+  unit_id: string | null;
+  lesson_id: string | null;
+  learning_outcome_ids: string[];
+  description: string | null;
+  nodes: Array<{
+    id: string;
+    label: string;
+    description: string | null;
+    order_index: number;
+  }>;
+  edges: Array<{
+    id: string;
+    source_node_id: string;
+    target_node_id: string;
+    label: string | null;
+    order_index: number;
+  }>;
+  created_at: string;
+  updated_at: string;
+}
+
+function fromApiScientificDiagram(
+  item: ApiScientificDiagram,
+): ScientificDiagram {
+  return {
+    id: item.id,
+    ownerAccountId: item.owner_account_id,
+    sourceProjectId: item.source_project_id,
+    title: item.title,
+    diagramType: item.diagram_type,
+    grade: item.grade,
+    scienceDomain: item.science_domain,
+    subjectId: item.subject_id,
+    semesterId: item.semester_id,
+    unitId: item.unit_id,
+    lessonId: item.lesson_id,
+    learningOutcomeIds: item.learning_outcome_ids,
+    description: item.description,
+    nodes: item.nodes.map((node) => ({
+      id: node.id,
+      label: node.label,
+      description: node.description,
+      orderIndex: node.order_index,
+    })),
+    edges: item.edges.map((edge) => ({
+      id: edge.id,
+      sourceNodeId: edge.source_node_id,
+      targetNodeId: edge.target_node_id,
+      label: edge.label,
+      orderIndex: edge.order_index,
+    })),
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  };
+}
+
+export async function listScientificDiagrams(): Promise<
+  ScientificDiagram[]
+> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/scientific-diagrams`,
+    {
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to list scientific diagrams');
+  }
+  const payload = await response.json();
+  return payload.items.map(fromApiScientificDiagram);
+}
+
+export async function createScientificDiagram(
+  input: ScientificDiagramCreateInput,
+): Promise<ScientificDiagram> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/scientific-diagrams`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify({
+        source_project_id: input.sourceProjectId ?? null,
+        title: input.title,
+        diagram_type: input.diagramType,
+        grade: input.grade,
+        science_domain: input.scienceDomain,
+        subject_id: input.subjectId,
+        semester_id: input.semesterId ?? null,
+        unit_id: input.unitId ?? null,
+        lesson_id: input.lessonId ?? null,
+        learning_outcome_ids:
+          input.learningOutcomeIds ?? [],
+        description: input.description ?? null,
+        nodes: input.nodes.map((node) => ({
+          id: node.id,
+          label: node.label,
+          description: node.description,
+          order_index: node.orderIndex,
+        })),
+        edges: input.edges.map((edge) => ({
+          id: edge.id,
+          source_node_id: edge.sourceNodeId,
+          target_node_id: edge.targetNodeId,
+          label: edge.label,
+          order_index: edge.orderIndex,
+        })),
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to create scientific diagram');
+  }
+  return fromApiScientificDiagram(await response.json());
+}
+
+export async function deleteScientificDiagram(
+  diagramId: string,
+): Promise<ScientificDiagram> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/scientific-diagrams/${diagramId}`,
+    {
+      method: 'DELETE',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to delete scientific diagram');
+  }
+  return fromApiScientificDiagram(await response.json());
+}

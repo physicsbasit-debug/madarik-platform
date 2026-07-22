@@ -7795,3 +7795,85 @@ button:disabled {
   gap: 0.4rem;
   flex-wrap: wrap;
 }
+
+/* Phase 8-A: Scientific Diagrams */
+.scientific-diagrams {
+  min-height: 100vh;
+  padding: clamp(1rem, 2vw, 2rem);
+  background: linear-gradient(180deg, #f5f7fb, #edf1f8);
+  color: #28303f;
+}
+.scientific-diagrams-header,
+.scientific-diagram-form,
+.scientific-diagram-list,
+.scientific-diagram-error {
+  width: min(100%, 82rem);
+  margin-inline: auto;
+}
+.scientific-diagrams-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem;
+  border: 1px solid #dbe2ee;
+  border-radius: 1rem;
+  background: #fff;
+}
+.scientific-diagrams-header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #415d91;
+  font-weight: 800;
+}
+.scientific-diagram-form,
+.scientific-diagram-list {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #dbe2ee;
+  border-radius: 1rem;
+  background: #fff;
+}
+.scientific-diagram-form > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+  margin: 1rem 0;
+}
+.scientific-diagram-form input,
+.scientific-diagram-form select,
+.scientific-diagram-form textarea {
+  min-height: 2.7rem;
+  padding: 0.6rem;
+  border: 1px solid #d8dfeb;
+  border-radius: 0.7rem;
+}
+.scientific-diagram-form textarea {
+  min-height: 7rem;
+}
+.scientific-diagram-list article {
+  margin-top: 0.8rem;
+  padding: 1rem;
+  border: 1px solid #e2e7ef;
+  border-radius: 0.9rem;
+  background: #fbfcff;
+}
+.scientific-diagram-node-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.8rem 0;
+}
+.scientific-diagram-node-row span {
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: #eaf0fb;
+  color: #415d91;
+}
+.scientific-diagram-error {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  background: #fff0ee;
+  color: #944a40;
+}
