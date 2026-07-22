@@ -3055,3 +3055,56 @@ export async function exportScientificDiagramSvg(
     issues: payload.issues,
   };
 }
+
+
+export async function exportScientificDiagramFile(
+  diagramId: string,
+  format: "png" | "pdf",
+): Promise<{
+  exportReady: boolean;
+  filename: string;
+  issues: string[];
+}> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/scientific-diagrams/${diagramId}/export/${format}`,
+    {
+      headers: buildAuthHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    return {
+      exportReady: false,
+      filename: "",
+      issues:
+        payload?.detail?.issues ??
+        ["تعذر تصدير الرسم."],
+    };
+  }
+
+  const blob = await response.blob();
+  const disposition =
+    response.headers.get('content-disposition') ?? '';
+  const match = disposition.match(
+    /filename="?([^"]+)"?/i,
+  );
+  const filename =
+    match?.[1] ??
+    `scientific-diagram-${diagramId}.${format}`;
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+
+  return {
+    exportReady: true,
+    filename,
+    issues: [],
+  };
+}

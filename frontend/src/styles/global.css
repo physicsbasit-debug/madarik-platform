@@ -7953,3 +7953,8 @@ button:disabled {
     width: 100%;
   }
 }
+
+/* Phase 8-C: PNG and PDF Export */
+.scientific-diagram-actions .secondary-button {
+  white-space: nowrap;
+}

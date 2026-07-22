@@ -364,19 +364,21 @@ Completed V2 phases:
 - Phase 7-B: Generate differentiated activities from curriculum and questions.
 - Phase 7-C: Differentiated activity preview and export.
 - Phase 8-A: Scientific diagram data model and workspace foundation.
-- Phase 8-B: Scientific Diagram Preview and SVG Rendering.
+- Phase 8-B: Scientific diagram preview and SVG rendering.
+- Phase 8-C: Scientific Diagram PNG and PDF Export.
 
-Phase 8-B adds:
+Phase 8-C adds:
 
-- deterministic node positioning by diagram type;
-- SVG rendering for nodes and directed edges;
-- arrowheads and edge labels;
-- browser preview;
-- SVG download;
-- readiness validation.
+- native PNG conversion from SVG;
+- native PDF conversion from SVG;
+- browser downloads;
+- export-readiness checks;
+- shared rendering logic across SVG, PNG, and PDF.
+
+The scientific-diagram workflow is now functionally closed.
 
 Next planned phase:
 
 ```text
-Phase 8-C: Scientific Diagram PNG and PDF Export
+Phase 9-A: Cloud Source Expansion and OneDrive Foundation
 ```

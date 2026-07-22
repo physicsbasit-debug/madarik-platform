@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from html import escape
+from pathlib import Path
+
+import cairosvg
 from math import cos, pi, sin
 
 from app.models.scientific_diagram import (
@@ -9,9 +12,12 @@ from app.models.scientific_diagram import (
     ScientificDiagramPreviewEdge,
     ScientificDiagramPreviewNode,
     ScientificDiagramSvgExportResponse,
+    ScientificDiagramBinaryExportResponse,
     ScientificDiagramType,
 )
 
+
+EXPORT_DIR = Path("data/exports/scientific-diagrams")
 
 CANVAS_WIDTH = 960
 CANVAS_HEIGHT = 620
@@ -330,4 +336,64 @@ def export_scientific_diagram_svg(
         svg=preview.svg,
         export_ready=preview.export_ready,
         issues=preview.issues,
+    )
+
+
+def export_scientific_diagram_binary(
+    diagram: ScientificDiagram,
+    output_format: str,
+) -> ScientificDiagramBinaryExportResponse:
+    preview = build_scientific_diagram_preview(
+        diagram
+    )
+
+    if not preview.export_ready:
+        return ScientificDiagramBinaryExportResponse(
+            diagram_id=diagram.id,
+            format=output_format,
+            filename="",
+            path="",
+            export_ready=False,
+            issues=preview.issues,
+        )
+
+    EXPORT_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    safe_title = (
+        diagram.title.strip().replace("/", "-")
+        or "scientific-diagram"
+    )
+    filename = (
+        f"{safe_title}-{diagram.id}."
+        f"{output_format}"
+    )
+    path = EXPORT_DIR / filename
+    svg_bytes = preview.svg.encode("utf-8")
+
+    if output_format == "png":
+        cairosvg.svg2png(
+            bytestring=svg_bytes,
+            write_to=str(path),
+            output_width=preview.width,
+            output_height=preview.height,
+        )
+    elif output_format == "pdf":
+        cairosvg.svg2pdf(
+            bytestring=svg_bytes,
+            write_to=str(path),
+        )
+    else:
+        raise ValueError(
+            "Unsupported scientific diagram format"
+        )
+
+    return ScientificDiagramBinaryExportResponse(
+        diagram_id=diagram.id,
+        format=output_format,
+        filename=filename,
+        path=str(path),
+        export_ready=True,
+        issues=[],
     )

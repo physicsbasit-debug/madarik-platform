@@ -65,10 +65,12 @@ from app.models.scientific_diagram import (
     ScientificDiagramListResponse,
     ScientificDiagramPreview,
     ScientificDiagramSvgExportResponse,
+    ScientificDiagramBinaryExportResponse,
 )
 from app.services.scientific_diagram_renderer import (
     build_scientific_diagram_preview,
     export_scientific_diagram_svg,
+    export_scientific_diagram_binary,
 )
 from app.services.scientific_diagram_repository import (
     scientific_diagram_repository,
@@ -1852,4 +1854,56 @@ def export_scientific_diagram_as_svg(
         )
     return export_scientific_diagram_svg(
         diagram
+    )
+
+
+@router.get(
+    "/scientific-diagrams/{diagram_id}/export/{output_format}",
+)
+def export_scientific_diagram_file(
+    diagram_id: str,
+    output_format: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+):
+    if output_format not in {"png", "pdf"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported scientific diagram format",
+        )
+
+    diagram = scientific_diagram_repository.get(
+        diagram_id
+    )
+    if diagram is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Scientific diagram not found",
+        )
+
+    result = export_scientific_diagram_binary(
+        diagram,
+        output_format,
+    )
+    if not result.export_ready:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": (
+                    "Scientific diagram is not export ready"
+                ),
+                "issues": result.issues,
+            },
+        )
+
+    media_type = (
+        "image/png"
+        if output_format == "png"
+        else "application/pdf"
+    )
+    return FileResponse(
+        path=result.path,
+        media_type=media_type,
+        filename=result.filename,
     )

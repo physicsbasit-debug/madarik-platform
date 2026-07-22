@@ -118,3 +118,12 @@ class ScientificDiagramSvgExportResponse(BaseModel):
     svg: str
     export_ready: bool
     issues: list[str] = Field(default_factory=list)
+
+
+class ScientificDiagramBinaryExportResponse(BaseModel):
+    diagram_id: str
+    format: str
+    filename: str
+    path: str
+    export_ready: bool
+    issues: list[str] = Field(default_factory=list)

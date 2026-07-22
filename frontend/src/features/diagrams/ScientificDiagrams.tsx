@@ -11,6 +11,7 @@ import {
   listScientificDiagrams,
   getScientificDiagramPreview,
   exportScientificDiagramSvg,
+  exportScientificDiagramFile,
 } from "../../services/api";
 import type {
 import { ScientificDiagramPreviewCard } from "./ScientificDiagramPreview";
@@ -150,6 +151,33 @@ async function downloadSvg(diagramId: string) {
   }
 }
 
+
+async function downloadBinary(
+  diagramId: string,
+  format: "png" | "pdf",
+) {
+  setError("");
+  setMessage("");
+  try {
+    const result =
+      await exportScientificDiagramFile(
+        diagramId,
+        format,
+      );
+
+    if (!result.exportReady) {
+      setError(result.issues.join(" "));
+      return;
+    }
+
+    setMessage(
+      `تم تنزيل الرسم: ${result.filename}`,
+    );
+  } catch {
+    setError("تعذر تصدير الرسم.");
+  }
+}
+
   async function remove(diagramId: string) {
     try {
       await deleteScientificDiagram(diagramId);
@@ -281,6 +309,24 @@ async function downloadSvg(diagramId: string) {
                 onClick={() => void downloadSvg(item.id)}
               >
                 تنزيل SVG
+              </button>
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={() =>
+                  void downloadBinary(item.id, "png")
+                }
+              >
+                تنزيل PNG
+              </button>
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={() =>
+                  void downloadBinary(item.id, "pdf")
+                }
+              >
+                تنزيل PDF
               </button>
               <button
                 type="button"

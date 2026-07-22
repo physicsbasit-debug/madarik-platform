@@ -352,3 +352,13 @@
 - Added readiness validation.
 - Updated README.
 - No PNG/PDF export or drag editing was added.
+
+
+### Phase 8-C: Scientific Diagram PNG and PDF Export
+
+- Added native PNG conversion from SVG.
+- Added native PDF conversion from SVG.
+- Added browser downloads.
+- Added export-readiness blocking.
+- Reused the existing SVG renderer as the single source of truth.
+- Updated README and closed the scientific-diagram workflow.

@@ -19,3 +19,4 @@ PyMuPDF==1.26.6
 python-dotenv==1.2.2
 python-docx==1.1.2
 reportlab==4.2.5
+CairoSVG==2.7.1
