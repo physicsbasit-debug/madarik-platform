@@ -7597,3 +7597,112 @@ button:disabled {
     align-self: end;
   }
 }
+
+
+/* Phase 6-D: Student Paper Preview */
+.assessment-export-message {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  background: #eef5ff;
+  color: #315f8f;
+}
+
+.assessment-student-preview {
+  width: min(100%, 52rem);
+  margin: 1rem auto;
+  padding: 2rem;
+  border: 1px solid #d9dde5;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(28, 36, 48, 0.08);
+}
+
+.assessment-student-preview > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #2f4058;
+}
+
+.assessment-student-preview h2,
+.assessment-student-preview h3 {
+  margin: 0.2rem 0 0;
+}
+
+.assessment-paper-meta {
+  display: grid;
+  gap: 0.35rem;
+  text-align: left;
+}
+
+.assessment-paper-section {
+  margin-top: 1.5rem;
+}
+
+.assessment-paper-section > p {
+  margin: 0.4rem 0 0.8rem;
+  color: #667180;
+}
+
+.assessment-paper-section article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid #e6e8ed;
+}
+
+.assessment-paper-section article p {
+  margin: 0;
+  line-height: 1.8;
+}
+
+.assessment-question-number {
+  font-weight: 800;
+}
+
+.assessment-answer-lines {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.assessment-answer-lines span,
+.assessment-answer-sheet-preview div > span:last-child {
+  display: block;
+  min-height: 1rem;
+  border-bottom: 1px dotted #7d8490;
+}
+
+.assessment-answer-sheet-preview {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 2px solid #2f4058;
+}
+
+.assessment-answer-sheet-preview > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+@media (max-width: 760px) {
+  .assessment-student-preview {
+    padding: 1rem;
+  }
+
+  .assessment-student-preview > header,
+  .assessment-paper-section article {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .assessment-paper-meta {
+    text-align: right;
+  }
+}

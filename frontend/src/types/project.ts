@@ -883,3 +883,45 @@ export interface AssessmentAutoSelectionResult {
   skippedItemIds: string[];
   shortages: string[];
 }
+
+
+export interface AssessmentStudentPaperQuestion {
+  bankItemId: string;
+  number: number;
+  questionNumber: string;
+  text: string;
+  marks: number;
+  sectionId: string | null;
+  sectionTitle: string | null;
+}
+
+export interface AssessmentStudentPaperSection {
+  id: string;
+  title: string;
+  instructions: string | null;
+  orderIndex: number;
+  questions: AssessmentStudentPaperQuestion[];
+}
+
+export interface AssessmentStudentPaperPreview {
+  draftId: string;
+  title: string;
+  grade: number;
+  scienceDomain: string | null;
+  subjectId: string | null;
+  durationMinutes: number;
+  totalMarks: number;
+  questionCount: number;
+  sections: AssessmentStudentPaperSection[];
+  exportReady: boolean;
+  issues: string[];
+}
+
+export interface AssessmentExportResult {
+  draftId: string;
+  format: "docx" | "pdf";
+  filename: string;
+  path: string;
+  exportReady: boolean;
+  issues: string[];
+}

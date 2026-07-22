@@ -9,12 +9,16 @@ import {
   updateAssessmentLayout,
   autoSelectAssessmentQuestions,
   validateAssessmentDraft,
+  getAssessmentStudentPreview,
+  exportAssessmentDraft,
 } from "../../services/api";
 import { localCurriculumRepository } from "../curriculum/local-curriculum.repository";
 import type {
+import { AssessmentStudentPreview } from "./AssessmentStudentPreview";
   AssessmentBlueprint,
   AssessmentDraftDetail,
   AssessmentBlueprintValidation,
+  AssessmentStudentPaperPreview,
   CognitiveCategory,
   QuestionBankItem,
 } from "../../types/project";
@@ -82,6 +86,8 @@ export default function AssessmentBuilder({
   const [error, setError] = useState("");
   const [validation, setValidation] = useState<AssessmentBlueprintValidation | null>(null);
   const [shortages, setShortages] = useState<string[]>([]);
+  const [studentPreview, setStudentPreview] = useState<AssessmentStudentPaperPreview | null>(null);
+  const [exportMessage, setExportMessage] = useState("");
 
   const subjects = useMemo(
     () => localCurriculumRepository.listSubjects(blueprint.grade),
@@ -146,6 +152,48 @@ export default function AssessmentBuilder({
     }
   }
 
+
+
+async function loadStudentPreview() {
+  if (!activeDraft) return;
+  setWorking(true);
+  setError("");
+  try {
+    setStudentPreview(
+      await getAssessmentStudentPreview(
+        activeDraft.id,
+      ),
+    );
+  } catch {
+    setError("تعذر تحميل معاينة ورقة الطالب.");
+  } finally {
+    setWorking(false);
+  }
+}
+
+async function runExport(
+  format: "docx" | "pdf",
+) {
+  if (!activeDraft) return;
+  setWorking(true);
+  setError("");
+  setExportMessage("");
+  try {
+    const result = await exportAssessmentDraft(
+      activeDraft.id,
+      format,
+    );
+    setExportMessage(
+      result.exportReady
+        ? `تم إنشاء أساس تصدير ${format.toUpperCase()}: ${result.filename}`
+        : `تم إنشاء ملف مراجعة أولي مع ${result.issues.length} ملاحظات.`,
+    );
+  } catch {
+    setError("تعذر تصدير مسودة الاختبار.");
+  } finally {
+    setWorking(false);
+  }
+}
 
 async function runAutomaticSelection() {
   if (!detail) return;
@@ -421,6 +469,9 @@ async function removeItem(itemId: string) {
           <div className="assessment-blueprint-actions">
             <button type="button" className="secondary-button" disabled={loading} onClick={() => void runAutomaticSelection()}>اختيار آلي</button>
             <button type="button" className="secondary-button" disabled={loading} onClick={() => void runValidation()}>تحقق من الجاهزية</button>
+            <button type="button" className="secondary-button" disabled={loading} onClick={() => void loadStudentPreview()}>معاينة ورقة الطالب</button>
+            <button type="button" className="secondary-button" disabled={loading} onClick={() => void runExport("docx")}>تصدير DOCX أولي</button>
+            <button type="button" className="secondary-button" disabled={loading} onClick={() => void runExport("pdf")}>تصدير PDF أولي</button>
           </div>
         ) : null}
       </section>
@@ -438,7 +489,19 @@ async function removeItem(itemId: string) {
             <article><span>استدلال</span><strong>{detail.balance.reasoningPercent}%</strong><small>المستهدف {detail.draft.blueprint.reasoningPercent}%</small></article>
           </section>
 
-          {validation ? (
+          {exportMessage ? (
+        <div className="assessment-export-message">
+          {exportMessage}
+        </div>
+      ) : null}
+
+      {studentPreview ? (
+        <AssessmentStudentPreview
+          preview={studentPreview}
+        />
+      ) : null}
+
+      {validation ? (
             <section className={validation.ready ? "assessment-validation-panel is-ready" : "assessment-validation-panel"}>
               <div><strong>{validation.ready ? "المسودة متوافقة مع جدول المواصفات" : "المسودة تحتاج معالجة"}</strong><span>{validation.totalSelectedQuestions}/{validation.targetQuestions} أسئلة · {validation.totalSelectedMarks}/{validation.targetMarks} درجات</span></div>
               <div className="assessment-validation-grid">

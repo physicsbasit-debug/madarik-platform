@@ -21,6 +21,8 @@ import type {
   AssessmentDraftDetail,
   AssessmentAutoSelectionResult,
   AssessmentBlueprintValidation,
+  AssessmentStudentPaperPreview,
+  AssessmentExportResult,
   CognitiveCategory,
   QuestionAssetInfo,
   QuestionPart,
@@ -2503,4 +2505,79 @@ export async function updateAssessmentLayout(
   return fromApiAssessmentDetail(
     (await response.json()) as ApiAssessmentDraftDetail,
   );
+}
+
+
+export async function getAssessmentStudentPreview(
+  draftId: string,
+): Promise<AssessmentStudentPaperPreview> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/assessment-builder/${draftId}/student-preview`,
+    {
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      'Failed to load assessment student preview',
+    );
+  }
+
+  const payload = await response.json();
+
+  return {
+    draftId: payload.draft_id,
+    title: payload.title,
+    grade: payload.grade,
+    scienceDomain: payload.science_domain,
+    subjectId: payload.subject_id,
+    durationMinutes: payload.duration_minutes,
+    totalMarks: payload.total_marks,
+    questionCount: payload.question_count,
+    exportReady: payload.export_ready,
+    issues: payload.issues,
+    sections: payload.sections.map((section: any) => ({
+      id: section.id,
+      title: section.title,
+      instructions: section.instructions,
+      orderIndex: section.order_index,
+      questions: section.questions.map((question: any) => ({
+        bankItemId: question.bank_item_id,
+        number: question.number,
+        questionNumber: question.question_number,
+        text: question.text,
+        marks: question.marks,
+        sectionId: question.section_id,
+        sectionTitle: question.section_title,
+      })),
+    })),
+  };
+}
+
+export async function exportAssessmentDraft(
+  draftId: string,
+  format: "docx" | "pdf",
+): Promise<AssessmentExportResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/assessment-builder/${draftId}/export/${format}`,
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      'Failed to export assessment draft',
+    );
+  }
+
+  const payload = await response.json();
+  return {
+    draftId: payload.draft_id,
+    format: payload.format,
+    filename: payload.filename,
+    path: payload.path,
+    exportReady: payload.export_ready,
+    issues: payload.issues,
+  };
 }

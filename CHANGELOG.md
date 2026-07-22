@@ -281,3 +281,14 @@
 - Added ordering and section controls to the assessment builder.
 - Rewrote README to describe Madarik as an end-to-end Arabic science content and assessment platform.
 - No student-paper preview or DOCX/PDF export was added.
+
+### Phase 6-D: Student Paper Preview and Assessment Export Foundation
+
+- Added structured student-paper preview models and service.
+- Added section-based question rendering with marks and instructions.
+- Added a separate answer-sheet preview.
+- Added export-readiness checks.
+- Added foundational DOCX and PDF export endpoints.
+- Added student preview and export controls to the assessment builder.
+- Updated README while preserving the new end-to-end platform description.
+- Native formatted DOCX and PDF generation remains deferred.

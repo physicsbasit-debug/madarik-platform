@@ -357,18 +357,22 @@ Completed V2 phases:
 - Phase 5-C: Reuse question bank items in projects.
 - Phase 6-A: Assessment blueprint and test builder foundation.
 - Phase 6-B: Automatic question selection and blueprint validation.
-- Phase 6-C: Assessment Ordering, Sections, and Manual Marks.
+- Phase 6-C: Assessment ordering, sections, and manual marks.
+- Phase 6-D: Student Paper Preview and Assessment Export Foundation.
 
-Phase 6-C adds:
+Phase 6-D adds:
 
-- named assessment sections;
-- manual question ordering;
-- per-question mark overrides;
-- backward-compatible layout persistence;
-- automatic recalculation of assessment totals.
+- student-paper preview grouped by assessment sections;
+- assessment metadata, marks, instructions, and answer space;
+- a separate answer-sheet preview;
+- export-readiness checks;
+- foundational DOCX and PDF export endpoints.
+
+The current export files are structural text foundations. Native formatted
+DOCX and PDF generation remains the next implementation step.
 
 Next planned phase:
 
 ```text
-Phase 6-D: Student Paper Preview and Assessment Export Foundation
+Phase 6-E: Native DOCX and PDF Assessment Export
 ```

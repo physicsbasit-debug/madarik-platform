@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile,
 from fastapi.responses import Response
 
 from app.models.assessment import (
+    AssessmentStudentPaperPreview,
+    AssessmentExportResponse,
     AssessmentAutoSelectionResponse,
     AssessmentBlueprintValidation,
     AssessmentBlueprint,
@@ -11,6 +13,10 @@ from app.models.assessment import (
     AssessmentDraftDetail,
     AssessmentLayoutUpdate,
     AssessmentDraftListResponse,
+)
+from app.services.assessment_export import (
+    build_student_paper_preview,
+    export_assessment_foundation,
 )
 from app.services.assessment_builder import (
     auto_select_questions_for_assessment,
@@ -1499,4 +1505,52 @@ def update_assessment_layout(
     return build_assessment_detail(
         draft,
         question_bank_repository,
+    )
+
+
+@router.get(
+    "/assessment-builder/{draft_id}/student-preview",
+    response_model=AssessmentStudentPaperPreview,
+)
+def get_assessment_student_preview(
+    draft_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> AssessmentStudentPaperPreview:
+    draft = _get_assessment_or_404(
+        draft_id,
+        account,
+    )
+    return build_student_paper_preview(
+        draft,
+        question_bank_repository,
+    )
+
+
+@router.post(
+    "/assessment-builder/{draft_id}/export/{output_format}",
+    response_model=AssessmentExportResponse,
+)
+def export_assessment_draft(
+    draft_id: str,
+    output_format: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> AssessmentExportResponse:
+    if output_format not in {"docx", "pdf"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported assessment export format",
+        )
+
+    draft = _get_assessment_or_404(
+        draft_id,
+        account,
+    )
+    return export_assessment_foundation(
+        draft,
+        question_bank_repository,
+        output_format,
     )

@@ -155,3 +155,48 @@ class AssessmentAutoSelectionResponse(BaseModel):
     selected_item_ids: list[str]
     skipped_item_ids: list[str]
     shortages: list[str] = Field(default_factory=list)
+
+
+class AssessmentStudentPaperQuestion(BaseModel):
+    bank_item_id: str
+    number: int
+    question_number: str
+    text: str
+    marks: int
+    section_id: str | None = None
+    section_title: str | None = None
+
+
+class AssessmentStudentPaperSection(BaseModel):
+    id: str
+    title: str
+    instructions: str | None = None
+    order_index: int
+    questions: list[AssessmentStudentPaperQuestion] = Field(
+        default_factory=list
+    )
+
+
+class AssessmentStudentPaperPreview(BaseModel):
+    draft_id: str
+    title: str
+    grade: int
+    science_domain: str | None = None
+    subject_id: str | None = None
+    duration_minutes: int
+    total_marks: int
+    question_count: int
+    sections: list[AssessmentStudentPaperSection] = Field(
+        default_factory=list
+    )
+    export_ready: bool
+    issues: list[str] = Field(default_factory=list)
+
+
+class AssessmentExportResponse(BaseModel):
+    draft_id: str
+    format: str
+    filename: str
+    path: str
+    export_ready: bool
+    issues: list[str] = Field(default_factory=list)
