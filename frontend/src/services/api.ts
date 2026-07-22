@@ -16,6 +16,9 @@ import type {
   QuestionBankSearchFilters,
   QuestionBankSearchResult,
   QuestionBankReuseResult,
+  AssessmentBlueprint,
+  AssessmentDraft,
+  AssessmentDraftDetail,
   CognitiveCategory,
   QuestionAssetInfo,
   QuestionPart,
@@ -1378,7 +1381,28 @@ export async function loadDemoContent(projectId: string): Promise<ProjectSession
 export async function updateQuestion(
   projectId: string,
   questionId: string,
-  updates: Partial<Pick<QuestionItem, 'translatedText' | 'marks' | 'status' | 'parts' | 'reviewNotes'>>,
+  updates: Partial<
+    Pick<
+      QuestionItem,
+      | 'translatedText'
+      | 'marks'
+      | 'status'
+      | 'parts'
+      | 'reviewNotes'
+      | 'curriculumGrade'
+      | 'curriculumScienceDomain'
+      | 'curriculumSemesterId'
+      | 'curriculumSubjectId'
+      | 'curriculumUnitId'
+      | 'curriculumLessonId'
+      | 'curriculumLearningOutcomeIds'
+      | 'curriculumLinkSource'
+      | 'cognitiveCategory'
+      | 'classificationConfidence'
+      | 'classificationReason'
+      | 'classificationSource'
+    >
+  >,
 ): Promise<ProjectSession> {
   const project = await requestJson<ApiProjectSession>(`/projects/${projectId}/questions/${questionId}`, {
     method: 'PATCH',
@@ -2117,4 +2141,242 @@ export async function reuseQuestionBankItemInProject(
     reused: payload.reused,
     question: fromApiQuestion(payload.question),
   };
+}
+
+
+interface ApiAssessmentBlueprint {
+  title: string;
+  grade: number;
+  science_domain: string;
+  subject_id: string;
+  semester_id: string | null;
+  unit_id: string | null;
+  duration_minutes: number;
+  total_marks: number;
+  target_question_count: number;
+  knowledge_percent: number;
+  application_percent: number;
+  reasoning_percent: number;
+}
+
+interface ApiAssessmentDraft {
+  id: string;
+  owner_account_id: string | null;
+  source_project_id: string | null;
+  blueprint: ApiAssessmentBlueprint;
+  question_bank_item_ids: string[];
+  status: "draft" | "ready";
+  created_at: string;
+  updated_at: string;
+}
+
+interface ApiAssessmentDraftDetail {
+  draft: ApiAssessmentDraft;
+  questions: Array<{
+    bank_item_id: string;
+    question_number: string;
+    text: string;
+    marks: number;
+    cognitive_category:
+      | "knowledge"
+      | "application"
+      | "reasoning"
+      | "unclassified";
+    grade: number | null;
+    unit_id: string | null;
+  }>;
+  balance: {
+    selected_question_count: number;
+    selected_marks: number;
+    remaining_question_count: number;
+    remaining_marks: number;
+    knowledge_count: number;
+    application_count: number;
+    reasoning_count: number;
+    unclassified_count: number;
+    knowledge_percent: number;
+    application_percent: number;
+    reasoning_percent: number;
+    question_target_met: boolean;
+    marks_target_met: boolean;
+    cognitive_targets_valid: boolean;
+  };
+}
+
+function toApiAssessmentBlueprint(
+  blueprint: AssessmentBlueprint,
+): ApiAssessmentBlueprint {
+  return {
+    title: blueprint.title,
+    grade: blueprint.grade,
+    science_domain: blueprint.scienceDomain,
+    subject_id: blueprint.subjectId,
+    semester_id: blueprint.semesterId,
+    unit_id: blueprint.unitId,
+    duration_minutes: blueprint.durationMinutes,
+    total_marks: blueprint.totalMarks,
+    target_question_count: blueprint.targetQuestionCount,
+    knowledge_percent: blueprint.knowledgePercent,
+    application_percent: blueprint.applicationPercent,
+    reasoning_percent: blueprint.reasoningPercent,
+  };
+}
+
+function fromApiAssessmentDraft(
+  draft: ApiAssessmentDraft,
+): AssessmentDraft {
+  return {
+    id: draft.id,
+    ownerAccountId: draft.owner_account_id,
+    sourceProjectId: draft.source_project_id,
+    blueprint: {
+      title: draft.blueprint.title,
+      grade: draft.blueprint.grade,
+      scienceDomain:
+        draft.blueprint.science_domain as AssessmentBlueprint["scienceDomain"],
+      subjectId: draft.blueprint.subject_id,
+      semesterId: draft.blueprint.semester_id,
+      unitId: draft.blueprint.unit_id,
+      durationMinutes: draft.blueprint.duration_minutes,
+      totalMarks: draft.blueprint.total_marks,
+      targetQuestionCount:
+        draft.blueprint.target_question_count,
+      knowledgePercent: draft.blueprint.knowledge_percent,
+      applicationPercent:
+        draft.blueprint.application_percent,
+      reasoningPercent: draft.blueprint.reasoning_percent,
+    },
+    questionBankItemIds: draft.question_bank_item_ids,
+    status: draft.status,
+    createdAt: draft.created_at,
+    updatedAt: draft.updated_at,
+  };
+}
+
+function fromApiAssessmentDetail(
+  payload: ApiAssessmentDraftDetail,
+): AssessmentDraftDetail {
+  return {
+    draft: fromApiAssessmentDraft(payload.draft),
+    questions: payload.questions.map((question) => ({
+      bankItemId: question.bank_item_id,
+      questionNumber: question.question_number,
+      text: question.text,
+      marks: question.marks,
+      cognitiveCategory: question.cognitive_category,
+      grade: question.grade,
+      unitId: question.unit_id,
+    })),
+    balance: {
+      selectedQuestionCount:
+        payload.balance.selected_question_count,
+      selectedMarks: payload.balance.selected_marks,
+      remainingQuestionCount:
+        payload.balance.remaining_question_count,
+      remainingMarks: payload.balance.remaining_marks,
+      knowledgeCount: payload.balance.knowledge_count,
+      applicationCount: payload.balance.application_count,
+      reasoningCount: payload.balance.reasoning_count,
+      unclassifiedCount:
+        payload.balance.unclassified_count,
+      knowledgePercent: payload.balance.knowledge_percent,
+      applicationPercent:
+        payload.balance.application_percent,
+      reasoningPercent: payload.balance.reasoning_percent,
+      questionTargetMet:
+        payload.balance.question_target_met,
+      marksTargetMet: payload.balance.marks_target_met,
+      cognitiveTargetsValid:
+        payload.balance.cognitive_targets_valid,
+    },
+  };
+}
+
+export async function createAssessmentDraft(
+  sourceProjectId: string | null,
+  blueprint: AssessmentBlueprint,
+): Promise<AssessmentDraftDetail> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/assessment-builder`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify({
+        source_project_id: sourceProjectId,
+        blueprint: toApiAssessmentBlueprint(blueprint),
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to create assessment draft');
+  }
+  return fromApiAssessmentDetail(
+    (await response.json()) as ApiAssessmentDraftDetail,
+  );
+}
+
+export async function updateAssessmentBlueprint(
+  draftId: string,
+  blueprint: AssessmentBlueprint,
+): Promise<AssessmentDraftDetail> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/assessment-builder/${draftId}/blueprint`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify(
+        toApiAssessmentBlueprint(blueprint),
+      ),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to update assessment blueprint');
+  }
+  return fromApiAssessmentDetail(
+    (await response.json()) as ApiAssessmentDraftDetail,
+  );
+}
+
+export async function addAssessmentBankItem(
+  draftId: string,
+  bankItemId: string,
+): Promise<AssessmentDraftDetail> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/assessment-builder/${draftId}/items/${bankItemId}`,
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to add assessment item');
+  }
+  return fromApiAssessmentDetail(
+    (await response.json()) as ApiAssessmentDraftDetail,
+  );
+}
+
+export async function removeAssessmentBankItem(
+  draftId: string,
+  bankItemId: string,
+): Promise<AssessmentDraftDetail> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/assessment-builder/${draftId}/items/${bankItemId}`,
+    {
+      method: 'DELETE',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to remove assessment item');
+  }
+  return fromApiAssessmentDetail(
+    (await response.json()) as ApiAssessmentDraftDetail,
+  );
 }

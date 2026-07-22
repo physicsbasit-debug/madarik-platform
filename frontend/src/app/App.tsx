@@ -72,8 +72,9 @@ import {
 import ScienceTaskHome from "../features/workflow/ScienceTaskHome";
 import QuickTranslationWorkspace from "../features/workflow/QuickTranslationWorkspace";
 import CurriculumBrowser from "../features/curriculum/CurriculumBrowser";
-import type {
+import AssessmentBuilder from "../features/assessment/AssessmentBuilder";
 import QuestionBankLibrary from "../features/question-bank/QuestionBankLibrary";
+import type {
   AnswerKeyItem,
   EducationalAnalysisReport,
   EducationalQualityToolsReport,
@@ -168,7 +169,7 @@ function applyProjectSession(
 
 export function App() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional" | "curriculum" | "question-bank">("home");
+  const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional" | "curriculum" | "question-bank" | "assessment">("home");
   const [quickRunStatus, setQuickRunStatus] = useState<
     "idle" | "parsing" | "translating" | "checking" | "completed" | "error"
   >("idle");
@@ -666,6 +667,10 @@ function openQuickTranslation() {
   setActiveIndex(0);
   setQuickRunStatus("idle");
   setQuickRunMessage("ارفع ورقة اختبار علمية ثم شغّل الترجمة السريعة.");
+}
+
+function openAssessmentBuilder() {
+  setWorkspaceMode("assessment");
 }
 
 function openQuestionBank() {
@@ -1948,6 +1953,16 @@ if (workspaceMode === "home") {
       onProfessionalTranslation={openProfessionalTranslation}
       onOpenCurriculum={openCurriculum}
       onOpenQuestionBank={openQuestionBank}
+      onOpenAssessmentBuilder={openAssessmentBuilder}
+    />
+  );
+}
+
+if (workspaceMode === "assessment") {
+  return (
+    <AssessmentBuilder
+      projectId={projectId}
+      onReturnHome={returnToTaskHome}
     />
   );
 }
@@ -2354,7 +2369,7 @@ function WorkspaceContent({
   if (stageKey === "review") {
     return (
       <UnifiedReviewWorkspace
-        projectId={projectId}
+        projectId={currentProjectId ?? ""}
         questions={questions}
         glossary={glossary}
         layoutAssets={layoutAssets}

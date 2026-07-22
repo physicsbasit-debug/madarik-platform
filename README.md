@@ -320,18 +320,22 @@ Completed V2 phases:
 - Phase 4-B: Curriculum linking and classification review.
 - Phase 5-A: Question bank data model and persistence.
 - Phase 5-B: Question bank library, search, and filters.
-- Phase 5-C: Reuse Question Bank Items in Projects.
+- Phase 5-C: Reuse question bank items in projects.
+- Phase 6-A: Assessment Blueprint and Test Builder Foundation.
 
-Reuse behavior:
+The assessment builder now supports:
 
-- creates a new question ID and new nested part and attachment IDs;
-- preserves text, marks, options, classification, and curriculum links;
-- clears project-specific layout-asset and source-page links;
-- marks the reused question as `needs_review`;
-- prevents the same bank item from being inserted twice into one project.
+- persistent SQLite assessment drafts;
+- grade, subject, semester, unit, duration, marks, and question targets;
+- knowledge, application, and reasoning percentage targets;
+- adding and removing question-bank items;
+- live comparison of selected marks, question count, and cognitive balance.
+
+Automatic question selection, ordering rules, test export, and answer-key generation remain deferred.
 
 Next planned phase:
 
 ```text
-Phase 6-A: Assessment Blueprint and Test Builder Foundation
+Phase 6-B: Automatic Question Selection and Blueprint Validation
 ```
+

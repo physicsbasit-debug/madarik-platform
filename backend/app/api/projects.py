@@ -2,6 +2,19 @@ import base64
 from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
 from fastapi.responses import Response
 
+from app.models.assessment import (
+    AssessmentBlueprint,
+    AssessmentDraft,
+    AssessmentDraftCreateRequest,
+    AssessmentDraftDetail,
+    AssessmentDraftListResponse,
+)
+from app.services.assessment_builder import (
+    AssessmentBlueprintError,
+    build_assessment_detail,
+    validate_blueprint,
+)
+from app.services.assessment_repository import assessment_repository
 from app.models.auth import AccountRole, AuthAccountPublic
 from app.models.question_bank import (
     QuestionBankItem,
@@ -1239,4 +1252,181 @@ def reuse_question_bank_library_item(
         source_bank_item_id=item_id,
         reused=reused,
         question=question,
+    )
+
+
+
+@router.post(
+    "/assessment-builder",
+    response_model=AssessmentDraftDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_assessment_draft(
+    request: AssessmentDraftCreateRequest,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> AssessmentDraftDetail:
+    if request.source_project_id:
+        _get_or_404(request.source_project_id, account)
+
+    draft = assessment_repository.create(
+        blueprint=request.blueprint,
+        owner_account_id=account.id if account else None,
+        source_project_id=request.source_project_id,
+    )
+    try:
+        return build_assessment_detail(
+            draft,
+            question_bank_repository,
+        )
+    except AssessmentBlueprintError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+
+@router.get(
+    "/assessment-builder",
+    response_model=AssessmentDraftListResponse,
+)
+def list_assessment_drafts(
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> AssessmentDraftListResponse:
+    items = assessment_repository.list(
+        owner_account_id=account.id if account else None,
+    )
+    return AssessmentDraftListResponse(
+        items=items,
+        total=len(items),
+    )
+
+
+def _get_assessment_or_404(
+    draft_id: str,
+    account: AuthAccountPublic | None,
+) -> AssessmentDraft:
+    draft = assessment_repository.get(draft_id)
+    if draft is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Assessment draft not found",
+        )
+    if (
+        account is not None
+        and draft.owner_account_id is not None
+        and draft.owner_account_id != account.id
+        and account.role != AccountRole.owner
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Assessment draft access denied",
+        )
+    return draft
+
+
+@router.get(
+    "/assessment-builder/{draft_id}",
+    response_model=AssessmentDraftDetail,
+)
+def get_assessment_draft(
+    draft_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> AssessmentDraftDetail:
+    draft = _get_assessment_or_404(draft_id, account)
+    return build_assessment_detail(
+        draft,
+        question_bank_repository,
+    )
+
+
+@router.put(
+    "/assessment-builder/{draft_id}/blueprint",
+    response_model=AssessmentDraftDetail,
+)
+def update_assessment_blueprint(
+    draft_id: str,
+    blueprint: AssessmentBlueprint,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> AssessmentDraftDetail:
+    draft = _get_assessment_or_404(draft_id, account)
+    draft.blueprint = blueprint
+    try:
+        validate_blueprint(draft)
+    except AssessmentBlueprintError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+    assessment_repository.save(draft)
+    return build_assessment_detail(
+        draft,
+        question_bank_repository,
+    )
+
+
+@router.post(
+    "/assessment-builder/{draft_id}/items/{bank_item_id}",
+    response_model=AssessmentDraftDetail,
+)
+def add_assessment_bank_item(
+    draft_id: str,
+    bank_item_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> AssessmentDraftDetail:
+    draft = _get_assessment_or_404(draft_id, account)
+    bank_item = question_bank_repository.get(bank_item_id)
+    if bank_item is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Question bank item not found",
+        )
+    if (
+        account is not None
+        and bank_item.owner_account_id is not None
+        and bank_item.owner_account_id != account.id
+        and account.role != AccountRole.owner
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Question bank item access denied",
+        )
+    assessment_repository.add_bank_item(
+        draft,
+        bank_item,
+    )
+    return build_assessment_detail(
+        draft,
+        question_bank_repository,
+    )
+
+
+@router.delete(
+    "/assessment-builder/{draft_id}/items/{bank_item_id}",
+    response_model=AssessmentDraftDetail,
+)
+def remove_assessment_bank_item(
+    draft_id: str,
+    bank_item_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> AssessmentDraftDetail:
+    draft = _get_assessment_or_404(draft_id, account)
+    assessment_repository.remove_bank_item(
+        draft,
+        bank_item_id,
+    )
+    return build_assessment_detail(
+        draft,
+        question_bank_repository,
     )

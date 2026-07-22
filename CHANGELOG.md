@@ -254,3 +254,13 @@
 - Added reuse controls and project-state updates in the question-bank library.
 - Updated README with the current V2 status.
 - No multi-project target picker, bulk reuse, synchronization, or assessment generation was added.
+
+### Phase 6-A: Assessment Blueprint and Test Builder Foundation
+
+- Added persistent SQLite assessment drafts.
+- Added assessment blueprint targets for marks, question count, duration, curriculum context, and cognitive distribution.
+- Added add/remove operations for question-bank items.
+- Added live assessment balance calculations.
+- Activated the assessment-builder card and workspace.
+- Updated README.
+- No automatic selection, ordering, export, answer key, or assessment versioning was added.

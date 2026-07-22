@@ -7494,3 +7494,35 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+
+/* Phase 6-A: Assessment Blueprint and Test Builder */
+.assessment-builder { min-height:100vh; padding:clamp(1rem,2vw,2rem); background:linear-gradient(180deg,#f4f7f9,#edf1f4); color:#243140; }
+.assessment-builder-header,.assessment-blueprint-card,.assessment-balance-grid,.assessment-builder-layout,.assessment-message,.assessment-error { width:min(100%,86rem); margin-inline:auto; }
+.assessment-builder-header { display:flex; justify-content:space-between; gap:1rem; padding:1.3rem 1.5rem; border:1px solid #dce3e8; border-radius:1.3rem; background:#fff; }
+.assessment-builder-header>div>span { display:inline-flex; align-items:center; gap:.45rem; color:#386b75; font-weight:800; }
+.assessment-builder-header h1 { margin:.35rem 0 0; } .assessment-builder-header p { margin:.5rem 0 0; color:#6d7c88; }
+.assessment-blueprint-card { margin-top:1rem; padding:1rem; border:1px solid #dce3e8; border-radius:1rem; background:#fff; }
+.assessment-section-heading { display:flex; justify-content:space-between; gap:.75rem; align-items:center; }
+.assessment-section-heading span { color:#74828d; } .assessment-section-heading h2 { margin:.15rem 0 0; }
+.assessment-section-heading>strong { padding:.25rem .65rem; border-radius:999px; background:#eef2f4; }
+.assessment-section-heading>strong.is-valid { background:#e8f4ec; color:#2f704b; }
+.assessment-section-heading>strong.is-invalid { background:#fff0ee; color:#98473e; }
+.assessment-blueprint-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.7rem; margin:1rem 0; }
+.assessment-blueprint-grid label { display:grid; gap:.4rem; }
+.assessment-blueprint-grid input,.assessment-blueprint-grid select { min-height:2.8rem; padding:.6rem; border:1px solid #d6dfe5; border-radius:.7rem; background:#fff; }
+.assessment-wide { grid-column:1/-1; }
+.assessment-message,.assessment-error { margin-top:1rem; padding:.8rem; border-radius:.8rem; }
+.assessment-message { background:#e8f4ec; color:#2f704b; } .assessment-error { background:#fff0ee; color:#98473e; }
+.assessment-balance-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.7rem; margin-top:1rem; }
+.assessment-balance-grid article { display:grid; gap:.25rem; padding:.85rem; border:1px solid #dce3e8; border-radius:.85rem; background:#fff; }
+.assessment-balance-grid span,.assessment-balance-grid small { color:#71808a; } .assessment-balance-grid strong { font-size:1.35rem; }
+.assessment-builder-layout { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem; align-items:start; }
+.assessment-candidates,.assessment-selected { padding:1rem; border:1px solid #dce3e8; border-radius:1rem; background:#fff; }
+.assessment-candidates article,.assessment-selected article { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.75rem; align-items:center; margin-top:.65rem; padding:.75rem; border:1px solid #e1e6ea; border-radius:.8rem; background:#fafcfd; }
+.assessment-candidates article>div,.assessment-selected article>div { display:grid; min-width:0; gap:.2rem; }
+.assessment-candidates article span,.assessment-selected article span { overflow:hidden; color:#5e6d78; text-overflow:ellipsis; white-space:nowrap; }
+.assessment-candidates article small,.assessment-selected article small { color:#74818a; }
+.assessment-empty { margin:.8rem 0 0; padding:1.5rem; border:1px dashed #b8c2c9; border-radius:.8rem; color:#74818a; text-align:center; }
+@media (max-width:1000px) { .assessment-blueprint-grid,.assessment-balance-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .assessment-builder-layout { grid-template-columns:1fr; } }
+@media (max-width:650px) { .assessment-builder-header,.assessment-section-heading { align-items:stretch; flex-direction:column; } .assessment-blueprint-grid,.assessment-balance-grid { grid-template-columns:1fr; } .assessment-wide { grid-column:auto; } .assessment-candidates article,.assessment-selected article { grid-template-columns:1fr; } }

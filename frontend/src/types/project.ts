@@ -777,3 +777,63 @@ export interface QuestionBankReuseResult {
   reused: boolean;
   question: QuestionItem;
 }
+
+
+export interface AssessmentBlueprint {
+  title: string;
+  grade: number;
+  scienceDomain: ScienceDomain;
+  subjectId: string;
+  semesterId: string | null;
+  unitId: string | null;
+  durationMinutes: number;
+  totalMarks: number;
+  targetQuestionCount: number;
+  knowledgePercent: number;
+  applicationPercent: number;
+  reasoningPercent: number;
+}
+
+export interface AssessmentDraft {
+  id: string;
+  ownerAccountId: string | null;
+  sourceProjectId: string | null;
+  blueprint: AssessmentBlueprint;
+  questionBankItemIds: string[];
+  status: "draft" | "ready";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssessmentQuestionSummary {
+  bankItemId: string;
+  questionNumber: string;
+  text: string;
+  marks: number;
+  cognitiveCategory: CognitiveCategory;
+  grade: number | null;
+  unitId: string | null;
+}
+
+export interface AssessmentBalanceSummary {
+  selectedQuestionCount: number;
+  selectedMarks: number;
+  remainingQuestionCount: number;
+  remainingMarks: number;
+  knowledgeCount: number;
+  applicationCount: number;
+  reasoningCount: number;
+  unclassifiedCount: number;
+  knowledgePercent: number;
+  applicationPercent: number;
+  reasoningPercent: number;
+  questionTargetMet: boolean;
+  marksTargetMet: boolean;
+  cognitiveTargetsValid: boolean;
+}
+
+export interface AssessmentDraftDetail {
+  draft: AssessmentDraft;
+  questions: AssessmentQuestionSummary[];
+  balance: AssessmentBalanceSummary;
+}

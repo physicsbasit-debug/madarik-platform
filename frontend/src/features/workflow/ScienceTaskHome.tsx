@@ -15,6 +15,7 @@ type ScienceTaskHomeProps = {
   onProfessionalTranslation: () => void;
   onOpenCurriculum: () => void;
   onOpenQuestionBank: () => void;
+  onOpenAssessmentBuilder: () => void;
 };
 
 const comingSoonTasks = [
@@ -49,6 +50,7 @@ export default function ScienceTaskHome({
   onProfessionalTranslation,
   onOpenCurriculum,
   onOpenQuestionBank,
+  onOpenAssessmentBuilder,
 }: ScienceTaskHomeProps) {
   return (
     <main className="science-task-home" dir="rtl">
@@ -136,17 +138,20 @@ export default function ScienceTaskHome({
             const Icon = task.icon;
             const isCurriculum = task.title === "مكتبة المناهج والمصادر";
             const isQuestionBank = task.title === "بنك الأسئلة";
+            const isAssessment = task.title === "إنشاء اختبار";
 
-            if (isCurriculum || isQuestionBank) {
+            if (isCurriculum || isQuestionBank || isAssessment) {
               return (
                 <button
                   type="button"
                   className="science-task-coming-card is-available"
                   key={task.title}
                   onClick={
-                    isQuestionBank
-                      ? onOpenQuestionBank
-                      : onOpenCurriculum
+                    isAssessment
+                      ? onOpenAssessmentBuilder
+                      : isQuestionBank
+                        ? onOpenQuestionBank
+                        : onOpenCurriculum
                   }
                 >
                   <div className="science-task-coming-icon">
@@ -156,9 +161,11 @@ export default function ScienceTaskHome({
                   <h3>{task.title}</h3>
                   <p>{task.description}</p>
                   <strong>
-                    {isQuestionBank
-                      ? "فتح بنك الأسئلة"
-                      : "فتح مكتبة المناهج"}
+                    {isAssessment
+                      ? "فتح منشئ الاختبارات"
+                      : isQuestionBank
+                        ? "فتح بنك الأسئلة"
+                        : "فتح مكتبة المناهج"}
                   </strong>
                 </button>
               );
