@@ -13,6 +13,7 @@ from app.models.curriculum_source import (
 )
 from app.services.curriculum_source_refresh import (
     check_project_curriculum_sources,
+    accept_project_source_update,
 )
 from app.services.curriculum_sources import (
     CurriculumSourceError,
@@ -173,3 +174,31 @@ def check_curriculum_source_updates(
             for item in items
         ),
     )
+
+
+@router.post(
+    "/projects/{project_id}/curriculum-sources/{attachment_id}/accept-update",
+)
+def accept_curriculum_source_update(
+    project_id: str,
+    attachment_id: str,
+):
+    project = project_store.get(project_id)
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found",
+        )
+
+    try:
+        updated = accept_project_source_update(
+            project,
+            attachment_id,
+        )
+        project_store.touch(project_id)
+        return updated
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc

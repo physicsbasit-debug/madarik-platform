@@ -664,7 +664,18 @@ export type GoogleDriveImportResult = {
 };
 
 
+export type CurriculumSourceVersion = {
+  id: string;
+  checksum: string | null;
+  sizeBytes: number | null;
+  fileName: string;
+  mimeType: string;
+  sourceModifiedAt: string | null;
+  recordedAt: string;
+};
+
 export type CurriculumSourceAttachment = {
+
   id: string;
   provider: string;
   sourceFileId: string;
@@ -683,6 +694,7 @@ export type CurriculumSourceAttachment = {
   sourceRefreshStatus: "unknown" | "current" | "changed" | "missing" | "unverifiable";
   lastCheckedAt: string | null;
   refreshMessage: string | null;
+  versionHistory: CurriculumSourceVersion[];
 };
 
 export type AttachCurriculumSourceRequest = {

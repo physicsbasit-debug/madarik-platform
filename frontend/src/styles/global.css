@@ -6769,3 +6769,49 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+
+/* Phase 3-D: Accepted Source Versions */
+.cloud-source-item-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cloud-version-history {
+  margin-top: 0.55rem;
+  padding: 0.55rem;
+  border: 1px solid #dfe6e1;
+  border-radius: 0.7rem;
+  background: #f8faf9;
+}
+
+.cloud-version-history summary {
+  cursor: pointer;
+  color: #4f6959;
+  font-weight: 800;
+}
+
+.cloud-version-history > div {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.cloud-version-history article {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.2rem;
+  padding: 0.55rem;
+  border: 1px solid #e1e7e3;
+  border-radius: 0.6rem;
+  background: #fff;
+}
+
+@media (max-width: 640px) {
+  .cloud-source-item-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -194,3 +194,11 @@
 - Added project-level source refresh checks.
 - Added per-source status metadata and frontend badges.
 - No automatic download, replacement, polling, or content reprocessing was added.
+
+### Phase 3-D: Accept Updated Source and Preserve Version History
+
+- Added manual acceptance of changed Google Drive source versions.
+- Added metadata history for previous source versions.
+- Added version history display in the curriculum source panel.
+- Updated README with the current V2 status and next phase.
+- No automatic replacement, content reprocessing, or version restoration was added.

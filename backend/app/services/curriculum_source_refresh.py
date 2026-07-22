@@ -6,6 +6,7 @@ from enum import Enum
 from app.models.cloud_source import CloudSourceFile
 from app.models.project import (
     CurriculumSourceAttachment,
+    CurriculumSourceVersion,
     ProjectSession,
 )
 from app.services.google_drive import (
@@ -117,3 +118,67 @@ def check_project_curriculum_sources(
         attachment.refresh_message = message
 
     return project.curriculum_sources
+
+
+def accept_updated_source(
+    attachment: CurriculumSourceAttachment,
+    current: CloudSourceFile,
+) -> CurriculumSourceAttachment:
+    attachment.version_history.append(
+        CurriculumSourceVersion(
+            checksum=attachment.checksum,
+            size_bytes=attachment.size_bytes,
+            file_name=attachment.file_name,
+            mime_type=attachment.mime_type,
+            source_modified_at=attachment.source_modified_at,
+        )
+    )
+
+    attachment.checksum = current.checksum
+    attachment.size_bytes = current.size_bytes
+    attachment.file_name = current.file_name
+    attachment.mime_type = current.mime_type
+    attachment.source_modified_at = current.modified_at
+    attachment.source_refresh_status = (
+        SourceRefreshState.current.value
+    )
+    attachment.last_checked_at = datetime.now(timezone.utc)
+    attachment.refresh_message = (
+        "تم اعتماد النسخة الجديدة مع حفظ النسخة السابقة في السجل."
+    )
+    return attachment
+
+
+def accept_project_source_update(
+    project: ProjectSession,
+    attachment_id: str,
+) -> CurriculumSourceAttachment:
+    attachment = next(
+        (
+            item
+            for item in project.curriculum_sources
+            if item.id == attachment_id
+        ),
+        None,
+    )
+    if attachment is None:
+        raise ValueError("المصدر المرتبط غير موجود.")
+
+    listing = list_google_drive_files()
+    if not listing.status.ready:
+        raise ValueError("تعذر الوصول إلى مصدر Google Drive.")
+
+    current = next(
+        (
+            item
+            for item in listing.files
+            if item.id == attachment.source_file_id
+        ),
+        None,
+    )
+    if current is None:
+        raise ValueError(
+            "النسخة الحالية للملف غير موجودة في المجلد المسموح."
+        )
+
+    return accept_updated_source(attachment, current)

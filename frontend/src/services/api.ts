@@ -1688,6 +1688,15 @@ interface ApiCurriculumSourceAttachment {
   source_refresh_status: 'unknown' | 'current' | 'changed' | 'missing' | 'unverifiable';
   last_checked_at: string | null;
   refresh_message: string | null;
+  version_history: Array<{
+    id: string;
+    checksum: string | null;
+    size_bytes: number | null;
+    file_name: string;
+    mime_type: string;
+    source_modified_at: string | null;
+    recorded_at: string;
+  }>;
 }
 
 interface ApiCurriculumSourceListResponse {
@@ -1716,6 +1725,15 @@ function fromApiCurriculumSource(
     sourceRefreshStatus: source.source_refresh_status,
     lastCheckedAt: source.last_checked_at,
     refreshMessage: source.refresh_message,
+    versionHistory: source.version_history.map((version) => ({
+      id: version.id,
+      checksum: version.checksum,
+      sizeBytes: version.size_bytes,
+      fileName: version.file_name,
+      mimeType: version.mime_type,
+      sourceModifiedAt: version.source_modified_at,
+      recordedAt: version.recorded_at,
+    })),
   };
 }
 
@@ -1819,4 +1837,25 @@ export async function checkProjectCurriculumSourceUpdates(
     missingCount: payload.missing_count,
     unverifiableCount: payload.unverifiable_count,
   };
+}
+
+
+export async function acceptProjectCurriculumSourceUpdate(
+  projectId: string,
+  attachmentId: string,
+): Promise<CurriculumSourceAttachment> {
+  const response = await fetch(
+    `${API_BASE_URL}/cloud-sources/projects/${projectId}/curriculum-sources/${attachmentId}/accept-update`,
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to accept curriculum source update');
+  }
+
+  return fromApiCurriculumSource(
+    (await response.json()) as ApiCurriculumSourceAttachment,
+  );
 }

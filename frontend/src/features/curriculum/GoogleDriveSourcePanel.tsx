@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   attachGoogleDriveCurriculumSource,
+  acceptProjectCurriculumSourceUpdate,
   checkProjectCurriculumSourceUpdates,
   deleteProjectCurriculumSource,
   getGoogleDriveSourceStatus,
@@ -135,6 +136,32 @@ export default function GoogleDriveSourcePanel({
       setWorkingId(null);
     }
   }
+
+
+async function acceptSourceUpdate(
+  attachmentId: string,
+) {
+  if (!projectId) return;
+
+  setWorkingId(`accept-${attachmentId}`);
+  setError("");
+  try {
+    await acceptProjectCurriculumSourceUpdate(
+      projectId,
+      attachmentId,
+    );
+    setAttached(
+      await listProjectCurriculumSources(projectId),
+    );
+    setRefreshSummary(
+      "تم اعتماد النسخة الجديدة وحفظ النسخة السابقة في السجل.",
+    );
+  } catch {
+    setError("تعذر اعتماد النسخة الجديدة للمصدر.");
+  } finally {
+    setWorkingId(null);
+  }
+}
 
   async function removeAttachment(
     attachmentId: string,
@@ -341,6 +368,28 @@ export default function GoogleDriveSourcePanel({
                       <small>
                         {item.refreshMessage}
                       </small>
+                    ) : null}
+                    {item.versionHistory.length > 0 ? (
+                      <details className="cloud-version-history">
+                        <summary>
+                          سجل النسخ السابقة ({item.versionHistory.length})
+                        </summary>
+                        <div>
+                          {item.versionHistory.map((version) => (
+                            <article key={version.id}>
+                              <strong>{version.fileName}</strong>
+                              <span>
+                                {version.checksum ?? "بدون checksum"}
+                              </span>
+                              <small>
+                                {new Date(
+                                  version.recordedAt,
+                                ).toLocaleString("ar")}
+                              </small>
+                            </article>
+                          ))}
+                        </div>
+                      </details>
                     ) : null}
                   </div>
                   <button

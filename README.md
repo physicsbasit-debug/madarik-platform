@@ -297,3 +297,36 @@ docs/PHASE_4_B1_REAL_AI_TRANSLATION_ACCEPTANCE.md
 ## ملاحظة التطوير
 
 يجب أن تمر التعديلات الجديدة عبر الاختبارات المركزة والاختبارات الكاملة وبناء الواجهة قبل الدمج. أي تحسين لا يدخل في نطاق الإغلاق الحالي يُرحّل إلى إصدار لاحق بدل توسيع النسخة المرشحة بلا نهاية.
+
+## Madarik Science Platform V2 Status
+
+Development branch:
+
+```text
+feat/madarik-science-platform-v2
+```
+
+Completed V2 phases:
+
+- Phase 0-A: Scope, architecture, and data contracts.
+- Phase 0-B: Task-oriented home.
+- Phase 1: Quick translation workflow.
+- Phase 2: Curriculum structure for grades 1–12.
+- Phase 3-A: Google Drive source foundation.
+- Phase 3-B: Curriculum source persistence.
+- Phase 3-C: Source refresh detection.
+- Phase 3-D: Source Version History and manual update acceptance.
+
+Current Google Drive behavior:
+
+- Read-only integration.
+- Manual refresh checks.
+- Manual acceptance of changed versions.
+- Previous source metadata preserved in version history.
+- No automatic replacement or content reprocessing.
+
+Next planned phase:
+
+```text
+Phase 4-A: Science Question Classification Foundation
+```

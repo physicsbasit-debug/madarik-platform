@@ -484,7 +484,20 @@ class EducationalQualityToolsReport(BaseModel):
 
 
 
+class CurriculumSourceVersion(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    checksum: str | None = None
+    size_bytes: int | None = None
+    file_name: str
+    mime_type: str
+    source_modified_at: datetime | None = None
+    recorded_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+
 class CurriculumSourceAttachment(BaseModel):
+
     id: str = Field(default_factory=lambda: str(uuid4()))
     provider: str
     source_file_id: str
@@ -505,6 +518,7 @@ class CurriculumSourceAttachment(BaseModel):
     source_refresh_status: str = "unknown"
     last_checked_at: datetime | None = None
     refresh_message: str | None = None
+    version_history: list[CurriculumSourceVersion] = Field(default_factory=list)
 
 
 class ProjectSession(BaseModel):
