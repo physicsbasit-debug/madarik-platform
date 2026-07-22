@@ -734,3 +734,20 @@ export type CognitiveCategory =
   | "application"
   | "reasoning"
   | "unclassified";
+
+
+export interface QuestionBankItem {
+  id: string;
+  sourceProjectId: string;
+  sourceQuestionId: string;
+  ownerAccountId: string | null;
+  contentFingerprint: string;
+  questionSnapshot: QuestionItem;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuestionBankList {
+  items: QuestionBankItem[];
+  total: number;
+}

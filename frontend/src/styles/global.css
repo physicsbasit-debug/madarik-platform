@@ -7078,3 +7078,124 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+
+/* Phase 5-A: Question Bank Foundation */
+.question-bank-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #dedee8;
+  border-radius: 1rem;
+  background: #fcfcfe;
+}
+
+.question-bank-heading,
+.question-bank-heading > div,
+.question-bank-selected,
+.question-bank-selected > div {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.question-bank-heading,
+.question-bank-selected {
+  justify-content: space-between;
+}
+
+.question-bank-heading > div > div,
+.question-bank-selected > div {
+  display: grid;
+}
+
+.question-bank-heading svg {
+  color: #5a568a;
+}
+
+.question-bank-heading span,
+.question-bank-selected span {
+  color: #74758a;
+}
+
+.question-bank-heading h3 {
+  margin: 0.15rem 0 0;
+}
+
+.question-bank-selected {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border-radius: 0.85rem;
+  background: #f2f1f8;
+}
+
+.question-bank-message,
+.question-bank-error {
+  margin-top: 0.75rem;
+  padding: 0.7rem;
+  border-radius: 0.75rem;
+}
+
+.question-bank-message {
+  background: #eaf6ee;
+  color: #2d7048;
+}
+
+.question-bank-error {
+  background: #fff0ee;
+  color: #99453c;
+}
+
+.question-bank-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.question-bank-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px solid #e1e1e9;
+  border-radius: 0.85rem;
+  background: #fff;
+}
+
+.question-bank-list article > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.question-bank-list article span {
+  overflow: hidden;
+  color: #5f6472;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.question-bank-list article small {
+  color: #777b87;
+}
+
+.question-bank-empty {
+  margin: 0;
+  padding: 1.5rem;
+  border: 1px dashed #b9bbc7;
+  border-radius: 0.8rem;
+  color: #777b87;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .question-bank-heading,
+  .question-bank-selected {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .question-bank-list article {
+    grid-template-columns: 1fr;
+  }
+}

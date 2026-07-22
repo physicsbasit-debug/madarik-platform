@@ -23,6 +23,7 @@ import type { ChangeEvent, CSSProperties } from "react";
 import { QuestionClassificationCard } from "./QuestionClassificationCard";
 import { QuestionCurriculumLinkCard } from "./QuestionCurriculumLinkCard";
 import { ClassificationReviewSummary } from "./ClassificationReviewSummary";
+import { QuestionBankPanel } from "./QuestionBankPanel";
 import type {
   PdfLayoutAssetInfo,
   QuestionItem,
@@ -35,6 +36,7 @@ import type {
 } from "../../types/project";
 
 interface ReviewStepProps {
+  projectId: string;
   questions: QuestionItem[];
   layoutAssets: PdfLayoutAssetInfo[];
   onUpdateQuestion: (
@@ -294,6 +296,7 @@ function createQuestionPart(
 }
 
 export function ReviewStep({
+  projectId,
   questions,
   layoutAssets,
   onUpdateQuestion,
@@ -414,7 +417,6 @@ export function ReviewStep({
     return (
       activeQuestions.find(
         (question) => !(question.linkedLayoutAssetIds ?? []).includes(asset.id),
-      <ClassificationReviewSummary questions={questions} />
       )?.id ??
       activeQuestions[0]?.id ??
       ""
@@ -562,6 +564,7 @@ export function ReviewStep({
           <article><Languages size={20} /><strong>{approvedQuestionsCount}</strong><span>معتمد</span></article>
         </div>
       </section>
+      <ClassificationReviewSummary questions={questions} />
       <div className="section-heading split-heading">
         <div>
           <p className="eyebrow">مراجعة الأسئلة</p>
@@ -1506,6 +1509,12 @@ export function ReviewStep({
     onUpdateQuestion={onUpdateQuestion}
   />
 ) : null}
+
+      <QuestionBankPanel
+        projectId={projectId}
+        selectedQuestion={selectedQuestion}
+        disabled={isBusy}
+      />
 
       {selectedQuestion && selectedLinkedLayoutAssets.length > 0 ? (
             <div className="rtl-review-visual-list">

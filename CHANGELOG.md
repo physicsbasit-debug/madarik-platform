@@ -222,3 +222,14 @@
 - Repaired the malformed Phase 4-A import in ReviewStep.
 - Updated README with the current V2 status.
 - No AI linking, bulk linking, official curriculum import, or question-bank insertion was added.
+
+### Phase 5-A: Question Bank Data Model and Persistence
+
+- Added a dedicated SQLite question-bank table and repository.
+- Added full question snapshots with content fingerprints.
+- Added project-scoped list, save/update, and delete API routes.
+- Added question-bank controls to the review screen.
+- Prevented duplicate rows for the same project question.
+- Repaired the misplaced Phase 4-B review summary.
+- Updated README with the current V2 status.
+- No cross-project search, advanced filters, question reuse, or assessment generation was added.

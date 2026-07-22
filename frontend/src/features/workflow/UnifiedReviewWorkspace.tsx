@@ -16,6 +16,7 @@ import { GlossaryStep } from '../glossary/GlossaryStep';
 import { ReviewStep } from '../review/ReviewStep';
 
 interface UnifiedReviewWorkspaceProps {
+  projectId: string;
   questions: QuestionItem[];
   glossary: GlossaryTerm[];
   layoutAssets: PdfLayoutAssetInfo[];
@@ -48,6 +49,7 @@ interface UnifiedReviewWorkspaceProps {
 }
 
 export function UnifiedReviewWorkspace({
+  projectId,
   questions,
   glossary,
   layoutAssets,
@@ -102,6 +104,7 @@ export function UnifiedReviewWorkspace({
       </section>
 
       <ReviewStep
+        projectId={projectId}
         questions={questions}
         layoutAssets={layoutAssets}
         onUpdateQuestion={onUpdateQuestion}

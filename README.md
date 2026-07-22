@@ -317,21 +317,22 @@ Completed V2 phases:
 - Phase 3-C: Source refresh detection.
 - Phase 3-D: Source version history and manual update acceptance.
 - Phase 4-A: Science question classification foundation.
-- Phase 4-B: Curriculum Linking and Classification Review.
+- Phase 4-B: Curriculum linking and classification review.
+- Phase 5-A: Question Bank Data Model and Persistence.
 
-Each reviewed question can now store:
+Question-bank behavior:
 
-- cognitive category and confidence;
-- grade, science domain, semester, and subject;
-- unit and lesson;
-- one or more learning outcomes.
+- SQLite-backed storage separate from project snapshots.
+- Save or refresh a reviewed question from the review screen.
+- Preserve classification, curriculum links, options, parts, and assets.
+- Prevent duplicate rows for the same project question.
+- Delete a bank item without deleting the original project question.
 
-Curriculum links remain teacher-reviewed. The current catalog contains
-structural sample content and is not presented as a complete official
-curriculum dataset.
+The current bank is project-scoped. Cross-project search and filters are
+intentionally deferred to Phase 5-B.
 
 Next planned phase:
 
 ```text
-Phase 5-A: Question Bank Data Model and Persistence
+Phase 5-B: Question Bank Library, Search, and Filters
 ```

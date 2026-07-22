@@ -11,6 +11,8 @@ import type {
   PdfLayoutAssetInfo,
   SchoolLogoInfo,
   QuestionItem,
+  QuestionBankItem,
+  QuestionBankList,
   CognitiveCategory,
   QuestionAssetInfo,
   QuestionPart,
@@ -1894,5 +1896,100 @@ export async function acceptProjectCurriculumSourceUpdate(
 
   return fromApiCurriculumSource(
     (await response.json()) as ApiCurriculumSourceAttachment,
+  );
+}
+
+
+interface ApiQuestionBankItem {
+  id: string;
+  source_project_id: string;
+  source_question_id: string;
+  owner_account_id: string | null;
+  content_fingerprint: string;
+  question_snapshot: ApiQuestionItem;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ApiQuestionBankListResponse {
+  items: ApiQuestionBankItem[];
+  total: number;
+}
+
+function fromApiQuestionBankItem(
+  item: ApiQuestionBankItem,
+): QuestionBankItem {
+  return {
+    id: item.id,
+    sourceProjectId: item.source_project_id,
+    sourceQuestionId: item.source_question_id,
+    ownerAccountId: item.owner_account_id,
+    contentFingerprint: item.content_fingerprint,
+    questionSnapshot: fromApiQuestion(
+      item.question_snapshot,
+    ),
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  };
+}
+
+export async function listProjectQuestionBank(
+  projectId: string,
+): Promise<QuestionBankList> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/${projectId}/question-bank`,
+    {
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to list question bank');
+  }
+
+  const payload =
+    (await response.json()) as ApiQuestionBankListResponse;
+  return {
+    items: payload.items.map(fromApiQuestionBankItem),
+    total: payload.total,
+  };
+}
+
+export async function saveQuestionToBank(
+  projectId: string,
+  questionId: string,
+): Promise<QuestionBankItem> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/${projectId}/questions/${questionId}/question-bank`,
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to save question to bank');
+  }
+
+  return fromApiQuestionBankItem(
+    (await response.json()) as ApiQuestionBankItem,
+  );
+}
+
+export async function deleteQuestionBankItem(
+  projectId: string,
+  itemId: string,
+): Promise<QuestionBankItem> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/${projectId}/question-bank/${itemId}`,
+    {
+      method: 'DELETE',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to delete question bank item');
+  }
+
+  return fromApiQuestionBankItem(
+    (await response.json()) as ApiQuestionBankItem,
   );
 }

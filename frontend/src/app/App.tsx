@@ -2329,6 +2329,7 @@ function WorkspaceContent({
   if (stageKey === "review") {
     return (
       <UnifiedReviewWorkspace
+        projectId={projectId}
         questions={questions}
         glossary={glossary}
         layoutAssets={layoutAssets}

@@ -3,6 +3,13 @@ from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile,
 from fastapi.responses import Response
 
 from app.models.auth import AccountRole, AuthAccountPublic
+from app.models.question_bank import (
+    QuestionBankItem,
+    QuestionBankListResponse,
+)
+from app.services.question_bank_repository import (
+    question_bank_repository,
+)
 from app.models.project import (
     ExportFormat,
     ExtractedPdfPageInfo,
@@ -1035,3 +1042,84 @@ def delete_project(project_id: str, account: AuthAccountPublic | None = Depends(
     if not deleted:
         raise HTTPException(status_code=404, detail="Project not found")
     return {"deleted": True}
+
+
+@router.get(
+    "/{project_id}/question-bank",
+    response_model=QuestionBankListResponse,
+)
+def list_project_question_bank(
+    project_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> QuestionBankListResponse:
+    _get_or_404(project_id, account)
+    items = question_bank_repository.list_for_project(
+        project_id
+    )
+    return QuestionBankListResponse(
+        items=items,
+        total=len(items),
+    )
+
+
+@router.post(
+    "/{project_id}/questions/{question_id}/question-bank",
+    response_model=QuestionBankItem,
+)
+def save_question_to_bank(
+    project_id: str,
+    question_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> QuestionBankItem:
+    project = _get_or_404(project_id, account)
+    question = next(
+        (
+            item
+            for item in project.questions
+            if item.id == question_id
+        ),
+        None,
+    )
+    if question is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Question not found",
+        )
+    if question.status == QuestionStatus.deleted:
+        raise HTTPException(
+            status_code=400,
+            detail="Deleted questions cannot be saved.",
+        )
+
+    return question_bank_repository.save_from_project_question(
+        project,
+        question,
+    )
+
+
+@router.delete(
+    "/{project_id}/question-bank/{item_id}",
+    response_model=QuestionBankItem,
+)
+def delete_question_bank_item(
+    project_id: str,
+    item_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> QuestionBankItem:
+    _get_or_404(project_id, account)
+    removed = question_bank_repository.delete(
+        project_id,
+        item_id,
+    )
+    if removed is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Question bank item not found",
+        )
+    return removed
