@@ -9,8 +9,8 @@ def test_export_workspace_has_readiness_summary() -> None:
         ROOT / "frontend/src/features/export/ExportStep.tsx"
     ).read_text(encoding="utf-8")
 
-    assert 'className="export-workspace"' in content
-    assert "التصدير والجاهزية" in content
+    assert 'className="export-workspace export-workspace-redesign"' in content
+    assert "مركز الجاهزية والتصدير" in content
     assert 'className="export-readiness-summary"' in content
     assert "المراجعة اليدوية" in content
     assert "الرسوم المرتبطة" in content

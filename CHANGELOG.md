@@ -135,3 +135,8 @@
 - Updated legacy UX assertions to match the approved export workspace redesign.
 - Updated the upload-zone assertion to accept its dynamic drag-state class.
 - Preserved all production UI and business logic without modification.
+
+### Final UX Stable Merge Fix 2
+
+- Aligned the remaining export-workspace assertions with the approved redesign class and title.
+- No production application code was changed.
