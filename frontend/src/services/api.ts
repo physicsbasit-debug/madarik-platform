@@ -2716,3 +2716,42 @@ export async function deleteDifferentiatedActivity(
   }
 }
 
+
+
+export async function generateDifferentiatedActivities(
+  input: DifferentiatedActivityGenerationInput,
+): Promise<DifferentiatedActivityGenerationResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/differentiated-activities/generate`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify({
+        source_project_id: input.sourceProjectId ?? null,
+        source_question_bank_item_id:
+          input.sourceQuestionBankItemId ?? null,
+        title: input.title,
+        grade: input.grade,
+        science_domain: input.scienceDomain,
+        subject_id: input.subjectId,
+        objective: input.objective,
+        core_task: input.coreTask,
+        estimated_minutes: input.estimatedMinutes,
+        materials: input.materials ?? [],
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to generate differentiated activities');
+  }
+  const payload = await response.json();
+  return {
+    items: payload.items.map(fromApiDifferentiatedActivity),
+    total: payload.total,
+    sourceQuestionBankItemId:
+      payload.source_question_bank_item_id,
+  };
+}

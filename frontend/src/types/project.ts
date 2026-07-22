@@ -941,3 +941,23 @@ export interface DifferentiatedActivityCreateInput {
   subjectId: string; level: DifferentiationLevel; objective: string; instructions: string;
   estimatedMinutes: number;
 }
+
+
+export interface DifferentiatedActivityGenerationInput {
+  sourceProjectId?: string | null;
+  sourceQuestionBankItemId?: string | null;
+  title: string;
+  grade: number;
+  scienceDomain: ScienceDomain;
+  subjectId: string;
+  objective: string;
+  coreTask: string;
+  estimatedMinutes: number;
+  materials?: string[];
+}
+
+export interface DifferentiatedActivityGenerationResult {
+  items: DifferentiatedActivity[];
+  total: number;
+  sourceQuestionBankItemId: string | null;
+}

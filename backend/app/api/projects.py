@@ -44,6 +44,11 @@ from app.models.differentiated_activity import (
     DifferentiatedActivity,
     DifferentiatedActivityCreateRequest,
     DifferentiatedActivityListResponse,
+    DifferentiatedActivityGenerationRequest,
+    DifferentiatedActivityGenerationResponse,
+)
+from app.services.differentiated_activity_generator import (
+    generate_differentiated_activity_set,
 )
 from app.services.differentiated_activity_repository import (
     differentiated_activity_repository,
@@ -1625,3 +1630,32 @@ def delete_differentiated_activity(
         raise HTTPException(status_code=403, detail="Differentiated activity access denied")
     return activity
 
+
+
+@router.post(
+    "/differentiated-activities/generate",
+    response_model=DifferentiatedActivityGenerationResponse,
+)
+def generate_differentiated_activities(
+    payload: DifferentiatedActivityGenerationRequest,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> DifferentiatedActivityGenerationResponse:
+    bank_item = None
+    if payload.source_question_bank_item_id:
+        bank_item = question_bank_repository.get(
+            payload.source_question_bank_item_id
+        )
+        if bank_item is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Question bank item not found",
+            )
+
+    return generate_differentiated_activity_set(
+        payload,
+        differentiated_activity_repository,
+        owner_account_id=account.id if account else None,
+        bank_item=bank_item,
+    )

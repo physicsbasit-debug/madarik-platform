@@ -52,3 +52,26 @@ class DifferentiatedActivityCreateRequest(BaseModel):
 class DifferentiatedActivityListResponse(BaseModel):
     items: list[DifferentiatedActivity]
     total: int
+
+
+class DifferentiatedActivityGenerationRequest(BaseModel):
+    source_project_id: str | None = None
+    source_question_bank_item_id: str | None = None
+    title: str
+    grade: int = Field(ge=1, le=12)
+    science_domain: str
+    subject_id: str
+    semester_id: str | None = None
+    unit_id: str | None = None
+    lesson_id: str | None = None
+    learning_outcome_ids: list[str] = Field(default_factory=list)
+    objective: str
+    core_task: str
+    estimated_minutes: int = Field(default=20, ge=5, le=180)
+    materials: list[str] = Field(default_factory=list)
+
+
+class DifferentiatedActivityGenerationResponse(BaseModel):
+    items: list[DifferentiatedActivity]
+    total: int
+    source_question_bank_item_id: str | None = None

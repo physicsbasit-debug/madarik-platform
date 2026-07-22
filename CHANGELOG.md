@@ -310,3 +310,14 @@
 - Added create, list, and delete APIs.
 - Activated the RTL differentiated-activities workspace.
 - Updated README.
+
+
+### Phase 7-B: Generate Differentiated Activities from Curriculum and Questions
+
+- Added deterministic support, core, and extension activity generation.
+- Added optional question-bank context.
+- Added distinct scaffolding, challenge, criteria, and timing.
+- Added direct persistence of all three activities.
+- Added generation controls to the differentiated-activities workspace.
+- Updated README.
+- No external AI provider or activity export was added.

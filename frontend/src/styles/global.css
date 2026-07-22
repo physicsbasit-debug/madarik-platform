@@ -7724,3 +7724,18 @@ button:disabled {
 .differentiated-level.core { background:#e8f1fb; color:#315f8f; }
 .differentiated-level.extension { background:#eee9fb; color:#66529a; }
 @media (max-width:760px) { .differentiated-header { flex-direction:column; } .differentiated-form-grid { grid-template-columns:1fr; } }
+
+/* Phase 7-B: Generated Differentiation Sets */
+.differentiated-action-row {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+.differentiated-success {
+  width: min(100%, 82rem);
+  margin: 1rem auto 0;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: #eaf6ee;
+  color: #2d7048;
+}
