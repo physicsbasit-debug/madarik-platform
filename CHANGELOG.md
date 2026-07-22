@@ -233,3 +233,13 @@
 - Repaired the misplaced Phase 4-B review summary.
 - Updated README with the current V2 status.
 - No cross-project search, advanced filters, question reuse, or assessment generation was added.
+
+### Phase 5-B: Question Bank Library, Search, and Filters
+
+- Added global question-bank search and item detail APIs.
+- Added text, grade, science-domain, unit, and cognitive-category filters.
+- Added an owner-aware question-bank library workspace.
+- Activated the question-bank card on the V2 task home.
+- Added result preview and deletion.
+- Updated README with the current V2 status.
+- No question reuse, multi-select, assessment generation, or bank sharing was added.

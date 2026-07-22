@@ -6,6 +6,7 @@ from app.models.auth import AccountRole, AuthAccountPublic
 from app.models.question_bank import (
     QuestionBankItem,
     QuestionBankListResponse,
+    QuestionBankSearchResponse,
 )
 from app.services.question_bank_repository import (
     question_bank_repository,
@@ -1123,3 +1124,67 @@ def delete_question_bank_item(
             detail="Question bank item not found",
         )
     return removed
+
+
+@router.get(
+    "/question-bank/library",
+    response_model=QuestionBankSearchResponse,
+)
+def search_question_bank_library(
+    query: str | None = None,
+    grade: int | None = None,
+    science_domain: str | None = None,
+    unit_id: str | None = None,
+    cognitive_category: str | None = None,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> QuestionBankSearchResponse:
+    owner_account_id = account.id if account else None
+    items = question_bank_repository.search(
+        query=query,
+        grade=grade,
+        science_domain=science_domain,
+        unit_id=unit_id,
+        cognitive_category=cognitive_category,
+        owner_account_id=owner_account_id,
+    )
+    return QuestionBankSearchResponse(
+        items=items,
+        total=len(items),
+        query=query,
+        grade=grade,
+        science_domain=science_domain,
+        unit_id=unit_id,
+        cognitive_category=cognitive_category,
+    )
+
+
+@router.get(
+    "/question-bank/library/{item_id}",
+    response_model=QuestionBankItem,
+)
+def get_question_bank_library_item(
+    item_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> QuestionBankItem:
+    item = question_bank_repository.get(item_id)
+    if item is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Question bank item not found",
+        )
+
+    if (
+        account is not None
+        and item.owner_account_id is not None
+        and item.owner_account_id != account.id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Question bank item access denied",
+        )
+
+    return item

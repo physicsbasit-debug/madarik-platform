@@ -239,4 +239,135 @@ class QuestionBankRepository:
         )
 
 
+    def search(
+        self,
+        *,
+        query: str | None = None,
+        grade: int | None = None,
+        science_domain: str | None = None,
+        unit_id: str | None = None,
+        cognitive_category: str | None = None,
+        owner_account_id: str | None = None,
+    ) -> list[QuestionBankItem]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT payload
+                FROM question_bank
+                ORDER BY updated_at DESC
+                """
+            ).fetchall()
+
+        items = [
+            QuestionBankItem.model_validate_json(
+                row["payload"]
+            )
+            for row in rows
+        ]
+
+        if owner_account_id:
+            items = [
+                item
+                for item in items
+                if item.owner_account_id
+                == owner_account_id
+            ]
+
+        normalized_query = (
+            query.strip().casefold()
+            if query
+            else ""
+        )
+        if normalized_query:
+            def searchable_text(
+                item: QuestionBankItem,
+            ) -> str:
+                question = item.question_snapshot
+                parts = [
+                    question.original_text,
+                    question.translated_text,
+                    question.raw_text or "",
+                    question.original_number,
+                    question.curriculum_subject_id or "",
+                    question.curriculum_unit_id or "",
+                    question.curriculum_lesson_id or "",
+                    " ".join(
+                        question.curriculum_learning_outcome_ids
+                    ),
+                ]
+                return " ".join(parts).casefold()
+
+            items = [
+                item
+                for item in items
+                if normalized_query
+                in searchable_text(item)
+            ]
+
+        if grade is not None:
+            items = [
+                item
+                for item in items
+                if (
+                    item.question_snapshot
+                    .curriculum_grade
+                    == grade
+                )
+            ]
+
+        if science_domain:
+            items = [
+                item
+                for item in items
+                if (
+                    item.question_snapshot
+                    .curriculum_science_domain
+                    == science_domain
+                )
+            ]
+
+        if unit_id:
+            items = [
+                item
+                for item in items
+                if (
+                    item.question_snapshot
+                    .curriculum_unit_id
+                    == unit_id
+                )
+            ]
+
+        if cognitive_category:
+            items = [
+                item
+                for item in items
+                if (
+                    item.question_snapshot
+                    .cognitive_category.value
+                    == cognitive_category
+                )
+            ]
+
+        return items
+
+    def get(
+        self,
+        item_id: str,
+    ) -> QuestionBankItem | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT payload
+                FROM question_bank
+                WHERE id = ?
+                """,
+                (item_id,),
+            ).fetchone()
+
+        if row is None:
+            return None
+        return QuestionBankItem.model_validate_json(
+            row["payload"]
+        )
+
 question_bank_repository = QuestionBankRepository()

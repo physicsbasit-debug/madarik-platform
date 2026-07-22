@@ -318,21 +318,22 @@ Completed V2 phases:
 - Phase 3-D: Source version history and manual update acceptance.
 - Phase 4-A: Science question classification foundation.
 - Phase 4-B: Curriculum linking and classification review.
-- Phase 5-A: Question Bank Data Model and Persistence.
+- Phase 5-A: Question bank data model and persistence.
+- Phase 5-B: Question Bank Library, Search, and Filters.
 
-Question-bank behavior:
+The question-bank library supports:
 
-- SQLite-backed storage separate from project snapshots.
-- Save or refresh a reviewed question from the review screen.
-- Preserve classification, curriculum links, options, parts, and assets.
-- Prevent duplicate rows for the same project question.
-- Delete a bank item without deleting the original project question.
+- text search;
+- grade and science-domain filters;
+- curriculum-unit filters;
+- cognitive-category filters;
+- result preview and deletion.
 
-The current bank is project-scoped. Cross-project search and filters are
-intentionally deferred to Phase 5-B.
+Search results are limited to the authenticated owner's bank when account
+information is available.
 
 Next planned phase:
 
 ```text
-Phase 5-B: Question Bank Library, Search, and Filters
+Phase 5-C: Reuse Question Bank Items in Projects
 ```

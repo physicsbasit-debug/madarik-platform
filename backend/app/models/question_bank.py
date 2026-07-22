@@ -24,3 +24,13 @@ class QuestionBankItem(BaseModel):
 class QuestionBankListResponse(BaseModel):
     items: list[QuestionBankItem]
     total: int
+
+
+class QuestionBankSearchResponse(BaseModel):
+    items: list[QuestionBankItem]
+    total: int
+    query: str | None = None
+    grade: int | None = None
+    science_domain: str | None = None
+    unit_id: str | None = None
+    cognitive_category: str | None = None

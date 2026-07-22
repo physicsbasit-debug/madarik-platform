@@ -14,6 +14,7 @@ type ScienceTaskHomeProps = {
   onQuickTranslation: () => void;
   onProfessionalTranslation: () => void;
   onOpenCurriculum: () => void;
+  onOpenQuestionBank: () => void;
 };
 
 const comingSoonTasks = [
@@ -47,6 +48,7 @@ export default function ScienceTaskHome({
   onQuickTranslation,
   onProfessionalTranslation,
   onOpenCurriculum,
+  onOpenQuestionBank,
 }: ScienceTaskHomeProps) {
   return (
     <main className="science-task-home" dir="rtl">
@@ -133,14 +135,19 @@ export default function ScienceTaskHome({
           {comingSoonTasks.map((task) => {
             const Icon = task.icon;
             const isCurriculum = task.title === "مكتبة المناهج والمصادر";
+            const isQuestionBank = task.title === "بنك الأسئلة";
 
-            if (isCurriculum) {
+            if (isCurriculum || isQuestionBank) {
               return (
                 <button
                   type="button"
                   className="science-task-coming-card is-available"
                   key={task.title}
-                  onClick={onOpenCurriculum}
+                  onClick={
+                    isQuestionBank
+                      ? onOpenQuestionBank
+                      : onOpenCurriculum
+                  }
                 >
                   <div className="science-task-coming-icon">
                     <Icon size={24} />
@@ -148,7 +155,11 @@ export default function ScienceTaskHome({
                   <span className="science-task-status is-ready">متاح الآن</span>
                   <h3>{task.title}</h3>
                   <p>{task.description}</p>
-                  <strong>فتح مكتبة المناهج</strong>
+                  <strong>
+                    {isQuestionBank
+                      ? "فتح بنك الأسئلة"
+                      : "فتح مكتبة المناهج"}
+                  </strong>
                 </button>
               );
             }

@@ -751,3 +751,18 @@ export interface QuestionBankList {
   items: QuestionBankItem[];
   total: number;
 }
+
+
+export interface QuestionBankSearchFilters {
+  query?: string;
+  grade?: number | null;
+  scienceDomain?: ScienceDomain | null;
+  unitId?: string | null;
+  cognitiveCategory?: CognitiveCategory | null;
+}
+
+export interface QuestionBankSearchResult {
+  items: QuestionBankItem[];
+  total: number;
+  filters: QuestionBankSearchFilters;
+}

@@ -13,6 +13,8 @@ import type {
   QuestionItem,
   QuestionBankItem,
   QuestionBankList,
+  QuestionBankSearchFilters,
+  QuestionBankSearchResult,
   CognitiveCategory,
   QuestionAssetInfo,
   QuestionPart,
@@ -1987,6 +1989,86 @@ export async function deleteQuestionBankItem(
   );
   if (!response.ok) {
     throw new Error('Failed to delete question bank item');
+  }
+
+  return fromApiQuestionBankItem(
+    (await response.json()) as ApiQuestionBankItem,
+  );
+}
+
+
+export async function searchQuestionBankLibrary(
+  filters: QuestionBankSearchFilters,
+): Promise<QuestionBankSearchResult> {
+  const params = new URLSearchParams();
+
+  if (filters.query?.trim()) {
+    params.set('query', filters.query.trim());
+  }
+  if (filters.grade) {
+    params.set('grade', String(filters.grade));
+  }
+  if (filters.scienceDomain) {
+    params.set(
+      'science_domain',
+      filters.scienceDomain,
+    );
+  }
+  if (filters.unitId) {
+    params.set('unit_id', filters.unitId);
+  }
+  if (filters.cognitiveCategory) {
+    params.set(
+      'cognitive_category',
+      filters.cognitiveCategory,
+    );
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/projects/question-bank/library?${params.toString()}`,
+    {
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      'Failed to search question bank library',
+    );
+  }
+
+  const payload =
+    (await response.json()) as {
+      items: ApiQuestionBankItem[];
+      total: number;
+      query: string | null;
+      grade: number | null;
+      science_domain: string | null;
+      unit_id: string | null;
+      cognitive_category: string | null;
+    };
+
+  return {
+    items: payload.items.map(
+      fromApiQuestionBankItem,
+    ),
+    total: payload.total,
+    filters,
+  };
+}
+
+export async function getQuestionBankLibraryItem(
+  itemId: string,
+): Promise<QuestionBankItem> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/question-bank/library/${itemId}`,
+    {
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      'Failed to read question bank item',
+    );
   }
 
   return fromApiQuestionBankItem(

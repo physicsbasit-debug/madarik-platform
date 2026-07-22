@@ -73,6 +73,7 @@ import ScienceTaskHome from "../features/workflow/ScienceTaskHome";
 import QuickTranslationWorkspace from "../features/workflow/QuickTranslationWorkspace";
 import CurriculumBrowser from "../features/curriculum/CurriculumBrowser";
 import type {
+import QuestionBankLibrary from "../features/question-bank/QuestionBankLibrary";
   AnswerKeyItem,
   EducationalAnalysisReport,
   EducationalQualityToolsReport,
@@ -167,7 +168,7 @@ function applyProjectSession(
 
 export function App() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional" | "curriculum">("home");
+  const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional" | "curriculum" | "question-bank">("home");
   const [quickRunStatus, setQuickRunStatus] = useState<
     "idle" | "parsing" | "translating" | "checking" | "completed" | "error"
   >("idle");
@@ -665,6 +666,10 @@ function openQuickTranslation() {
   setActiveIndex(0);
   setQuickRunStatus("idle");
   setQuickRunMessage("ارفع ورقة اختبار علمية ثم شغّل الترجمة السريعة.");
+}
+
+function openQuestionBank() {
+  setWorkspaceMode("question-bank");
 }
 
 function openCurriculum() {
@@ -1942,6 +1947,15 @@ if (workspaceMode === "home") {
       onQuickTranslation={openQuickTranslation}
       onProfessionalTranslation={openProfessionalTranslation}
       onOpenCurriculum={openCurriculum}
+      onOpenQuestionBank={openQuestionBank}
+    />
+  );
+}
+
+if (workspaceMode === "question-bank") {
+  return (
+    <QuestionBankLibrary
+      onReturnHome={returnToTaskHome}
     />
   );
 }
