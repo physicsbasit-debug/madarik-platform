@@ -53,3 +53,23 @@ class CloudSourceCreateRequest(BaseModel):
 class CloudSourceListResponse(BaseModel):
     items: list[CloudSource]
     total: int
+
+
+class OneDriveProviderStatus(BaseModel):
+    enabled: bool
+    configured: bool
+    tenant_configured: bool
+    client_id_configured: bool
+    client_secret_configured: bool
+    graph_base_url: str
+    scope: str
+    live_request_attempted: bool = False
+    message: str
+
+
+class CloudSourceSyncResponse(BaseModel):
+    source: CloudSource
+    changed: bool
+    downloaded: bool = False
+    local_path: str | None = None
+    message: str

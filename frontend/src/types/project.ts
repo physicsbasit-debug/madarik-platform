@@ -1110,3 +1110,24 @@ export interface CloudSource {
   createdAt: string;
   updatedAt: string;
 }
+
+
+export interface OneDriveProviderStatus {
+  enabled: boolean;
+  configured: boolean;
+  tenantConfigured: boolean;
+  clientIdConfigured: boolean;
+  clientSecretConfigured: boolean;
+  graphBaseUrl: string;
+  scope: string;
+  liveRequestAttempted: boolean;
+  message: string;
+}
+
+export interface CloudSourceSyncResult {
+  source: CloudSource;
+  changed: boolean;
+  downloaded: boolean;
+  localPath: string | null;
+  message: string;
+}

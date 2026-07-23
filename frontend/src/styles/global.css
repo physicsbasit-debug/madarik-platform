@@ -7961,3 +7961,38 @@ button:disabled {
 
 /* Phase 9-A: Cloud Sources */
 .cloud-sources{min-height:100vh;padding:clamp(1rem,2vw,2rem);background:linear-gradient(180deg,#f6f9fc,#eef3f8);color:#263342}.cloud-sources-header,.cloud-source-form,.cloud-source-list,.cloud-source-message,.cloud-source-error{width:min(100%,82rem);margin-inline:auto}.cloud-sources-header{display:flex;justify-content:space-between;gap:1rem;padding:1.2rem;border:1px solid #dce4ec;border-radius:1rem;background:#fff}.cloud-sources-header span{display:inline-flex;align-items:center;gap:.45rem;color:#356f9c;font-weight:800}.cloud-source-form,.cloud-source-list{margin-top:1rem;padding:1rem;border:1px solid #dce4ec;border-radius:1rem;background:#fff}.cloud-source-form>div{display:grid;grid-template-columns:1fr 12rem;gap:.7rem;margin:1rem 0}.cloud-source-url{grid-column:1/-1}.cloud-source-form input,.cloud-source-form select{min-height:2.7rem;padding:.6rem;border:1px solid #d8e1ea;border-radius:.7rem}.cloud-source-list article{margin-top:.8rem;padding:1rem;border:1px solid #e0e7ee;border-radius:.9rem;background:#fbfdff}.cloud-source-list article>div>span{color:#356f9c;font-weight:800}.cloud-source-list a{display:inline-flex;align-items:center;gap:.35rem;margin-inline-end:.5rem}.cloud-source-message,.cloud-source-error{margin-top:1rem;padding:.8rem;border-radius:.8rem}.cloud-source-message{background:#edf7f0;color:#2f7046}.cloud-source-error{background:#fff0ee;color:#944a40}@media(max-width:760px){.cloud-sources-header{flex-direction:column}.cloud-source-form>div{grid-template-columns:1fr}.cloud-source-url{grid-column:auto}}
+
+/* Phase 9-B: Microsoft Graph Adapter */
+.cloud-provider-status {
+  width: min(100%, 82rem);
+  margin: 1rem auto 0;
+  padding: 0.9rem;
+  border: 1px solid #dce4ec;
+  border-radius: 0.9rem;
+  background: #fff;
+}
+.cloud-provider-status > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+.cloud-provider-status.is-ready {
+  border-color: #bcdcc7;
+  background: #f2faf4;
+}
+.cloud-provider-status.is-disabled {
+  border-color: #e4d7bc;
+  background: #fffaf0;
+}
+.cloud-provider-status p {
+  margin: 0.5rem 0;
+}
+.cloud-provider-status small {
+  color: #66717e;
+}
+.cloud-source-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+}

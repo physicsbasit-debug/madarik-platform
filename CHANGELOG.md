@@ -373,3 +373,14 @@
 - Added a dedicated RTL workspace.
 - Updated README.
 - No OAuth, Microsoft Graph, or file synchronization was added.
+
+
+### Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter
+
+- Added environment-based OneDrive app credentials.
+- Added OAuth client-credentials token acquisition.
+- Added Microsoft Graph driveItem metadata lookup.
+- Added ETag change detection and optional file download.
+- Added provider-status and source-sync APIs.
+- Added sync and download controls.
+- Kept the adapter disabled by default.

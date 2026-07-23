@@ -70,4 +70,33 @@ class Settings(BaseModel):
     )
 
 
+    # Phase 9-B: OneDrive authentication and Microsoft Graph adapter.
+    onedrive_provider: str = os.getenv(
+        "MADARIK_ONEDRIVE_PROVIDER",
+        "disabled",
+    )
+    onedrive_tenant_id: str = os.getenv(
+        "MADARIK_ONEDRIVE_TENANT_ID",
+        "",
+    )
+    onedrive_client_id: str = os.getenv(
+        "MADARIK_ONEDRIVE_CLIENT_ID",
+        "",
+    )
+    onedrive_client_secret: str = os.getenv(
+        "MADARIK_ONEDRIVE_CLIENT_SECRET",
+        "",
+    )
+    onedrive_graph_base_url: str = os.getenv(
+        "MADARIK_ONEDRIVE_GRAPH_BASE_URL",
+        "https://graph.microsoft.com/v1.0",
+    )
+    onedrive_scope: str = os.getenv(
+        "MADARIK_ONEDRIVE_SCOPE",
+        "https://graph.microsoft.com/.default",
+    )
+    onedrive_timeout_seconds: float = float(
+        os.getenv("MADARIK_ONEDRIVE_TIMEOUT_SECONDS", "30")
+    )
+
 settings = Settings()

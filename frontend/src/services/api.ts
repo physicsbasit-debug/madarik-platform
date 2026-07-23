@@ -3144,3 +3144,65 @@ export async function deleteCloudSource(sourceId:string):Promise<CloudSource>{
   if(!response.ok) throw new Error('Failed to delete cloud source');
   return fromApiCloudSource(await response.json());
 }
+
+
+export async function getOneDriveProviderStatus(): Promise<
+  OneDriveProviderStatus
+> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/cloud-sources/onedrive/status`,
+    {
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      'Failed to read OneDrive provider status',
+    );
+  }
+  const payload = await response.json();
+  return {
+    enabled: payload.enabled,
+    configured: payload.configured,
+    tenantConfigured: payload.tenant_configured,
+    clientIdConfigured: payload.client_id_configured,
+    clientSecretConfigured:
+      payload.client_secret_configured,
+    graphBaseUrl: payload.graph_base_url,
+    scope: payload.scope,
+    liveRequestAttempted:
+      payload.live_request_attempted,
+    message: payload.message,
+  };
+}
+
+export async function syncCloudSource(
+  sourceId: string,
+  download = false,
+): Promise<CloudSourceSyncResult> {
+  const params = new URLSearchParams({
+    download: String(download),
+  });
+  const response = await fetch(
+    `${API_BASE_URL}/projects/cloud-sources/${sourceId}/sync?${params.toString()}`,
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(
+      payload?.detail ??
+      'Failed to synchronize cloud source',
+    );
+  }
+  const payload = await response.json();
+  return {
+    source: fromApiCloudSource(payload.source),
+    changed: payload.changed,
+    downloaded: payload.downloaded,
+    localPath: payload.local_path,
+    message: payload.message,
+  };
+}

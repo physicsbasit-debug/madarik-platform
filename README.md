@@ -366,19 +366,24 @@ Completed V2 phases:
 - Phase 8-A: Scientific diagram data model and workspace foundation.
 - Phase 8-B: Scientific diagram preview and SVG rendering.
 - Phase 8-C: Scientific diagram PNG and PDF export.
-- Phase 9-A: Cloud Source Expansion and OneDrive Foundation.
+- Phase 9-A: Cloud source expansion and OneDrive foundation.
+- Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter.
 
-Phase 9-A adds:
+Phase 9-B adds:
 
-- a unified cloud-source model;
-- Google Drive and OneDrive provider types;
-- OneDrive and SharePoint URL parsing;
-- external identity, URL, ETag, metadata, and sync state;
-- persistent SQLite storage;
-- a dedicated RTL cloud-source workspace.
+- environment-based app-only OneDrive configuration;
+- OAuth 2.0 client-credentials token acquisition;
+- Microsoft Graph driveItem metadata lookup;
+- ETag change detection;
+- optional file download through the preauthenticated download URL;
+- provider-status and source-sync APIs;
+- UI controls for sync checks and downloads.
+
+The adapter remains disabled until valid Microsoft Entra credentials and
+permissions are supplied through environment variables.
 
 Next planned phase:
 
 ```text
-Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter
+Phase 9-C: Cloud Source Refresh, Version History, and Project Intake
 ```

@@ -79,10 +79,18 @@ from app.models.cloud_source import (
     CloudSource,
     CloudSourceCreateRequest,
     CloudSourceListResponse,
+    OneDriveProviderStatus,
+    CloudSourceSyncResponse,
     CloudSourceType,
 )
 from app.services.cloud_source_repository import (
     cloud_source_repository,
+)
+from app.services.onedrive_graph_adapter import (
+    OneDriveConfigurationError,
+    OneDriveGraphError,
+    get_onedrive_provider_status,
+    synchronize_onedrive_source,
 )
 from app.services.onedrive_source_parser import (
     parse_onedrive_source_url,
@@ -1944,3 +1952,59 @@ def delete_cloud_source(source_id: str, account: AuthAccountPublic | None = Depe
     if source is None:
         raise HTTPException(status_code=404, detail="Cloud source not found")
     return source
+
+
+@router.get(
+    "/cloud-sources/onedrive/status",
+    response_model=OneDriveProviderStatus,
+)
+def get_onedrive_status(
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> OneDriveProviderStatus:
+    return get_onedrive_provider_status()
+
+
+@router.post(
+    "/cloud-sources/{source_id}/sync",
+    response_model=CloudSourceSyncResponse,
+)
+def sync_cloud_source(
+    source_id: str,
+    download: bool = False,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> CloudSourceSyncResponse:
+    source = cloud_source_repository.get(source_id)
+    if source is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Cloud source not found",
+        )
+    if source.provider.value != "onedrive":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Only OneDrive synchronization is "
+                "implemented in this phase"
+            ),
+        )
+
+    try:
+        return synchronize_onedrive_source(
+            source,
+            cloud_source_repository,
+            download=download,
+        )
+    except OneDriveConfigurationError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        ) from exc
+    except OneDriveGraphError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=str(exc),
+        ) from exc
