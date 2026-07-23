@@ -84,8 +84,25 @@ from app.models.cloud_source import (
     CloudSourceType,
     OneDriveSourceFromUrlRequest,
 )
+from app.models.cloud_source_version import (
+    CloudSourceAcceptVersionResponse,
+    CloudSourceProjectIntakeRequest,
+    CloudSourceProjectIntakeResponse,
+    CloudSourceRefreshResponse,
+    CloudSourceVersion,
+    CloudSourceVersionListResponse,
+)
 from app.services.cloud_source_repository import (
     cloud_source_repository,
+)
+from app.services.cloud_source_version_repository import (
+    cloud_source_version_repository,
+)
+from app.services.cloud_source_lifecycle import (
+    CloudSourceLifecycleError,
+    accept_cloud_source_version,
+    intake_cloud_source_version,
+    refresh_cloud_source,
 )
 from app.services.onedrive_graph_adapter import (
     OneDriveConfigurationError,
@@ -2088,6 +2105,151 @@ def delete_cloud_source(
     return removed
 
 
+
+@router.get(
+    "/cloud-sources/{source_id}/versions",
+    response_model=CloudSourceVersionListResponse,
+)
+def list_cloud_source_versions(
+    source_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> CloudSourceVersionListResponse:
+    source = _get_cloud_source_or_404(source_id, account)
+    items = cloud_source_version_repository.list(source.id)
+    return CloudSourceVersionListResponse(
+        items=items,
+        total=len(items),
+        accepted_version_id=source.metadata.get(
+            "accepted_version_id"
+        ),
+        pending_version_id=source.metadata.get(
+            "pending_version_id"
+        ),
+    )
+
+
+@router.post(
+    "/cloud-sources/{source_id}/refresh",
+    response_model=CloudSourceRefreshResponse,
+)
+def refresh_cloud_source_route(
+    source_id: str,
+    download: bool = True,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> CloudSourceRefreshResponse:
+    source = _get_cloud_source_or_404(source_id, account)
+    try:
+        return refresh_cloud_source(
+            source,
+            cloud_source_repository,
+            cloud_source_version_repository,
+            download=download,
+        )
+    except OneDriveConfigurationError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        ) from exc
+    except OneDriveGraphError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=str(exc),
+        ) from exc
+    except CloudSourceLifecycleError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+
+def _get_cloud_source_version_or_404(
+    source: CloudSource,
+    version_id: str,
+) -> CloudSourceVersion:
+    version = cloud_source_version_repository.get(version_id)
+    if version is None or version.source_id != source.id:
+        raise HTTPException(
+            status_code=404,
+            detail="Cloud source version not found",
+        )
+    return version
+
+
+@router.post(
+    "/cloud-sources/{source_id}/versions/{version_id}/accept",
+    response_model=CloudSourceAcceptVersionResponse,
+)
+def accept_cloud_source_version_route(
+    source_id: str,
+    version_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> CloudSourceAcceptVersionResponse:
+    source = _get_cloud_source_or_404(source_id, account)
+    version = _get_cloud_source_version_or_404(
+        source,
+        version_id,
+    )
+    try:
+        return accept_cloud_source_version(
+            source,
+            version,
+            cloud_source_repository,
+            cloud_source_version_repository,
+        )
+    except CloudSourceLifecycleError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/cloud-sources/{source_id}/versions/{version_id}/intake",
+    response_model=CloudSourceProjectIntakeResponse,
+)
+def intake_cloud_source_version_route(
+    source_id: str,
+    version_id: str,
+    request: CloudSourceProjectIntakeRequest,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> CloudSourceProjectIntakeResponse:
+    source = _get_cloud_source_or_404(source_id, account)
+    version = _get_cloud_source_version_or_404(
+        source,
+        version_id,
+    )
+    target_project = (
+        _get_or_404(request.target_project_id, account)
+        if request.target_project_id
+        else None
+    )
+    try:
+        return intake_cloud_source_version(
+            source,
+            version,
+            cloud_source_repository,
+            cloud_source_version_repository,
+            project_store,
+            target_project=target_project,
+            owner_account_id=(
+                account.id if account else None
+            ),
+        )
+    except CloudSourceLifecycleError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+
 @router.get(
     "/cloud-sources/onedrive/status",
     response_model=OneDriveProviderStatus,
@@ -2122,10 +2284,22 @@ def sync_cloud_source(
         )
 
     try:
-        return synchronize_onedrive_source(
+        refreshed = refresh_cloud_source(
             source,
             cloud_source_repository,
+            cloud_source_version_repository,
             download=download,
+        )
+        return CloudSourceSyncResponse(
+            source=refreshed.source,
+            changed=refreshed.changed,
+            downloaded=refreshed.downloaded,
+            local_path=(
+                refreshed.version.local_path
+                if refreshed.downloaded
+                else None
+            ),
+            message=refreshed.message,
         )
     except OneDriveConfigurationError as exc:
         raise HTTPException(
@@ -2135,6 +2309,11 @@ def sync_cloud_source(
     except OneDriveGraphError as exc:
         raise HTTPException(
             status_code=502,
+            detail=str(exc),
+        ) from exc
+    except CloudSourceLifecycleError as exc:
+        raise HTTPException(
+            status_code=400,
             detail=str(exc),
         ) from exc
 

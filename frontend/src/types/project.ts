@@ -1147,3 +1147,60 @@ export interface CloudSourceSyncResult {
   localPath: string | null;
   message: string;
 }
+
+
+export type CloudSourceVersionState =
+  | "detected"
+  | "accepted"
+  | "superseded";
+
+export interface CloudSourceVersion {
+  id: string;
+  sourceId: string;
+  fingerprint: string;
+  state: CloudSourceVersionState;
+  displayName: string;
+  externalId: string;
+  webUrl: string;
+  mimeType: string | null;
+  etag: string | null;
+  checksumSha256: string | null;
+  sizeBytes: number | null;
+  localPath: string | null;
+  modifiedAtExternal: string | null;
+  detectedAt: string;
+  acceptedAt: string | null;
+  intakeProjectId: string | null;
+  intakeAt: string | null;
+  metadata: Record<string, string>;
+}
+
+export interface CloudSourceVersionList {
+  items: CloudSourceVersion[];
+  total: number;
+  acceptedVersionId: string | null;
+  pendingVersionId: string | null;
+}
+
+export interface CloudSourceRefreshResult {
+  source: CloudSource;
+  version: CloudSourceVersion;
+  changed: boolean;
+  duplicate: boolean;
+  downloaded: boolean;
+  message: string;
+}
+
+export interface CloudSourceAcceptVersionResult {
+  source: CloudSource;
+  version: CloudSourceVersion;
+  message: string;
+}
+
+export interface CloudSourceProjectIntakeResult {
+  source: CloudSource;
+  version: CloudSourceVersion;
+  project: ProjectSession;
+  createdProject: boolean;
+  message: string;
+}

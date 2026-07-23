@@ -38,6 +38,11 @@ import type {
   CloudSourceProvider,
   CloudSourceSyncResult,
   CloudSourceType,
+  CloudSourceVersion,
+  CloudSourceVersionList,
+  CloudSourceRefreshResult,
+  CloudSourceAcceptVersionResult,
+  CloudSourceProjectIntakeResult,
   OneDriveProviderStatus,
   CognitiveCategory,
   QuestionAssetInfo,
@@ -3249,6 +3254,155 @@ export async function syncCloudSource(
     changed: payload.changed,
     downloaded: payload.downloaded,
     localPath: payload.local_path,
+    message: payload.message,
+  };
+}
+
+interface ApiCloudSourceVersion {
+  id: string;
+  source_id: string;
+  fingerprint: string;
+  state: CloudSourceVersion["state"];
+  display_name: string;
+  external_id: string;
+  web_url: string;
+  mime_type: string | null;
+  etag: string | null;
+  checksum_sha256: string | null;
+  size_bytes: number | null;
+  local_path: string | null;
+  modified_at_external: string | null;
+  detected_at: string;
+  accepted_at: string | null;
+  intake_project_id: string | null;
+  intake_at: string | null;
+  metadata: Record<string, string>;
+}
+
+function fromApiCloudSourceVersion(
+  item: ApiCloudSourceVersion,
+): CloudSourceVersion {
+  return {
+    id: item.id,
+    sourceId: item.source_id,
+    fingerprint: item.fingerprint,
+    state: item.state,
+    displayName: item.display_name,
+    externalId: item.external_id,
+    webUrl: item.web_url,
+    mimeType: item.mime_type,
+    etag: item.etag,
+    checksumSha256: item.checksum_sha256,
+    sizeBytes: item.size_bytes,
+    localPath: item.local_path,
+    modifiedAtExternal: item.modified_at_external,
+    detectedAt: item.detected_at,
+    acceptedAt: item.accepted_at,
+    intakeProjectId: item.intake_project_id,
+    intakeAt: item.intake_at,
+    metadata: item.metadata,
+  };
+}
+
+export async function listCloudSourceVersions(
+  sourceId: string,
+): Promise<CloudSourceVersionList> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/cloud-sources/${sourceId}/versions`,
+    { headers: buildAuthHeaders() },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to list cloud source versions');
+  }
+  const payload = await response.json();
+  return {
+    items: payload.items.map(fromApiCloudSourceVersion),
+    total: payload.total,
+    acceptedVersionId: payload.accepted_version_id,
+    pendingVersionId: payload.pending_version_id,
+  };
+}
+
+export async function refreshCloudSourceVersion(
+  sourceId: string,
+  download = true,
+): Promise<CloudSourceRefreshResult> {
+  const params = new URLSearchParams({
+    download: String(download),
+  });
+  const response = await fetch(
+    `${API_BASE_URL}/projects/cloud-sources/${sourceId}/refresh?${params.toString()}`,
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.detail ?? 'Failed to refresh cloud source');
+  }
+  const payload = await response.json();
+  return {
+    source: fromApiCloudSource(payload.source),
+    version: fromApiCloudSourceVersion(payload.version),
+    changed: payload.changed,
+    duplicate: payload.duplicate,
+    downloaded: payload.downloaded,
+    message: payload.message,
+  };
+}
+
+export async function acceptCloudSourceVersion(
+  sourceId: string,
+  versionId: string,
+): Promise<CloudSourceAcceptVersionResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/cloud-sources/${sourceId}/versions/${versionId}/accept`,
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+    },
+  );
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.detail ?? 'Failed to accept cloud source version');
+  }
+  const payload = await response.json();
+  return {
+    source: fromApiCloudSource(payload.source),
+    version: fromApiCloudSourceVersion(payload.version),
+    message: payload.message,
+  };
+}
+
+export async function intakeCloudSourceVersion(
+  sourceId: string,
+  versionId: string,
+  targetProjectId: string | null,
+): Promise<CloudSourceProjectIntakeResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/cloud-sources/${sourceId}/versions/${versionId}/intake`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify({
+        target_project_id: targetProjectId,
+      }),
+    },
+  );
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.detail ?? 'Failed to intake cloud source version');
+  }
+  const payload = await response.json();
+  return {
+    source: fromApiCloudSource(payload.source),
+    version: fromApiCloudSourceVersion(payload.version),
+    project: fromApiProject(payload.project),
+    createdProject: payload.created_project,
     message: payload.message,
   };
 }

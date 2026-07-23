@@ -152,6 +152,22 @@ class CloudSourceRepository:
         if source is None:
             return None
         with self._connect() as connection:
+            version_table = connection.execute(
+                """
+                SELECT 1
+                FROM sqlite_master
+                WHERE type = 'table'
+                AND name = 'cloud_source_versions'
+                """
+            ).fetchone()
+            if version_table is not None:
+                connection.execute(
+                    """
+                    DELETE FROM cloud_source_versions
+                    WHERE source_id = ?
+                    """,
+                    (source_id,),
+                )
             connection.execute(
                 "DELETE FROM cloud_sources WHERE id = ?",
                 (source_id,),

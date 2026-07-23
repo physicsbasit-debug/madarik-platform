@@ -676,6 +676,14 @@ function openCloudSources() {
   setWorkspaceMode("cloud-sources");
 }
 
+function handleCloudProjectIntake(project: ProjectSession) {
+  hydrateProject(project);
+  setWorkspaceMode("professional");
+  void listProjects(50)
+    .then(setProjectLibrary)
+    .catch((error: unknown) => console.error(error));
+}
+
 function openScientificDiagrams() {
   setWorkspaceMode("scientific-diagrams");
 }
@@ -1981,6 +1989,7 @@ if (workspaceMode === "cloud-sources") {
     <CloudSources
       projectId={projectId}
       onReturnHome={returnToTaskHome}
+      onProjectIntake={handleCloudProjectIntake}
     />
   );
 }
