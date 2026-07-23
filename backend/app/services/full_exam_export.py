@@ -7,7 +7,7 @@ import re
 from typing import Iterable
 from zipfile import BadZipFile, ZipFile
 
-import arabic_reshaper
+from app.services.arabic_text import reshape_arabic
 from docx import Document
 from PIL import Image as PILImage
 from pypdf import PdfReader
@@ -49,6 +49,107 @@ def _active_questions(project: ProjectSession) -> list[QuestionItem]:
         ),
         key=lambda question: question.order_index,
     )
+
+
+_PDF_BIDI_CONTROL_RE = re.compile(
+    r"[\u200e\u200f\u202a-\u202e\u2066-\u2069]"
+)
+_PDF_DIGIT_TRANSLATION = str.maketrans(
+    "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹",
+    "01234567890123456789",
+)
+
+
+def _normalize_pdf_extracted_text(value: str) -> str:
+    normalized = value.translate(_PDF_DIGIT_TRANSLATION)
+    normalized = _PDF_BIDI_CONTROL_RE.sub("", normalized)
+    return normalized.replace("\u00a0", " ")
+
+
+def _pdf_heading_signatures(
+    extracted_text: str,
+) -> set[tuple[int, int]]:
+    """Extract stable ``question number + marks`` tokens from PDF text.
+
+    ReportLab/PDF readers may join, split, or reverse the RTL heading fragments.
+    The visible Arabic word is therefore deliberately ignored. The numeric
+    heading signature remains stable and does not collide with a body-only
+    marks token such as ``[2]``.
+    """
+
+    normalized = _normalize_pdf_extracted_text(extracted_text)
+    lines = [
+        re.sub(r"\s+", " ", line).strip()
+        for line in normalized.splitlines()
+        if line.strip()
+    ]
+    segments = list(lines)
+    segments.extend(
+        f"{lines[index]} {lines[index + 1]}"
+        for index in range(len(lines) - 1)
+    )
+
+    signatures: set[tuple[int, int]] = set()
+    for segment in segments:
+        compact = re.sub(r"\s+", "", segment)
+
+        for match in re.finditer(
+            r"(?<!\d)(?P<number>\d+)\[(?P<marks>\d+)\](?!\d)",
+            compact,
+        ):
+            signatures.add(
+                (
+                    int(match.group("number")),
+                    int(match.group("marks")),
+                )
+            )
+
+        for match in re.finditer(
+            r"(?<!\d)\[(?P<marks>\d+)\](?P<number>\d+)(?!\d)",
+            compact,
+        ):
+            signatures.add(
+                (
+                    int(match.group("number")),
+                    int(match.group("marks")),
+                )
+            )
+
+    return signatures
+
+
+def _pdf_question_heading_count(
+    project: ProjectSession,
+    extracted_text: str,
+) -> int:
+    """Count rendered PDF question headings across RTL extractor variants."""
+
+    normalized = _normalize_pdf_extracted_text(extracted_text)
+    exact_lines = {
+        re.sub(r"\s+", " ", line).strip()
+        for line in normalized.splitlines()
+        if line.strip()
+    }
+    signatures = _pdf_heading_signatures(normalized)
+    detected = 0
+
+    for display_number, question in enumerate(
+        _active_questions(project),
+        start=1,
+    ):
+        marks = question_export_total_marks(question)
+
+        if marks is not None:
+            if (display_number, marks) in signatures:
+                detected += 1
+            continue
+
+        # Unmarked headings have no safe number+marks signature. Preserve the
+        # conservative exact-line fallback used before this fix.
+        if str(display_number) in exact_lines:
+            detected += 1
+
+    return detected
 
 
 def _question_part_depth(
@@ -231,40 +332,122 @@ def _docx_question_headings(document: Document) -> tuple[list[int], int]:
     return order, marks_total
 
 
+def _resolve_pdf_object(value: object) -> object:
+    try:
+        return value.get_object()  # type: ignore[attr-defined]
+    except Exception:
+        return value
+
+
+def _pdf_object_identity(
+    reference: object,
+    object_value: object,
+) -> tuple[str, int, int] | tuple[str, int]:
+    if hasattr(reference, "idnum"):
+        return (
+            "reference",
+            int(reference.idnum),  # type: ignore[attr-defined]
+            int(getattr(reference, "generation", 0)),
+        )
+
+    indirect_reference = getattr(
+        object_value,
+        "indirect_reference",
+        None,
+    )
+    if indirect_reference is not None and hasattr(
+        indirect_reference,
+        "idnum",
+    ):
+        return (
+            "reference",
+            int(indirect_reference.idnum),
+            int(getattr(indirect_reference, "generation", 0)),
+        )
+
+    return ("object", id(object_value))
+
+
 def _pdf_image_count(reader: PdfReader) -> int:
-    image_count = 0
-    seen_references: set[tuple[int, int] | str] = set()
+    """Count visible PDF images across direct and nested Form XObjects.
+
+    PDF producers are free to place an image directly in page resources or
+    inside one or more Form XObjects. Alpha soft masks are also represented as
+    image XObjects but must not be counted as a separate exported attachment.
+    """
+
+    visible_images: set[
+        tuple[str, int, int] | tuple[str, int]
+    ] = set()
+    mask_images: set[
+        tuple[str, int, int] | tuple[str, int]
+    ] = set()
+    visited_forms: set[
+        tuple[str, int, int] | tuple[str, int]
+    ] = set()
+
+    def visit_resources(resources_value: object | None) -> None:
+        if resources_value is None:
+            return
+
+        resources = _resolve_pdf_object(resources_value)
+        if not hasattr(resources, "get"):
+            return
+
+        xobjects_value = resources.get("/XObject")  # type: ignore[attr-defined]
+        if xobjects_value is None:
+            return
+
+        xobjects = _resolve_pdf_object(xobjects_value)
+        if not hasattr(xobjects, "items"):
+            return
+
+        for _, reference in xobjects.items():  # type: ignore[attr-defined]
+            object_value = _resolve_pdf_object(reference)
+            if not hasattr(object_value, "get"):
+                continue
+
+            identity = _pdf_object_identity(
+                reference,
+                object_value,
+            )
+            subtype = object_value.get("/Subtype")  # type: ignore[attr-defined]
+
+            if subtype == "/Image":
+                if bool(
+                    object_value.get("/ImageMask")  # type: ignore[attr-defined]
+                ):
+                    mask_images.add(identity)
+                else:
+                    visible_images.add(identity)
+
+                soft_mask_reference = object_value.get(  # type: ignore[attr-defined]
+                    "/SMask"
+                )
+                if soft_mask_reference is not None:
+                    soft_mask = _resolve_pdf_object(
+                        soft_mask_reference
+                    )
+                    mask_images.add(
+                        _pdf_object_identity(
+                            soft_mask_reference,
+                            soft_mask,
+                        )
+                    )
+                continue
+
+            if subtype != "/Form" or identity in visited_forms:
+                continue
+
+            visited_forms.add(identity)
+            visit_resources(
+                object_value.get("/Resources")  # type: ignore[attr-defined]
+            )
 
     for page in reader.pages:
-        resources = page.get("/Resources")
-        if resources is None:
-            continue
-        resources = resources.get_object()
-        xobjects = resources.get("/XObject")
-        if xobjects is None:
-            continue
-        xobjects = xobjects.get_object()
+        visit_resources(page.get("/Resources"))
 
-        for name, reference in xobjects.items():
-            try:
-                object_value = reference.get_object()
-            except Exception:
-                continue
-            if object_value.get("/Subtype") != "/Image":
-                continue
-
-            identity: tuple[int, int] | str
-            if hasattr(reference, "idnum"):
-                identity = (reference.idnum, reference.generation)
-            else:
-                identity = str(name)
-
-            if identity in seen_references:
-                continue
-            seen_references.add(identity)
-            image_count += 1
-
-    return image_count
+    return len(visible_images - mask_images)
 
 
 def _metadata_value(metadata: object, key: str) -> str:
@@ -531,17 +714,17 @@ def _inspect_pdf(
             FullExamExportCheck(
                 code="pdf_question_headings",
                 passed=(
-                    sum(
-                        line.strip() == arabic_reshaper.reshape("السؤال")
-                        for line in extracted_text.splitlines()
+                    _pdf_question_heading_count(
+                        project,
+                        extracted_text,
                     )
                     == expected["questions"]
                 ),
                 message=(
                     "عدد عناوين الأسئلة المرئية داخل PDF مطابق للبنية المتوقعة."
-                    if sum(
-                        line.strip() == arabic_reshaper.reshape("السؤال")
-                        for line in extracted_text.splitlines()
+                    if _pdf_question_heading_count(
+                        project,
+                        extracted_text,
                     )
                     == expected["questions"]
                     else (

@@ -30,6 +30,8 @@ from app.services.export import (
 )
 from app.services.full_exam_export import (
     EXPORT_MANIFEST_PREFIX,
+    _pdf_image_count,
+    _pdf_question_heading_count,
     build_full_exam_export_report,
 )
 from app.services.session_store import project_store
@@ -168,6 +170,106 @@ def _full_exam_project(
     )
     return project
 
+
+
+class _FakePdfReference:
+    def __init__(
+        self,
+        idnum: int,
+        value: object,
+    ) -> None:
+        self.idnum = idnum
+        self.generation = 0
+        self._value = value
+
+    def get_object(self) -> object:
+        return self._value
+
+
+class _FakePdfPage(dict):
+    pass
+
+
+class _FakePdfReader:
+    def __init__(self, pages: list[_FakePdfPage]) -> None:
+        self.pages = pages
+
+
+def test_pdf_heading_count_handles_rtl_and_split_extraction() -> None:
+    project = _full_exam_project()
+
+    assert _pdf_question_heading_count(
+        project,
+        "\u202bالسؤال ١ [٢]\u202c\n"
+        "State the unit of force.\n"
+        "\u200f[٣] ٢\n",
+    ) == 2
+
+    assert _pdf_question_heading_count(
+        project,
+        "1\n[2]\n"
+        "State the unit of force.\n"
+        "2 [ 3 ]\n",
+    ) == 2
+
+
+def test_pdf_image_count_handles_nested_form_xobjects() -> None:
+    image = {"/Subtype": "/Image"}
+    image_reference = _FakePdfReference(30, image)
+    nested_resources = {
+        "/XObject": {
+            "/NestedImage": image_reference,
+        }
+    }
+    form = {
+        "/Subtype": "/Form",
+        "/Resources": nested_resources,
+    }
+    form_reference = _FakePdfReference(20, form)
+    reader = _FakePdfReader(
+        [
+            _FakePdfPage(
+                {
+                    "/Resources": {
+                        "/XObject": {
+                            "/Form": form_reference,
+                        }
+                    }
+                }
+            )
+        ]
+    )
+
+    assert _pdf_image_count(reader) == 1
+
+
+def test_pdf_image_count_excludes_soft_masks() -> None:
+    mask = {
+        "/Subtype": "/Image",
+        "/ImageMask": True,
+    }
+    mask_reference = _FakePdfReference(31, mask)
+    image = {
+        "/Subtype": "/Image",
+        "/SMask": mask_reference,
+    }
+    image_reference = _FakePdfReference(30, image)
+    reader = _FakePdfReader(
+        [
+            _FakePdfPage(
+                {
+                    "/Resources": {
+                        "/XObject": {
+                            "/Image": image_reference,
+                            "/Mask": mask_reference,
+                        }
+                    }
+                }
+            )
+        ]
+    )
+
+    assert _pdf_image_count(reader) == 1
 
 def test_docx_report_is_incomplete_until_requested_pdf_is_generated() -> None:
     project = _full_exam_project()

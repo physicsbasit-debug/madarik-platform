@@ -130,13 +130,313 @@
 - Excluded Render, Docker, CORS, and experimental Pages deployment changes.
 - Added focused safety checks for the merge package.
 
-### Final UX Stable Merge Test Alignment
+### Phase 0-A: V2 Scope, Architecture, and Data Contracts
 
-- Updated legacy UX assertions to match the approved export workspace redesign.
-- Updated the upload-zone assertion to accept its dynamic drag-state class.
-- Preserved all production UI and business logic without modification.
+- Locked Madarik V2 to science subjects for grades 1–12.
+- Declared quick translation, curriculum library, question bank, assessment builder, differentiated activities, and science diagrams as core workflows.
+- Declared Google Drive as the first cloud source and deferred OneDrive.
+- Added V2 architecture, roadmap, data contracts, decisions, and UI simplification plan.
+- Added a machine-readable V2 scope contract and focused tests.
+- No production UI, Backend logic, persistence, or API behavior was changed.
 
-### Final UX Stable Merge Fix 2
+### Phase 0-B: V2 Navigation and Task-Oriented Home
 
-- Aligned the remaining export-workspace assertions with the approved redesign class and title.
-- No production application code was changed.
+- Added a task-oriented V2 home for science teachers.
+- Added real entry points for quick and professional translation.
+- Added non-interactive roadmap cards for future V2 modules.
+- Added a return-to-tasks control from the current workspace.
+- Added responsive RTL styling and focused tests.
+- No Backend, API, persistence, extraction, translation, or export logic was changed.
+
+### Phase 1: Quick Translation Workflow
+
+- Added a dedicated quick translation workspace.
+- Added one-action orchestration for parsing, translation, and readiness checks.
+- Added direct transitions to professional review and export.
+- Added clear extraction, processing, and readiness states.
+- Repaired the Phase 0-B ScienceTaskHome import placement in App.tsx.
+- Added responsive RTL styling, documentation, and focused tests.
+- No Backend API contract, persistence model, or export implementation was changed.
+
+### Phase 2: Curriculum Structure for Grades 1–12
+
+- Added curriculum types for grades, semesters, science subjects, units, lessons, and learning outcomes.
+- Added a local science curriculum seed covering the structural range from grades 1 to 12.
+- Added a repository boundary so UI components do not import seed content directly.
+- Added a responsive RTL curriculum browser.
+- Activated the curriculum library card on the V2 task home.
+- Added documentation and focused tests.
+- No Google Drive, Backend persistence, or official curriculum content was added.
+
+### Phase 3-A: Google Drive Source Foundation
+
+- Added read-only Google Drive source models, service, and API routes.
+- Added disabled, mock, and Google API provider modes.
+- Added safe status reporting without exposing access tokens.
+- Added folder-scoped file listing and import foundation.
+- Added a Google Drive source panel inside the curriculum browser.
+- Repaired the malformed CurriculumBrowser import from Phase 2.
+- Added documentation and focused tests.
+- No OAuth flow, project persistence, question bank, or OneDrive integration was added.
+
+### Phase 3-B: Curriculum Source Persistence
+
+- Added persistent curriculum source attachments to projects.
+- Added curriculum context metadata and duplicate protection.
+- Added list, attach, and delete API operations.
+- Added persisted source display and unlinking in the curriculum browser.
+- No binary persistence, automatic parsing, source sync, or question linking was added.
+
+### Phase 3-C: Source Version Tracking
+
+- Added current, changed, missing, and unverifiable source states.
+- Added checksum-first and modified-time fallback comparison.
+- Added project-level source refresh checks.
+- Added per-source status metadata and frontend badges.
+- No automatic download, replacement, polling, or content reprocessing was added.
+
+### Phase 3-D: Accept Updated Source and Preserve Version History
+
+- Added manual acceptance of changed Google Drive source versions.
+- Added metadata history for previous source versions.
+- Added version history display in the curriculum source panel.
+- Updated README with the current V2 status and next phase.
+- No automatic replacement, content reprocessing, or version restoration was added.
+
+### Phase 4-A: Science Question Classification Foundation
+
+- Added knowledge, application, reasoning, and unclassified categories.
+- Added classification confidence, reason, and source fields.
+- Added deterministic automatic classification and manual override.
+- Added classification controls to the existing question review screen.
+- Reused the current question update API.
+- Updated README with the current V2 status.
+- No bulk classification, curriculum linking, difficulty estimation, or question bank was added.
+
+### Phase 4-B: Curriculum Linking and Classification Review
+
+- Added curriculum-link fields to questions and question patches.
+- Added grade, domain, semester, subject, unit, lesson, and learning-outcome selection.
+- Added a curriculum-link card to the existing question review screen.
+- Added review summary counts for complete, unclassified, and unlinked questions.
+- Repaired the malformed Phase 4-A import in ReviewStep.
+- Updated README with the current V2 status.
+- No AI linking, bulk linking, official curriculum import, or question-bank insertion was added.
+
+### Phase 5-A: Question Bank Data Model and Persistence
+
+- Added a dedicated SQLite question-bank table and repository.
+- Added full question snapshots with content fingerprints.
+- Added project-scoped list, save/update, and delete API routes.
+- Added question-bank controls to the review screen.
+- Prevented duplicate rows for the same project question.
+- Repaired the misplaced Phase 4-B review summary.
+- Updated README with the current V2 status.
+- No cross-project search, advanced filters, question reuse, or assessment generation was added.
+
+### Phase 5-B: Question Bank Library, Search, and Filters
+
+- Added global question-bank search and item detail APIs.
+- Added text, grade, science-domain, unit, and cognitive-category filters.
+- Added an owner-aware question-bank library workspace.
+- Activated the question-bank card on the V2 task home.
+- Added result preview and deletion.
+- Updated README with the current V2 status.
+- No question reuse, multi-select, assessment generation, or bank sharing was added.
+
+### Phase 5-C: Reuse Question Bank Items in Projects
+
+- Added safe cloning of question-bank items into the current project.
+- Added fresh question, part, and attachment IDs.
+- Preserved classification, curriculum links, options, marks, and embedded assets.
+- Cleared source-project layout and page references.
+- Added duplicate protection for the same bank item within a project.
+- Added reuse controls and project-state updates in the question-bank library.
+- Updated README with the current V2 status.
+- No multi-project target picker, bulk reuse, synchronization, or assessment generation was added.
+
+### Phase 6-A: Assessment Blueprint and Test Builder Foundation
+
+- Added persistent SQLite assessment drafts.
+- Added assessment blueprint targets for marks, question count, duration, curriculum context, and cognitive distribution.
+- Added add/remove operations for question-bank items.
+- Added live assessment balance calculations.
+- Activated the assessment-builder card and workspace.
+- Updated README.
+- No automatic selection, ordering, export, answer key, or assessment versioning was added.
+
+### Phase 6-B: Automatic Question Selection and Blueprint Validation
+
+- Added automatic question selection by blueprint.
+- Added shortage reporting and strict readiness validation.
+- Added builder controls and validation summary.
+- Updated README.
+
+### Phase 6-C: Assessment Ordering, Sections, and Manual Marks
+
+- Added persistent assessment sections.
+- Added per-question order, section assignment, and mark overrides.
+- Added a layout update API and backward-compatible normalization.
+- Updated assessment totals to use effective assessment marks.
+- Added ordering and section controls to the assessment builder.
+- Rewrote README to describe Madarik as an end-to-end Arabic science content and assessment platform.
+- No student-paper preview or DOCX/PDF export was added.
+
+### Phase 6-D: Student Paper Preview and Assessment Export Foundation
+
+- Added structured student-paper preview models and service.
+- Added section-based question rendering with marks and instructions.
+- Added a separate answer-sheet preview.
+- Added export-readiness checks.
+- Added foundational DOCX and PDF export endpoints.
+- Added student preview and export controls to the assessment builder.
+- Updated README while preserving the new end-to-end platform description.
+- Native formatted DOCX and PDF generation remains deferred.
+
+### Phase 6-E: Native DOCX and PDF Assessment Export
+
+- Replaced text foundations with native DOCX and PDF files.
+- Added RTL DOCX structure with sections, marks, answer spaces, and answer sheet.
+- Added native PDF generation.
+- Added browser file downloads.
+- Blocked final export when assessment readiness checks fail.
+- Updated README with the current V2 status.
+- No school branding or answer-key generation was added.
+
+### Phase 7-A: Differentiated Science Activities Foundation
+
+- Added persistent differentiated activities.
+- Added support, core, and extension levels.
+- Added create, list, and delete APIs.
+- Activated the RTL differentiated-activities workspace.
+- Updated README.
+
+
+### Phase 7-B: Generate Differentiated Activities from Curriculum and Questions
+
+- Added deterministic support, core, and extension activity generation.
+- Added optional question-bank context.
+- Added distinct scaffolding, challenge, criteria, and timing.
+- Added direct persistence of all three activities.
+- Added generation controls to the differentiated-activities workspace.
+- Updated README.
+- No external AI provider or activity export was added.
+
+
+### Phase 7-C: Differentiated Activity Preview and Export
+
+- Added structured differentiated-activity preview.
+- Added activity level, objective, instructions, criteria, materials, and work space.
+- Added native RTL DOCX export.
+- Added native PDF export.
+- Added browser downloads and readiness checks.
+- Updated README and closed the differentiated-activities workflow.
+
+
+### Phase 8-A: Scientific Diagram Data Model and Workspace Foundation
+
+- Added persistent scientific-diagram models and SQLite storage.
+- Added six diagram types.
+- Added nodes and directed edges.
+- Added list, create, and delete APIs.
+- Activated a dedicated RTL diagram workspace.
+- Updated README.
+- No automatic generation or SVG export was added.
+
+
+### Phase 8-B: Scientific Diagram Preview and SVG Rendering
+
+- Added deterministic positioning for six diagram types.
+- Added SVG rendering for nodes, arrows, and edge labels.
+- Added browser preview and SVG download.
+- Added readiness validation.
+- Updated README.
+- No PNG/PDF export or drag editing was added.
+
+
+### Phase 8-C: Scientific Diagram PNG and PDF Export
+
+- Added native PNG conversion from SVG.
+- Added native PDF conversion from SVG.
+- Added browser downloads.
+- Added export-readiness blocking.
+- Reused the existing SVG renderer as the single source of truth.
+- Updated README and closed the scientific-diagram workflow.
+
+
+### Phase 9-A: Cloud Source Expansion and OneDrive Foundation
+
+- Added a unified cloud-source model.
+- Added Google Drive and OneDrive provider types.
+- Added OneDrive and SharePoint URL parsing.
+- Added SQLite persistence and cloud-source APIs.
+- Added a dedicated RTL workspace.
+- Updated README.
+- No OAuth, Microsoft Graph, or file synchronization was added.
+
+
+### Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter
+
+- Added environment-based OneDrive app credentials.
+- Added OAuth client-credentials token acquisition.
+- Added Microsoft Graph driveItem metadata lookup.
+- Added ETag change detection and optional file download.
+- Added provider-status and source-sync APIs.
+- Added sync and download controls.
+- Kept the adapter disabled by default.
+
+### Comprehensive Repair Package
+
+- Restored backward-compatible Google Drive cloud-source contracts.
+- Repaired static FastAPI route ordering and resource ownership checks.
+- Repaired differentiated activity persistence and assessment preview/export state.
+- Fixed frontend imports and missing TypeScript API type imports.
+- Replaced unsafe SVG inner HTML rendering.
+- Added safe cross-platform export filenames.
+- Corrected OneDrive share-link addressing and removed app-only `/me` usage.
+- Preserved cloud-source primary keys during upsert.
+- Removed duplicate dependency pins and generated SQLite data.
+- Updated stale tests and added comprehensive regression coverage.
+
+
+### Phase 9-C: Cloud Source Refresh, Version History, and Project Intake
+
+- Added persistent cloud-source version history.
+- Added content fingerprints, SHA-256 checksums, and version states.
+- Added first-version baseline acceptance and manual later-version acceptance.
+- Added PDF project intake from accepted downloaded versions.
+- Added version, refresh, acceptance, and intake APIs.
+- Added version-history and project-intake controls to the RTL workspace.
+- Added source-version cleanup when a cloud source is deleted.
+- Updated README and closed the cloud-source workflow.
+
+
+### Phase 9-C Fix 1: Repository Hygiene and Version Fingerprint Stability
+
+- Stabilized cloud-source version identity across metadata-only and downloaded refreshes.
+- Kept SHA-256 and file size as verification data instead of download-controlled identity fields.
+- Reused and enriched an existing version when the remote ETag and modification timestamp are unchanged.
+- Added regression tests for `download=true → false` and `download=false → true`.
+- Removed the generated SQLite database from the clean full-source package.
+- Updated README status to Phase 9-C Fix 1 and Phase 10-A next.
+
+
+### Phase 10-A: Release Hardening and End-to-End Acceptance
+
+- Added centralized release metadata for Backend version, channel, and phase.
+- Added a safe `/api/health/readiness` endpoint with database, schema, writable-directory, and provider checks.
+- Added explicit technical-ready, degraded, and blocked readiness states without exposing secrets or runtime paths.
+- Added a deterministic repository audit covering generated files, secrets, version consistency, root-path hygiene, OpenAPI operation IDs, and readiness smoke.
+- Added local end-to-end release acceptance across PDF processing, translation, DOCX/PDF export, question bank, assessment, differentiated activities, scientific diagrams, and mocked cloud-source intake.
+- Expanded GitHub Actions to run on `feat/madarik-science-platform-v2`, `main`, and pull requests to `main`.
+- Added focused Phase 10-A tests before the full Backend suite and Frontend lint/build.
+- Preserved the live external-provider Cambridge acceptance and visual DOCX/PDF review as explicit production blockers.
+
+
+### Phase 10-A Fix 1: PDF Acceptance Stability
+
+- Made PDF question-heading detection tolerant of RTL controls, Arabic-Indic digits, reversed heading fragments, and split extraction lines.
+- Counted image XObjects recursively through nested Form XObjects.
+- Excluded image masks and alpha soft masks from exported attachment totals.
+- Pinned ReportLab to `4.4.9`, the version used by the passing local full suite.
+- Added regression tests for nested images, masks, and RTL/split question headings.

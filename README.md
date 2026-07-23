@@ -5,20 +5,21 @@
 ## الحالة الحالية
 
 - الإصدار البرمجي: `2.0.0-rc.1`
-- آخر مرحلة مدمجة: `Phase 4-B1: Real AI Translation Acceptance`
-- الحالة التقنية: ناجحة في الاختبارات والبناء
-- القبول الإنتاجي النهائي: معلّق حتى نجاح ترجمة ورقة Cambridge كاملة باستخدام مزود ذكاء اصطناعي حقيقي
-- المرحلة التالية: `Final Release Candidate`
+- فرع التطوير: `feat/madarik-science-platform-v2`
+- آخر مرحلة مكتملة: `Phase 10-A: Release Hardening and End-to-End Acceptance`
+- الحالة التقنية الحالية: `Phase 10-A Fix 1` لتثبيت قبول PDF بين بيئات التشغيل
+- المتبقي قبل الإصدار الإنتاجي: نجاح GitHub Actions، ثم اختبار مزود خارجي حقيقي ومراجعة DOCX/PDF بصريًا
 
-### خط الأساس المختبر
+### بوابة الاعتماد الحالية
 
-- اختبارات Phase 4-B1 المركزة: `58 passed`
-- اختبارات Backend الكاملة: `245 passed`
-- Frontend lint: ناجح
-- Frontend production build: ناجح
-- بوابة Phase 4-B1: ناجحة
+يُعتمد هذا الفرع فقط بعد نجاح:
 
-> نجاح الاختبارات التقنية لا يعني اكتمال القبول الإنتاجي. يجب التأكد من أن الترجمة ناتجة من مزود خارجي حقيقي وليست من مسار `fallback`.
+- اختبارات Backend الكاملة.
+- Frontend lint.
+- TypeScript وVite production build.
+- فحوص الصلاحيات والملكية.
+- فحوص تصدير DOCX وPDF وPNG وSVG.
+- فحوص توافق Google Drive وOneDrive دون كسر العقود القديمة.
 
 ## ماذا تفعل المنصة؟
 
@@ -297,3 +298,113 @@ docs/PHASE_4_B1_REAL_AI_TRANSLATION_ACCEPTANCE.md
 ## ملاحظة التطوير
 
 يجب أن تمر التعديلات الجديدة عبر الاختبارات المركزة والاختبارات الكاملة وبناء الواجهة قبل الدمج. أي تحسين لا يدخل في نطاق الإغلاق الحالي يُرحّل إلى إصدار لاحق بدل توسيع النسخة المرشحة بلا نهاية.
+
+## ما هي منصة مدارك؟
+
+**منصة مدارك** هي منصة عربية متخصصة في تحويل المحتوى والاختبارات العلمية
+الأجنبية إلى موارد تعليمية عربية قابلة للمراجعة وإعادة الاستخدام وبناء
+التقويمات منها. لا تتعامل المنصة مع الترجمة بوصفها استبدال كلمات فقط، بل
+تدير دورة العمل التعليمية كاملة من المصدر حتى الاختبار النهائي.
+
+تبدأ الرحلة من رفع ملف PDF أو ربط مصدر سحابي، ثم استخراج النص وتقسيمه إلى
+أسئلة وأجزاء، وإنشاء قاموس علمي، وترجمة المحتوى مع الحفاظ على الرموز
+والمعادلات والرسوم. بعد ذلك يراجع المعلم السؤال، ويصنفه معرفيًا، ويربطه
+بالصف والمادة والوحدة والدرس ونواتج التعلم.
+
+الأسئلة المعتمدة تُحفظ في **بنك أسئلة دائم** يمكن البحث فيه وتصفيته وإعادة
+استخدام عناصره داخل مشاريع أخرى. ومن البنك ينتقل المستخدم إلى **منشئ
+الاختبارات** الذي يعتمد جدول مواصفات يوازن بين المعرفة والتطبيق
+والاستدلال، ويختار الأسئلة آليًا أو يدويًا، ثم يسمح بترتيبها داخل أقسام
+وتعديل درجاتها قبل التصدير في المراحل اللاحقة.
+
+### الفكرة الجديدة للبرنامج
+
+الفكرة الجديدة هي أن مدارك لم تعد مجرد أداة ترجمة اختبارات، بل أصبحت
+**منظومة إدارة محتوى وتقويم علمي** تربط خمسة مسارات في مكان واحد:
+
+1. استيراد المصادر العلمية ومتابعة نسخها.
+2. الترجمة العلمية والمراجعة البصرية واللغوية.
+3. التصنيف المعرفي والربط بالمنهج ونواتج التعلم.
+4. بناء بنك أسئلة منظم وقابل لإعادة الاستخدام.
+5. إنشاء اختبارات متوازنة وفق جدول مواصفات واضح.
+
+تستهدف المنصة معلمي العلوم والفيزياء والكيمياء والأحياء، والمشرفين
+التربويين، وفرق إعداد الاختبارات والمحتوى العربي. وتبقى قرارات الاعتماد
+النهائية بيد المعلم؛ فالاختيار والتصنيف الآليان أدوات مساعدة وليسا بديلًا
+عن الحكم التربوي.
+
+## Madarik Science Platform V2 Status
+
+Development branch:
+
+```text
+feat/madarik-science-platform-v2
+```
+
+Completed V2 phases:
+
+- Phase 0-A: Scope, architecture, and data contracts.
+- Phase 0-B: Task-oriented home.
+- Phase 1: Quick translation workflow.
+- Phase 2: Curriculum structure for grades 1–12.
+- Phase 3-A: Google Drive source foundation.
+- Phase 3-B: Curriculum source persistence.
+- Phase 3-C: Source refresh detection.
+- Phase 3-D: Source Version History and Manual Update Acceptance.
+- Phase 4-A: Science Question Classification Foundation.
+- Phase 4-B: Curriculum Linking and Classification Review.
+- Phase 5-A: Question Bank Data Model and Persistence.
+- Phase 5-B: Question Bank Library, Search, and Filters.
+- Phase 5-C: Reuse Question Bank Items in Projects.
+- Phase 6-A: Assessment Blueprint and Test Builder Foundation.
+- Phase 6-B: Automatic Question Selection and Blueprint Validation.
+- Phase 6-C: Assessment Ordering, Sections, and Manual Marks.
+- Phase 6-D: Student Paper Preview and Assessment Export Foundation.
+- Phase 6-E: Native DOCX and PDF Assessment Export.
+- Phase 7-A: Differentiated Science Activities Foundation.
+- Phase 7-B: Generate Differentiated Activities from Curriculum and Questions.
+- Phase 7-C: Differentiated Activity Preview and Export.
+- Phase 8-A: Scientific Diagram Data Model and Workspace Foundation.
+- Phase 8-B: Scientific Diagram Preview and SVG Rendering.
+- Phase 8-C: Scientific Diagram PNG and PDF Export.
+- Phase 9-A: Cloud Source Expansion and OneDrive Foundation.
+- Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter.
+- Phase 9-C: Cloud Source Refresh, Version History, and Project Intake.
+
+Phase 9-C adds:
+
+- persistent cloud-source version history;
+- content fingerprints and SHA-256 checksums;
+- first-version baseline acceptance;
+- manual acceptance for later versions;
+- accepted, detected, and superseded states;
+- PDF project intake from an accepted downloaded version;
+- creation of a new project when no target project is selected;
+- ownership-safe version, acceptance, and intake APIs.
+
+The cloud-source workflow is now functionally closed.
+
+Phase 9-C Fix 1 adds:
+
+- stable version identity independent of the download flag;
+- checksum enrichment without creating a false cloud-source version;
+- regression coverage for download-to-metadata and metadata-to-download refreshes;
+- repository-package cleanup for the generated SQLite file.
+
+Phase 10-A adds:
+
+- a safe `/api/health/readiness` runtime report;
+- centralized release version and phase metadata;
+- SQLite schema, writable-data, export-directory, and provider checks;
+- a repository, secret, version, OpenAPI, and readiness audit script;
+- local end-to-end acceptance across PDF intake, parsing, translation, export,
+  question bank, assessment, differentiated activities, scientific diagrams,
+  and mocked cloud-source intake;
+- GitHub Actions coverage for the active development branch and `main` pull
+  requests;
+- explicit separation between technical readiness and the remaining live
+  external-provider acceptance.
+
+The technical release gate is now defined. Production release remains blocked
+until a real external provider translates a full Cambridge paper and the DOCX
+and PDF outputs pass visual review.
