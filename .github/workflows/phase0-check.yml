@@ -1,4 +1,4 @@
-name: Phase 10-A Release Gate
+name: Phase 10-B Final RC Gate
 
 on:
   push:
@@ -14,12 +14,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: phase10-a-release-gate-${{ github.ref }}
+  group: phase10-b-final-rc-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  release-gate:
-    name: Release readiness and end-to-end acceptance
+  final-rc-gate:
+    name: Final release candidate consolidation
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -60,19 +60,33 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r backend/requirements.txt
 
-      - name: Repository and OpenAPI release audit
+      - name: Phase 10-B final RC preflight
         run: |
-          python RUN_PHASE10_A_RELEASE_AUDIT.py --repository-root .
+          python RUN_PHASE10_B_RC_PREFLIGHT.py \
+            --repository-root . \
+            --json-output "$RUNNER_TEMP/phase10b-preflight.json"
+
+      - name: Upload RC preflight report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase10b-preflight-${{ github.run_number }}
+          path: ${{ runner.temp }}/phase10b-preflight.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Python syntax
-        run: |
-          python -m compileall -q backend/app backend/tests
+        run: python -m compileall -q backend/app backend/tests
 
-      - name: Phase 10-A focused acceptance
+      - name: Backend dependency consistency
+        run: python -m pip check
+
+      - name: Phase 10-B focused acceptance
         run: |
           PYTHONPATH=backend python -m pytest -q \
             backend/tests/test_phase10_a_release_readiness.py \
-            backend/tests/test_phase10_a_end_to_end_acceptance.py
+            backend/tests/test_phase10_a_end_to_end_acceptance.py \
+            backend/tests/test_phase10_b_release_candidate.py
 
       - name: Backend full test suite
         run: |
