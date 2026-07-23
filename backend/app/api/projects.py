@@ -75,6 +75,18 @@ from app.services.scientific_diagram_renderer import (
 from app.services.scientific_diagram_repository import (
     scientific_diagram_repository,
 )
+from app.models.cloud_source import (
+    CloudSource,
+    CloudSourceCreateRequest,
+    CloudSourceListResponse,
+    CloudSourceType,
+)
+from app.services.cloud_source_repository import (
+    cloud_source_repository,
+)
+from app.services.onedrive_source_parser import (
+    parse_onedrive_source_url,
+)
 from app.models.project import (
     ExportFormat,
     ExtractedPdfPageInfo,
@@ -1907,3 +1919,28 @@ def export_scientific_diagram_file(
         media_type=media_type,
         filename=result.filename,
     )
+
+
+@router.get("/cloud-sources", response_model=CloudSourceListResponse)
+def list_cloud_sources(provider: str | None = None, source_project_id: str | None = None, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> CloudSourceListResponse:
+    items = cloud_source_repository.list(owner_account_id=account.id if account else None, provider=provider, source_project_id=source_project_id)
+    return CloudSourceListResponse(items=items, total=len(items))
+
+@router.post("/cloud-sources", response_model=CloudSource)
+def create_cloud_source(payload: CloudSourceCreateRequest, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> CloudSource:
+    return cloud_source_repository.create(payload, owner_account_id=account.id if account else None)
+
+@router.post("/cloud-sources/onedrive/from-url", response_model=CloudSource)
+def create_onedrive_source_from_url(web_url: str, display_name: str, source_project_id: str | None = None, source_type: CloudSourceType = CloudSourceType.file, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> CloudSource:
+    try:
+        payload = parse_onedrive_source_url(web_url=web_url, display_name=display_name, source_project_id=source_project_id, source_type=source_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return cloud_source_repository.create(payload, owner_account_id=account.id if account else None)
+
+@router.delete("/cloud-sources/{source_id}", response_model=CloudSource)
+def delete_cloud_source(source_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> CloudSource:
+    source = cloud_source_repository.delete(source_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="Cloud source not found")
+    return source

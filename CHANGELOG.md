@@ -362,3 +362,14 @@
 - Added export-readiness blocking.
 - Reused the existing SVG renderer as the single source of truth.
 - Updated README and closed the scientific-diagram workflow.
+
+
+### Phase 9-A: Cloud Source Expansion and OneDrive Foundation
+
+- Added a unified cloud-source model.
+- Added Google Drive and OneDrive provider types.
+- Added OneDrive and SharePoint URL parsing.
+- Added SQLite persistence and cloud-source APIs.
+- Added a dedicated RTL workspace.
+- Updated README.
+- No OAuth, Microsoft Graph, or file synchronization was added.

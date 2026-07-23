@@ -1,53 +1,55 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-
+from uuid import uuid4
 from pydantic import BaseModel, Field
 
-
-class CloudProvider(str, Enum):
+class CloudSourceProvider(str, Enum):
     google_drive = "google_drive"
+    onedrive = "onedrive"
 
+class CloudSourceType(str, Enum):
+    file = "file"
+    folder = "folder"
 
-class CloudSourceAccessScope(str, Enum):
-    read_only = "read_only"
+class CloudSourceSyncStatus(str, Enum):
+    pending = "pending"
+    ready = "ready"
+    changed = "changed"
+    error = "error"
 
+class CloudSource(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    owner_account_id: str | None = None
+    source_project_id: str | None = None
+    provider: CloudSourceProvider
+    source_type: CloudSourceType = CloudSourceType.file
+    display_name: str
+    external_id: str
+    web_url: str
+    parent_external_id: str | None = None
+    mime_type: str | None = None
+    etag: str | None = None
+    modified_at_external: datetime | None = None
+    sync_status: CloudSourceSyncStatus = CloudSourceSyncStatus.pending
+    last_checked_at: datetime | None = None
+    last_error: str | None = None
+    metadata: dict[str, str] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class CloudSourceFile(BaseModel):
-    id: str
-    provider: CloudProvider = CloudProvider.google_drive
-    file_name: str
-    mime_type: str
-    size_bytes: int | None = None
-    web_url: str | None = None
-    folder_id: str | None = None
-    modified_at: datetime | None = None
-    checksum: str | None = None
-    access_scope: CloudSourceAccessScope = CloudSourceAccessScope.read_only
-
-
-class CloudSourceStatus(BaseModel):
-    provider: CloudProvider = CloudProvider.google_drive
-    mode: str
-    configured: bool
-    ready: bool
-    reason: str
-    folder_configured: bool
-    token_configured: bool
-    supported_mime_types: list[str]
-    read_only: bool = True
-
+class CloudSourceCreateRequest(BaseModel):
+    source_project_id: str | None = None
+    provider: CloudSourceProvider
+    source_type: CloudSourceType = CloudSourceType.file
+    display_name: str
+    external_id: str
+    web_url: str
+    parent_external_id: str | None = None
+    mime_type: str | None = None
+    etag: str | None = None
+    modified_at_external: datetime | None = None
+    metadata: dict[str, str] = Field(default_factory=dict)
 
 class CloudSourceListResponse(BaseModel):
-    status: CloudSourceStatus
-    files: list[CloudSourceFile] = Field(default_factory=list)
-
-
-class CloudSourceImportRequest(BaseModel):
-    file_id: str = Field(min_length=1, max_length=256)
-
-
-class CloudSourceImportResult(BaseModel):
-    source: CloudSourceFile
-    downloaded: bool
-    byte_count: int
-    message: str
+    items: list[CloudSource]
+    total: int

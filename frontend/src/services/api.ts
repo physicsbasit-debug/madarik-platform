@@ -3108,3 +3108,39 @@ export async function exportScientificDiagramFile(
     issues: [],
   };
 }
+
+
+interface ApiCloudSource {
+  id: string; owner_account_id: string | null; source_project_id: string | null;
+  provider: CloudSourceProvider; source_type: CloudSourceType; display_name: string;
+  external_id: string; web_url: string; parent_external_id: string | null;
+  mime_type: string | null; etag: string | null; modified_at_external: string | null;
+  sync_status: CloudSource["syncStatus"]; last_checked_at: string | null;
+  last_error: string | null; metadata: Record<string,string>; created_at: string; updated_at: string;
+}
+function fromApiCloudSource(item: ApiCloudSource): CloudSource {
+  return { id:item.id, ownerAccountId:item.owner_account_id, sourceProjectId:item.source_project_id,
+    provider:item.provider, sourceType:item.source_type, displayName:item.display_name,
+    externalId:item.external_id, webUrl:item.web_url, parentExternalId:item.parent_external_id,
+    mimeType:item.mime_type, etag:item.etag, modifiedAtExternal:item.modified_at_external,
+    syncStatus:item.sync_status, lastCheckedAt:item.last_checked_at, lastError:item.last_error,
+    metadata:item.metadata, createdAt:item.created_at, updatedAt:item.updated_at };
+}
+export async function listCloudSources(provider?: CloudSourceProvider): Promise<CloudSource[]> {
+  const params = new URLSearchParams(); if (provider) params.set('provider', provider);
+  const response = await fetch(`${API_BASE_URL}/projects/cloud-sources?${params.toString()}`, {headers:buildAuthHeaders()});
+  if (!response.ok) throw new Error('Failed to list cloud sources');
+  const payload = await response.json(); return payload.items.map(fromApiCloudSource);
+}
+export async function createOneDriveSourceFromUrl(input:{webUrl:string;displayName:string;sourceProjectId?:string|null;sourceType?:CloudSourceType;}):Promise<CloudSource>{
+  const params = new URLSearchParams({web_url:input.webUrl,display_name:input.displayName,source_type:input.sourceType??'file'});
+  if(input.sourceProjectId) params.set('source_project_id',input.sourceProjectId);
+  const response = await fetch(`${API_BASE_URL}/projects/cloud-sources/onedrive/from-url?${params.toString()}`,{method:'POST',headers:buildAuthHeaders()});
+  if(!response.ok) throw new Error('Failed to create OneDrive source');
+  return fromApiCloudSource(await response.json());
+}
+export async function deleteCloudSource(sourceId:string):Promise<CloudSource>{
+  const response = await fetch(`${API_BASE_URL}/projects/cloud-sources/${sourceId}`,{method:'DELETE',headers:buildAuthHeaders()});
+  if(!response.ok) throw new Error('Failed to delete cloud source');
+  return fromApiCloudSource(await response.json());
+}

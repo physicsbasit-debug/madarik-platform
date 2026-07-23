@@ -1084,3 +1084,29 @@ export interface ScientificDiagramSvgExportResult {
   exportReady: boolean;
   issues: string[];
 }
+
+
+export type CloudSourceProvider = "google_drive" | "onedrive";
+export type CloudSourceType = "file" | "folder";
+export type CloudSourceSyncStatus = "pending" | "ready" | "changed" | "error";
+
+export interface CloudSource {
+  id: string;
+  ownerAccountId: string | null;
+  sourceProjectId: string | null;
+  provider: CloudSourceProvider;
+  sourceType: CloudSourceType;
+  displayName: string;
+  externalId: string;
+  webUrl: string;
+  parentExternalId: string | null;
+  mimeType: string | null;
+  etag: string | null;
+  modifiedAtExternal: string | null;
+  syncStatus: CloudSourceSyncStatus;
+  lastCheckedAt: string | null;
+  lastError: string | null;
+  metadata: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+}

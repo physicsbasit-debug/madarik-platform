@@ -365,20 +365,20 @@ Completed V2 phases:
 - Phase 7-C: Differentiated activity preview and export.
 - Phase 8-A: Scientific diagram data model and workspace foundation.
 - Phase 8-B: Scientific diagram preview and SVG rendering.
-- Phase 8-C: Scientific Diagram PNG and PDF Export.
+- Phase 8-C: Scientific diagram PNG and PDF export.
+- Phase 9-A: Cloud Source Expansion and OneDrive Foundation.
 
-Phase 8-C adds:
+Phase 9-A adds:
 
-- native PNG conversion from SVG;
-- native PDF conversion from SVG;
-- browser downloads;
-- export-readiness checks;
-- shared rendering logic across SVG, PNG, and PDF.
-
-The scientific-diagram workflow is now functionally closed.
+- a unified cloud-source model;
+- Google Drive and OneDrive provider types;
+- OneDrive and SharePoint URL parsing;
+- external identity, URL, ETag, metadata, and sync state;
+- persistent SQLite storage;
+- a dedicated RTL cloud-source workspace.
 
 Next planned phase:
 
 ```text
-Phase 9-A: Cloud Source Expansion and OneDrive Foundation
+Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter
 ```
