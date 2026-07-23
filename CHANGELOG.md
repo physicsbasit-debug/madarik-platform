@@ -431,3 +431,12 @@
 - Expanded GitHub Actions to run on `feat/madarik-science-platform-v2`, `main`, and pull requests to `main`.
 - Added focused Phase 10-A tests before the full Backend suite and Frontend lint/build.
 - Preserved the live external-provider Cambridge acceptance and visual DOCX/PDF review as explicit production blockers.
+
+
+### Phase 10-A Fix 1: PDF Acceptance Stability
+
+- Made PDF question-heading detection tolerant of RTL controls, Arabic-Indic digits, reversed heading fragments, and split extraction lines.
+- Counted image XObjects recursively through nested Form XObjects.
+- Excluded image masks and alpha soft masks from exported attachment totals.
+- Pinned ReportLab to `4.4.9`, the version used by the passing local full suite.
+- Added regression tests for nested images, masks, and RTL/split question headings.
