@@ -158,6 +158,10 @@ fi
 echo "PASS: no internal CAAS npm registry URLs are tracked."
 
 echo
+echo "=== Phase 10-A release audit ==="
+python RUN_PHASE10_A_RELEASE_AUDIT.py --repository-root .
+
+echo
 echo "=== Python syntax ==="
 python -m compileall -q backend/app backend/tests
 

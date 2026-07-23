@@ -6,11 +6,14 @@ from app.api.cloud_sources import router as cloud_sources_router
 from app.api.health import router as health_router
 from app.api.projects import router as projects_router
 from app.core.config import settings
+from app.core.release import APP_VERSION, RELEASE_PHASE, RELEASE_TITLE
 
 app = FastAPI(
     title="Madarik API",
-    description="Madarik API with Phase 2 accounts and persistence foundation.",
-    version="1.0.0-rc.1-phase2b1",
+    description=(
+        f"Madarik API. {RELEASE_PHASE}: {RELEASE_TITLE}."
+    ),
+    version=APP_VERSION,
 )
 
 app.add_middleware(

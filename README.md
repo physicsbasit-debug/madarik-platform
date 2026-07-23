@@ -6,9 +6,9 @@
 
 - الإصدار البرمجي: `2.0.0-rc.1`
 - فرع التطوير: `feat/madarik-science-platform-v2`
-- آخر مرحلة مكتملة: `Phase 9-C: Cloud Source Refresh, Version History, and Project Intake`
-- الحالة التقنية الحالية: `Phase 9-C Fix 1` لتثبيت بصمة نسخ المصادر وتنظيف حزمة المستودع
-- المرحلة التالية بعد اعتماد الإصلاح: `Phase 10-A: Release Hardening and End-to-End Acceptance`
+- آخر مرحلة مكتملة: `Phase 10-A: Release Hardening and End-to-End Acceptance`
+- الحالة التقنية الحالية: بوابة إصدار موحدة مع فحص جاهزية آمن واختبار قبول محلي شامل
+- المتبقي قبل الإصدار الإنتاجي: اختبار مزود خارجي حقيقي ومراجعة DOCX/PDF بصريًا ثم توقيع محضر القبول
 
 ### بوابة الاعتماد الحالية
 
@@ -391,8 +391,20 @@ Phase 9-C Fix 1 adds:
 - regression coverage for download-to-metadata and metadata-to-download refreshes;
 - repository-package cleanup for the generated SQLite file.
 
-Next planned phase:
+Phase 10-A adds:
 
-```text
-Phase 10-A: Release Hardening and End-to-End Acceptance
-```
+- a safe `/api/health/readiness` runtime report;
+- centralized release version and phase metadata;
+- SQLite schema, writable-data, export-directory, and provider checks;
+- a repository, secret, version, OpenAPI, and readiness audit script;
+- local end-to-end acceptance across PDF intake, parsing, translation, export,
+  question bank, assessment, differentiated activities, scientific diagrams,
+  and mocked cloud-source intake;
+- GitHub Actions coverage for the active development branch and `main` pull
+  requests;
+- explicit separation between technical readiness and the remaining live
+  external-provider acceptance.
+
+The technical release gate is now defined. Production release remains blocked
+until a real external provider translates a full Cambridge paper and the DOCX
+and PDF outputs pass visual review.

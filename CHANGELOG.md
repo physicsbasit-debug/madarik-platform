@@ -419,3 +419,15 @@
 - Added regression tests for `download=true → false` and `download=false → true`.
 - Removed the generated SQLite database from the clean full-source package.
 - Updated README status to Phase 9-C Fix 1 and Phase 10-A next.
+
+
+### Phase 10-A: Release Hardening and End-to-End Acceptance
+
+- Added centralized release metadata for Backend version, channel, and phase.
+- Added a safe `/api/health/readiness` endpoint with database, schema, writable-directory, and provider checks.
+- Added explicit technical-ready, degraded, and blocked readiness states without exposing secrets or runtime paths.
+- Added a deterministic repository audit covering generated files, secrets, version consistency, root-path hygiene, OpenAPI operation IDs, and readiness smoke.
+- Added local end-to-end release acceptance across PDF processing, translation, DOCX/PDF export, question bank, assessment, differentiated activities, scientific diagrams, and mocked cloud-source intake.
+- Expanded GitHub Actions to run on `feat/madarik-science-platform-v2`, `main`, and pull requests to `main`.
+- Added focused Phase 10-A tests before the full Backend suite and Frontend lint/build.
+- Preserved the live external-provider Cambridge acceptance and visual DOCX/PDF review as explicit production blockers.
