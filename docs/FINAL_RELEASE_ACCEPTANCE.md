@@ -28,6 +28,7 @@
 | Frontend lint | غير منفذ | |
 | Frontend build | غير منفذ | |
 | GitHub Actions | غير منفذ | |
+| Phase 10-C Live Gemini smoke | غير منفذ | Artifact JSON منقح |
 
 ## نتائج الرحلة الكاملة
 

@@ -74,9 +74,11 @@ ROOT_STRAY_NAMES = {
 }
 REQUIRED_FILES = {
     ".github/workflows/phase0-check.yml",
+    ".github/workflows/phase10-c-live-gemini.yml",
     "RUN_FINAL_RC_TESTS.sh",
     "RUN_PHASE10_A_RELEASE_AUDIT.py",
     "RUN_PHASE10_B_RC_PREFLIGHT.py",
+    "RUN_PHASE10_C_LIVE_GEMINI_ACCEPTANCE.py",
     "README.md",
     "CHANGELOG.md",
     "backend/app/core/release.py",
@@ -85,8 +87,10 @@ REQUIRED_FILES = {
     "backend/tests/test_phase10_a_release_readiness.py",
     "backend/tests/test_phase10_a_end_to_end_acceptance.py",
     "backend/tests/test_phase10_b_release_candidate.py",
+    "backend/tests/test_phase10_c_live_gemini_acceptance.py",
     "docs/PHASE_10_A_RELEASE_HARDENING.md",
     "docs/PHASE_10_B_FINAL_RC_SIGNOFF.md",
+    "docs/PHASE_10_C_LIVE_GEMINI_ACCEPTANCE.md",
     "docs/FINAL_RELEASE_ACCEPTANCE_CHECKLIST.md",
     "docs/FINAL_RELEASE_ACCEPTANCE.md",
     "docs/FINAL_RELEASE_STATUS.json",
@@ -323,6 +327,20 @@ def audit_repository(root: Path) -> dict[str, Any]:
             errors.append(
                 "GitHub Release creation must remain disabled before final acceptance."
             )
+        live_acceptance = status.get("live_external_acceptance", {})
+        expected_live_acceptance = {
+            "provider": "gemini",
+            "status": "pending_ci",
+            "gate": "phase10-c-live-gemini-acceptance",
+            "evidence": "GitHub Actions redacted JSON artifact",
+            "stores_secret_or_raw_content": False,
+            "closes_full_cambridge_blocker": False,
+        }
+        if live_acceptance != expected_live_acceptance:
+            errors.append(
+                "Phase 10-C live acceptance status is incomplete or unsafe: "
+                f"{live_acceptance}"
+            )
         blockers = status.get("blockers", [])
         open_blocker_ids = {
             str(item.get("id"))
@@ -340,6 +358,7 @@ def audit_repository(root: Path) -> dict[str, Any]:
             "2.0.0-rc.2",
             "اختبار مزود خارجي حقيقي",
             "مراجعة DOCX/PDF بصريًا",
+            "Phase 10-C",
         )
         for marker in required_readme_markers:
             if marker not in readme:
@@ -375,6 +394,34 @@ def audit_repository(root: Path) -> dict[str, Any]:
         for marker in stale_markers:
             if marker in workflow:
                 errors.append(f"Release workflow still uses stale identity: {marker}")
+
+    live_workflow_path = root / ".github/workflows/phase10-c-live-gemini.yml"
+    if live_workflow_path.is_file():
+        live_workflow = _read_text(live_workflow_path)
+        required_live_workflow_text = (
+            "name: Phase 10-C Live Gemini Acceptance",
+            "feat/madarik-science-platform-v2",
+            "secrets.GEMINI_API_KEY",
+            "secrets.GEMINI_MODEL",
+            "secrets.GEMINI_BASE_URL",
+            "RUN_PHASE10_C_LIVE_GEMINI_ACCEPTANCE.py",
+            "actions/upload-artifact@v4",
+        )
+        for marker in required_live_workflow_text:
+            if marker not in live_workflow:
+                errors.append(
+                    f"Live Gemini workflow is missing required text: {marker}"
+                )
+        forbidden_live_workflow_text = (
+            "pull_request:",
+            "echo $GEMINI_API_KEY",
+            "cat $GEMINI_API_KEY",
+        )
+        for marker in forbidden_live_workflow_text:
+            if marker in live_workflow:
+                errors.append(
+                    f"Live Gemini workflow contains unsafe text: {marker}"
+                )
 
     acceptance = root / "docs/FINAL_RELEASE_ACCEPTANCE.md"
     checklist = root / "docs/FINAL_RELEASE_ACCEPTANCE_CHECKLIST.md"

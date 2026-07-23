@@ -113,3 +113,32 @@ def test_phase10_b_acceptance_documents_are_versioned() -> None:
         text = (ROOT / relative).read_text(encoding="utf-8")
         assert APP_VERSION in text
         assert RELEASE_PHASE in text
+
+
+
+def test_phase10_c_live_acceptance_assets_are_present_and_redacted() -> None:
+    workflow = (
+        ROOT / ".github/workflows/phase10-c-live-gemini.yml"
+    ).read_text(encoding="utf-8")
+    runner = (
+        ROOT / "RUN_PHASE10_C_LIVE_GEMINI_ACCEPTANCE.py"
+    ).read_text(encoding="utf-8")
+    status = json.loads(
+        (ROOT / "docs/FINAL_RELEASE_STATUS.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert "name: Phase 10-C Live Gemini Acceptance" in workflow
+    assert "pull_request:" not in workflow
+    assert "secrets.GEMINI_API_KEY" in workflow
+    assert "provider_note" not in runner
+    assert "translated_text_sha256" in runner
+    assert status["live_external_acceptance"] == {
+        "provider": "gemini",
+        "status": "pending_ci",
+        "gate": "phase10-c-live-gemini-acceptance",
+        "evidence": "GitHub Actions redacted JSON artifact",
+        "stores_secret_or_raw_content": False,
+        "closes_full_cambridge_blocker": False,
+    }

@@ -7,8 +7,10 @@
 - الإصدار البرمجي: `2.0.0-rc.2`
 - فرع التطوير: `feat/madarik-science-platform-v2`
 - آخر مرحلة مكتملة: `Phase 10-B: Final Release Candidate Consolidation and Sign-off`
-- الحالة التقنية الحالية: المرشح النهائي `2.0.0-rc.2` جاهز لبوابة GitHub Actions الموحدة
-- الإصدار الإنتاجي: محجوب حتى اختبار مزود خارجي حقيقي ومراجعة DOCX/PDF بصريًا
+- بوابة القبول الحالية: `Phase 10-C: Live Gemini Acceptance` جاهزة للتشغيل عبر GitHub Actions
+- اختبار مزود خارجي حقيقي: ينتظر نتيجة بوابة Gemini الحية الموثقة
+- الحالة التقنية الحالية: المرشح `2.0.0-rc.2` اجتاز البوابة التقنية وينتظر دليل Gemini الحي المنقح
+- الإصدار الإنتاجي: محجوب حتى ترجمة ورقة Cambridge كاملة ومراجعة DOCX/PDF بصريًا
 
 ### بوابة الاعتماد الحالية
 
@@ -418,3 +420,17 @@ Phase 10-B consolidates the final release candidate:
 - a machine-readable final-release status keeps production release and tagging blocked;
 - the RC preflight validates repository hygiene, secrets, versions, workflow identity, OpenAPI, and readiness;
 - the technical candidate is ready for CI, while live external-provider acceptance and visual DOCX/PDF review remain mandatory.
+
+
+Phase 10-C prepares the redacted live Gemini acceptance:
+
+- reads Gemini configuration only from GitHub Actions secrets;
+- requires the official HTTPS Gemini API host before sending the request;
+- executes a real scientific translation without printing the key, prompt,
+  source text, translated text, provider note, or raw response payload;
+- rejects local fallback and requires external-success or corrected-success;
+- verifies Arabic quality, scientific fidelity, and approved glossary terms;
+- uploads a redacted JSON evidence artifact containing status, counts, and
+  SHA-256 hashes only;
+- keeps the full Cambridge and visual DOCX/PDF blockers open after the smoke
+  test, because one live question is evidence of connectivity, not sainthood.

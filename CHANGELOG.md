@@ -478,3 +478,14 @@
 - Wired scientific diagrams and cloud sources into the science task home instead of leaving dead callback props.
 - Removed the unused curriculum type import.
 - Stabilized initial question-bank loading without turning filter changes into unintended automatic searches.
+
+
+### Phase 10-C: Live Gemini Acceptance
+
+- Added a secret-scoped live Gemini workflow triggered only by Phase 10-C implementation changes or manual dispatch.
+- Added a redacted acceptance runner that stores hashes, counts, and status metadata only.
+- Required the official HTTPS Gemini API host and rejected missing credentials before any provider call.
+- Required `external_success` or `corrected_success` and rejected every local fallback path.
+- Added Arabic-quality, scientific-fidelity, and approved-glossary validation.
+- Added offline tests for success, one correction, fallback rejection, unsafe host rejection, missing-key rejection, report redaction, and workflow safety.
+- Kept the full Cambridge translation and visual DOCX/PDF review as open production blockers.
