@@ -409,3 +409,13 @@
 - Added version-history and project-intake controls to the RTL workspace.
 - Added source-version cleanup when a cloud source is deleted.
 - Updated README and closed the cloud-source workflow.
+
+
+### Phase 9-C Fix 1: Repository Hygiene and Version Fingerprint Stability
+
+- Stabilized cloud-source version identity across metadata-only and downloaded refreshes.
+- Kept SHA-256 and file size as verification data instead of download-controlled identity fields.
+- Reused and enriched an existing version when the remote ETag and modification timestamp are unchanged.
+- Added regression tests for `download=true → false` and `download=false → true`.
+- Removed the generated SQLite database from the clean full-source package.
+- Updated README status to Phase 9-C Fix 1 and Phase 10-A next.

@@ -59,23 +59,60 @@ def _file_details(
     return sha256(content).hexdigest(), len(content)
 
 
+def _same_remote_revision(
+    source: CloudSource,
+    version: CloudSourceVersion,
+) -> bool:
+    return (
+        source.external_id == version.external_id
+        and source.etag == version.etag
+        and source.modified_at_external
+        == version.modified_at_external
+    )
+
+
+def _reference_version(
+    source: CloudSource,
+    version_repository: CloudSourceVersionRepository,
+) -> CloudSourceVersion | None:
+    for metadata_key in (
+        "latest_version_id",
+        "pending_version_id",
+        "accepted_version_id",
+    ):
+        version_id = source.metadata.get(metadata_key)
+        if not version_id:
+            continue
+        version = version_repository.get(version_id)
+        if version is not None and version.source_id == source.id:
+            return version
+    return None
+
+
 def _fingerprint(
     source: CloudSource,
     checksum: str | None,
     size_bytes: int | None,
 ) -> str:
-    payload = {
+    payload: dict[str, object] = {
         "source_id": source.id,
         "external_id": source.external_id,
         "etag": source.etag,
-        "checksum": checksum,
-        "size_bytes": size_bytes,
         "modified_at": (
             source.modified_at_external.isoformat()
             if source.modified_at_external
             else None
         ),
     }
+
+    # Remote revision markers define version identity. The checksum is a
+    # verification/enrichment field, not a switch controlled by download=True.
+    # It is used as a fallback only when the provider supplies no ETag or
+    # external modification timestamp.
+    if not source.etag and source.modified_at_external is None:
+        payload["checksum"] = checksum
+        payload["size_bytes"] = size_bytes
+
     return sha256(
         json.dumps(
             payload,
@@ -105,14 +142,47 @@ def refresh_cloud_source(
         client=client,
     )
     source = sync_result.source
-    checksum, size_bytes = _file_details(
+    local_path = (
         sync_result.local_path
+        or source.metadata.get("local_path")
     )
-    fingerprint = _fingerprint(
+    checksum, size_bytes = _file_details(local_path)
+
+    reference = _reference_version(
         source,
-        checksum,
-        size_bytes,
+        version_repository,
     )
+    if (
+        reference is not None
+        and _same_remote_revision(source, reference)
+        and not sync_result.changed
+    ):
+        checksum_changed = (
+            checksum is not None
+            and reference.checksum_sha256 is not None
+            and checksum != reference.checksum_sha256
+        )
+        if not checksum_changed:
+            fingerprint = reference.fingerprint
+            checksum = checksum or reference.checksum_sha256
+            size_bytes = (
+                size_bytes
+                if size_bytes is not None
+                else reference.size_bytes
+            )
+            local_path = local_path or reference.local_path
+        else:
+            fingerprint = _fingerprint(
+                source,
+                checksum,
+                size_bytes,
+            )
+    else:
+        fingerprint = _fingerprint(
+            source,
+            checksum,
+            size_bytes,
+        )
 
     accepted_version_id = source.metadata.get(
         "accepted_version_id"
@@ -134,7 +204,7 @@ def refresh_cloud_source(
         etag=source.etag,
         checksum_sha256=checksum,
         size_bytes=size_bytes,
-        local_path=sync_result.local_path,
+        local_path=local_path,
         modified_at_external=source.modified_at_external,
         accepted_at=(
             now

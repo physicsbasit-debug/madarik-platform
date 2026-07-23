@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -262,6 +263,141 @@ def test_intake_rejects_unaccepted_version(
     else:
         raise AssertionError("unaccepted version was not rejected")
 
+
+
+def test_download_then_metadata_only_refresh_reuses_version(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    database = tmp_path / "db.sqlite"
+    source_repository = CloudSourceRepository(database)
+    version_repository = CloudSourceVersionRepository(database)
+    item = source_repository.save(source())
+    downloaded = tmp_path / "science.pdf"
+    write_pdf(downloaded, "Stable content")
+    modified_at = datetime(
+        2026,
+        7,
+        23,
+        8,
+        0,
+        tzinfo=timezone.utc,
+    )
+    calls = {"count": 0}
+
+    def fake_sync(*args, **kwargs):
+        current = args[0]
+        calls["count"] += 1
+        current.etag = "etag-stable"
+        current.modified_at_external = modified_at
+        local_path = (
+            str(downloaded)
+            if kwargs.get("download", True)
+            else None
+        )
+        if local_path:
+            current.metadata["local_path"] = local_path
+        return CloudSourceSyncResponse(
+            source=current,
+            changed=False,
+            downloaded=bool(local_path),
+            local_path=local_path,
+            message="synced",
+        )
+
+    monkeypatch.setattr(
+        "app.services.cloud_source_lifecycle."
+        "synchronize_onedrive_source",
+        fake_sync,
+    )
+
+    first = refresh_cloud_source(
+        item,
+        source_repository,
+        version_repository,
+        download=True,
+    )
+    second = refresh_cloud_source(
+        first.source,
+        source_repository,
+        version_repository,
+        download=False,
+    )
+
+    versions = version_repository.list(item.id)
+    assert len(versions) == 1
+    assert second.version.id == first.version.id
+    assert second.changed is False
+    assert second.duplicate is True
+    assert second.version.checksum_sha256
+    assert second.version.local_path == str(downloaded)
+
+
+def test_metadata_only_then_download_enriches_same_version(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    database = tmp_path / "db.sqlite"
+    source_repository = CloudSourceRepository(database)
+    version_repository = CloudSourceVersionRepository(database)
+    item = source_repository.save(source())
+    downloaded = tmp_path / "science.pdf"
+    write_pdf(downloaded, "Stable content")
+    modified_at = datetime(
+        2026,
+        7,
+        23,
+        8,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    def fake_sync(*args, **kwargs):
+        current = args[0]
+        current.etag = "etag-stable"
+        current.modified_at_external = modified_at
+        local_path = (
+            str(downloaded)
+            if kwargs.get("download", True)
+            else None
+        )
+        if local_path:
+            current.metadata["local_path"] = local_path
+        return CloudSourceSyncResponse(
+            source=current,
+            changed=False,
+            downloaded=bool(local_path),
+            local_path=local_path,
+            message="synced",
+        )
+
+    monkeypatch.setattr(
+        "app.services.cloud_source_lifecycle."
+        "synchronize_onedrive_source",
+        fake_sync,
+    )
+
+    first = refresh_cloud_source(
+        item,
+        source_repository,
+        version_repository,
+        download=False,
+    )
+    second = refresh_cloud_source(
+        first.source,
+        source_repository,
+        version_repository,
+        download=True,
+    )
+
+    versions = version_repository.list(item.id)
+    assert len(versions) == 1
+    assert second.version.id == first.version.id
+    assert second.changed is False
+    assert second.duplicate is True
+    assert second.version.checksum_sha256
+    assert second.version.size_bytes == downloaded.stat().st_size
+    assert second.version.local_path == str(downloaded)
 
 def test_api_routes_exist() -> None:
     content = (

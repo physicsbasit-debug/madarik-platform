@@ -6,9 +6,9 @@
 
 - الإصدار البرمجي: `2.0.0-rc.1`
 - فرع التطوير: `feat/madarik-science-platform-v2`
-- آخر مرحلة مكتملة قبل حزمة الإصلاح: `Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter`
-- الحالة التقنية الحالية: حزمة إصلاح شاملة لتوافق Backend وFrontend والصلاحيات ومصادر السحابة
-- المرحلة التالية بعد اعتماد الإصلاح: `Phase 9-C: Cloud Source Refresh, Version History, and Project Intake`
+- آخر مرحلة مكتملة: `Phase 9-C: Cloud Source Refresh, Version History, and Project Intake`
+- الحالة التقنية الحالية: `Phase 9-C Fix 1` لتثبيت بصمة نسخ المصادر وتنظيف حزمة المستودع
+- المرحلة التالية بعد اعتماد الإصلاح: `Phase 10-A: Release Hardening and End-to-End Acceptance`
 
 ### بوابة الاعتماد الحالية
 
@@ -383,6 +383,13 @@ Phase 9-C adds:
 - ownership-safe version, acceptance, and intake APIs.
 
 The cloud-source workflow is now functionally closed.
+
+Phase 9-C Fix 1 adds:
+
+- stable version identity independent of the download flag;
+- checksum enrichment without creating a false cloud-source version;
+- regression coverage for download-to-metadata and metadata-to-download refreshes;
+- repository-package cleanup for the generated SQLite file.
 
 Next planned phase:
 
