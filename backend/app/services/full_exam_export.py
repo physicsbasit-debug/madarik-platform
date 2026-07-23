@@ -7,7 +7,7 @@ import re
 from typing import Iterable
 from zipfile import BadZipFile, ZipFile
 
-import arabic_reshaper
+from app.services.arabic_text import reshape_arabic
 from docx import Document
 from PIL import Image as PILImage
 from pypdf import PdfReader
@@ -49,6 +49,40 @@ def _active_questions(project: ProjectSession) -> list[QuestionItem]:
         ),
         key=lambda question: question.order_index,
     )
+
+
+def _pdf_question_heading_count(
+    project: ProjectSession,
+    extracted_text: str,
+) -> int:
+    """Count visible PDF question headers without relying on RTL extraction.
+
+    PDF text extractors may omit or reverse the Arabic word ``السؤال`` while
+    preserving the visible question number and marks. Match the rendered
+    number/marks token for each active question exactly once.
+    """
+
+    lines = {
+        re.sub(r"\s+", " ", line.strip())
+        for line in extracted_text.splitlines()
+        if line.strip()
+    }
+    detected = 0
+
+    for question in _active_questions(project):
+        number = question.original_number.strip()
+        if not number:
+            continue
+
+        marks = question_export_total_marks(question)
+        candidates = {number}
+        if marks is not None:
+            candidates.add(f"{number} [{marks}]")
+
+        if any(candidate in lines for candidate in candidates):
+            detected += 1
+
+    return detected
 
 
 def _question_part_depth(
@@ -531,17 +565,17 @@ def _inspect_pdf(
             FullExamExportCheck(
                 code="pdf_question_headings",
                 passed=(
-                    sum(
-                        line.strip() == arabic_reshaper.reshape("السؤال")
-                        for line in extracted_text.splitlines()
+                    _pdf_question_heading_count(
+                        project,
+                        extracted_text,
                     )
                     == expected["questions"]
                 ),
                 message=(
                     "عدد عناوين الأسئلة المرئية داخل PDF مطابق للبنية المتوقعة."
-                    if sum(
-                        line.strip() == arabic_reshaper.reshape("السؤال")
-                        for line in extracted_text.splitlines()
+                    if _pdf_question_heading_count(
+                        project,
+                        extracted_text,
                     )
                     == expected["questions"]
                     else (

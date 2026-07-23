@@ -1,23 +1,19 @@
-import { useEffect, useState } from "react";
-import {
-  ArrowRight,
-  GitBranch,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, GitBranch, Plus, Trash2 } from "lucide-react";
 import {
   createScientificDiagram,
   deleteScientificDiagram,
-  listScientificDiagrams,
-  getScientificDiagramPreview,
-  exportScientificDiagramSvg,
   exportScientificDiagramFile,
+  exportScientificDiagramSvg,
+  getScientificDiagramPreview,
+  listScientificDiagrams,
 } from "../../services/api";
-import type {
+import { localCurriculumRepository } from "../curriculum/local-curriculum.repository";
 import { ScientificDiagramPreviewCard } from "./ScientificDiagramPreview";
-  ScienceDomain,
+import type {
   ScientificDiagram,
   ScientificDiagramNode,
+  ScientificDiagramPreview,
   ScientificDiagramType,
 } from "../../types/project";
 
@@ -39,15 +35,103 @@ export default function ScientificDiagrams({
   projectId,
   onReturnHome,
 }: Props) {
+  const grades = useMemo(
+    () => localCurriculumRepository.listGrades(),
+    [],
+  );
+  const [grade, setGrade] = useState(10);
+  const subjects = useMemo(
+    () => localCurriculumRepository.listSubjects(grade),
+    [grade],
+  );
+  const [subjectId, setSubjectId] = useState("g10-physics");
+  const subject =
+    subjects.find((item) => item.id === subjectId) ??
+    subjects[0];
+  const semesters = useMemo(
+    () => localCurriculumRepository.listSemesters(grade),
+    [grade],
+  );
+  const [semesterId, setSemesterId] = useState("g10-sem2");
+  const semester =
+    semesters.find((item) => item.id === semesterId) ??
+    semesters[0];
+  const units = useMemo(
+    () =>
+      subject && semester
+        ? localCurriculumRepository.listUnits(
+            subject.id,
+            semester.id,
+          )
+        : [],
+    [subject, semester],
+  );
+  const [unitId, setUnitId] = useState<string | null>(
+    "g10-physics-sem2-waves",
+  );
+  const lessons = useMemo(
+    () =>
+      unitId
+        ? localCurriculumRepository.listLessons(unitId)
+        : [],
+    [unitId],
+  );
+  const [lessonId, setLessonId] =
+    useState<string | null>(null);
+  const outcomes = useMemo(
+    () =>
+      unitId
+        ? localCurriculumRepository.listLearningOutcomes(
+            unitId,
+            lessonId ?? undefined,
+          )
+        : [],
+    [unitId, lessonId],
+  );
+
   const [items, setItems] = useState<ScientificDiagram[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [diagramType, setDiagramType] =
     useState<ScientificDiagramType>("process");
   const [nodesText, setNodesText] = useState("");
+  const [edgeLabelsText, setEdgeLabelsText] = useState("");
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState<ScientificDiagramPreview | null>(null);
+  const [preview, setPreview] =
+    useState<ScientificDiagramPreview | null>(null);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const nextSubjects =
+      localCurriculumRepository.listSubjects(grade);
+    const nextSubject = nextSubjects[0];
+    const nextSemesters =
+      localCurriculumRepository.listSemesters(grade);
+    const nextSemester = nextSemesters[0];
+    setSubjectId(nextSubject?.id ?? "");
+    setSemesterId(nextSemester?.id ?? "");
+    const nextUnits =
+      nextSubject && nextSemester
+        ? localCurriculumRepository.listUnits(
+            nextSubject.id,
+            nextSemester.id,
+          )
+        : [];
+    setUnitId(nextUnits[0]?.id ?? null);
+    setLessonId(null);
+  }, [grade]);
+
+  useEffect(() => {
+    if (!subject || !semester) return;
+    const nextUnits = localCurriculumRepository.listUnits(
+      subject.id,
+      semester.id,
+    );
+    if (!nextUnits.some((unit) => unit.id === unitId)) {
+      setUnitId(nextUnits[0]?.id ?? null);
+      setLessonId(null);
+    }
+  }, [subject, semester, unitId]);
 
   useEffect(() => {
     void listScientificDiagrams()
@@ -70,26 +154,34 @@ export default function ScientificDiagrams({
 
   async function save() {
     const nodes = buildNodes();
-    if (!title.trim() || !nodes.length) {
-      setError("العنوان وعقدة واحدة على الأقل مطلوبان.");
+    if (!title.trim() || !nodes.length || !subject) {
+      setError(
+        "العنوان والمادة وعقدة واحدة على الأقل مطلوبة.",
+      );
       return;
     }
-
+    const edgeLabels = edgeLabelsText
+      .split("\n")
+      .map((item) => item.trim());
     try {
       const created = await createScientificDiagram({
         sourceProjectId: projectId,
         title: title.trim(),
         diagramType,
-        grade: 10,
-        scienceDomain: "physics" as ScienceDomain,
-        subjectId: "g10-physics",
+        grade,
+        scienceDomain: subject.scienceDomain,
+        subjectId: subject.id,
+        semesterId: semester?.id ?? null,
+        unitId,
+        lessonId,
+        learningOutcomeIds: outcomes.map((item) => item.id),
         description: description.trim() || null,
         nodes,
         edges: nodes.slice(1).map((node, index) => ({
           id: crypto.randomUUID(),
           sourceNodeId: nodes[index].id,
           targetNodeId: node.id,
-          label: null,
+          label: edgeLabels[index] || null,
           orderIndex: index + 1,
         })),
       });
@@ -97,86 +189,68 @@ export default function ScientificDiagrams({
       setTitle("");
       setDescription("");
       setNodesText("");
+      setEdgeLabelsText("");
       setError("");
     } catch {
       setError("تعذر حفظ الرسم العلمي.");
     }
   }
 
-
-async function openPreview(diagramId: string) {
-  setError("");
-  try {
-    setPreview(
-      await getScientificDiagramPreview(
-        diagramId,
-      ),
-    );
-  } catch {
-    setError("تعذر تحميل معاينة الرسم.");
-  }
-}
-
-async function downloadSvg(diagramId: string) {
-  setError("");
-  setMessage("");
-  try {
-    const result =
-      await exportScientificDiagramSvg(
-        diagramId,
-      );
-
-    if (!result.exportReady) {
-      setError(result.issues.join(" "));
-      return;
+  async function openPreview(diagramId: string) {
+    setError("");
+    try {
+      setPreview(await getScientificDiagramPreview(diagramId));
+    } catch {
+      setError("تعذر تحميل معاينة الرسم.");
     }
-
-    const blob = new Blob([result.svg], {
-      type: "image/svg+xml;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = result.filename;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
-
-    setMessage(
-      `تم تنزيل الرسم: ${result.filename}`,
-    );
-  } catch {
-    setError("تعذر تنزيل SVG.");
   }
-}
 
+  async function downloadSvg(diagramId: string) {
+    setError("");
+    setMessage("");
+    try {
+      const result = await exportScientificDiagramSvg(diagramId);
+      if (!result.exportReady) {
+        setError(result.issues.join(" "));
+        return;
+      }
+      const blob = new Blob([result.svg], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = result.filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setMessage(`تم تنزيل الرسم: ${result.filename}`);
+    } catch {
+      setError("تعذر تنزيل SVG.");
+    }
+  }
 
-async function downloadBinary(
-  diagramId: string,
-  format: "png" | "pdf",
-) {
-  setError("");
-  setMessage("");
-  try {
-    const result =
-      await exportScientificDiagramFile(
+  async function downloadBinary(
+    diagramId: string,
+    format: "png" | "pdf",
+  ) {
+    setError("");
+    setMessage("");
+    try {
+      const result = await exportScientificDiagramFile(
         diagramId,
         format,
       );
-
-    if (!result.exportReady) {
-      setError(result.issues.join(" "));
-      return;
+      if (!result.exportReady) {
+        setError(result.issues.join(" "));
+        return;
+      }
+      setMessage(`تم تنزيل الرسم: ${result.filename}`);
+    } catch {
+      setError("تعذر تصدير الرسم.");
     }
-
-    setMessage(
-      `تم تنزيل الرسم: ${result.filename}`,
-    );
-  } catch {
-    setError("تعذر تصدير الرسم.");
   }
-}
 
   async function remove(diagramId: string) {
     try {
@@ -194,27 +268,103 @@ async function downloadBinary(
       <header className="scientific-diagrams-header">
         <div>
           <span>
-            <GitBranch size={18} />
-            الرسوم والمخططات العلمية
+            <GitBranch size={18} /> الرسوم والمخططات العلمية
           </span>
           <h1>بناء مخططات علمية منظمة</h1>
-          <p>
-            أنشئ بنية الرسم أولًا، ثم تأتي المعاينة والرسم
-            البصري في المراحل اللاحقة.
-          </p>
+          <p>أنشئ الرسم واربطه بالصف والمادة والوحدة والدرس.</p>
         </div>
         <button
           type="button"
           className="secondary-button"
           onClick={onReturnHome}
         >
-          <ArrowRight size={18} />
-          العودة
+          <ArrowRight size={18} /> العودة
         </button>
       </header>
 
       <section className="scientific-diagram-form">
         <h2>إنشاء رسم علمي</h2>
+        <div className="scientific-diagram-curriculum-grid">
+          <label>
+            الصف
+            <select
+              value={grade}
+              onChange={(event) =>
+                setGrade(Number(event.target.value))
+              }
+            >
+              {grades.map((item) => (
+                <option key={item} value={item}>
+                  الصف {item}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            المادة
+            <select
+              value={subject?.id ?? ""}
+              onChange={(event) =>
+                setSubjectId(event.target.value)
+              }
+            >
+              {subjects.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            الفصل
+            <select
+              value={semester?.id ?? ""}
+              onChange={(event) =>
+                setSemesterId(event.target.value)
+              }
+            >
+              {semesters.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            الوحدة
+            <select
+              value={unitId ?? ""}
+              onChange={(event) => {
+                setUnitId(event.target.value || null);
+                setLessonId(null);
+              }}
+            >
+              <option value="">دون وحدة</option>
+              {units.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            الدرس
+            <select
+              value={lessonId ?? ""}
+              onChange={(event) =>
+                setLessonId(event.target.value || null)
+              }
+            >
+              <option value="">دون درس محدد</option>
+              {lessons.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
         <div>
           <input
             placeholder="عنوان الرسم"
@@ -229,13 +379,11 @@ async function downloadBinary(
               )
             }
           >
-            {Object.entries(typeLabels).map(
-              ([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ),
-            )}
+            {Object.entries(typeLabels).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </select>
           <textarea
             placeholder="وصف الرسم"
@@ -247,8 +395,13 @@ async function downloadBinary(
           <textarea
             placeholder="العقد، سطر لكل عنصر"
             value={nodesText}
+            onChange={(event) => setNodesText(event.target.value)}
+          />
+          <textarea
+            placeholder="تسميات الروابط، سطر لكل رابط"
+            value={edgeLabelsText}
             onChange={(event) =>
-              setNodesText(event.target.value)
+              setEdgeLabelsText(event.target.value)
             }
           />
         </div>
@@ -257,23 +410,16 @@ async function downloadBinary(
           className="primary-button"
           onClick={() => void save()}
         >
-          <Plus size={17} />
-          حفظ الرسم
+          <Plus size={17} /> حفظ الرسم
         </button>
       </section>
 
       {error ? (
-        <div className="scientific-diagram-error">
-          {error}
-        </div>
+        <div className="scientific-diagram-error">{error}</div>
       ) : null}
-
       {message ? (
-        <div className="scientific-diagram-message">
-          {message}
-        </div>
+        <div className="scientific-diagram-message">{message}</div>
       ) : null}
-
       {preview ? (
         <ScientificDiagramPreviewCard
           preview={preview}
@@ -313,18 +459,14 @@ async function downloadBinary(
               <button
                 type="button"
                 className="secondary-button compact"
-                onClick={() =>
-                  void downloadBinary(item.id, "png")
-                }
+                onClick={() => void downloadBinary(item.id, "png")}
               >
                 تنزيل PNG
               </button>
               <button
                 type="button"
                 className="secondary-button compact"
-                onClick={() =>
-                  void downloadBinary(item.id, "pdf")
-                }
+                onClick={() => void downloadBinary(item.id, "pdf")}
               >
                 تنزيل PDF
               </button>
@@ -333,8 +475,7 @@ async function downloadBinary(
                 className="secondary-button compact"
                 onClick={() => void remove(item.id)}
               >
-                <Trash2 size={15} />
-                حذف
+                <Trash2 size={15} /> حذف
               </button>
             </div>
           </article>

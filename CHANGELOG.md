@@ -384,3 +384,16 @@
 - Added provider-status and source-sync APIs.
 - Added sync and download controls.
 - Kept the adapter disabled by default.
+
+### Comprehensive Repair Package
+
+- Restored backward-compatible Google Drive cloud-source contracts.
+- Repaired static FastAPI route ordering and resource ownership checks.
+- Repaired differentiated activity persistence and assessment preview/export state.
+- Fixed frontend imports and missing TypeScript API type imports.
+- Replaced unsafe SVG inner HTML rendering.
+- Added safe cross-platform export filenames.
+- Corrected OneDrive share-link addressing and removed app-only `/me` usage.
+- Preserved cloud-source primary keys during upsert.
+- Removed duplicate dependency pins and generated SQLite data.
+- Updated stale tests and added comprehensive regression coverage.

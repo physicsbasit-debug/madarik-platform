@@ -7919,7 +7919,7 @@ button:disabled {
   background: #f8faff;
 }
 
-.scientific-diagram-svg-frame svg {
+.scientific-diagram-svg-frame img {
   display: block;
   width: 100%;
   min-width: 42rem;
@@ -7995,4 +7995,28 @@ button:disabled {
   gap: 0.4rem;
   flex-wrap: wrap;
   margin-top: 0.8rem;
+}
+
+/* Comprehensive repair: curriculum selectors */
+.differentiated-curriculum-grid,
+.scientific-diagram-curriculum-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.7rem;
+  margin: 1rem 0;
+}
+.differentiated-curriculum-grid label,
+.scientific-diagram-curriculum-grid label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+}
+.differentiated-curriculum-grid select,
+.differentiated-curriculum-grid input,
+.scientific-diagram-curriculum-grid select {
+  min-height: 2.7rem;
+  padding: 0.6rem;
+  border: 1px solid #d8e1ea;
+  border-radius: 0.7rem;
+  background: #fff;
 }

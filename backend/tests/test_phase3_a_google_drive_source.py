@@ -99,7 +99,7 @@ def test_frontend_cloud_source_panel_exists() -> None:
 
     assert "Google Drive" in content
     assert "listGoogleDriveSourceFiles" in content
-    assert "importGoogleDriveSourceFile" in content
+    assert "attachGoogleDriveCurriculumSource" in content
 
 
 def test_app_curriculum_import_is_not_inside_type_import() -> None:

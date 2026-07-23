@@ -24,6 +24,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from app.services.file_names import safe_filename_stem
 from app.models.assessment import (
     AssessmentDraft,
     AssessmentExportResponse,
@@ -460,9 +461,9 @@ def export_assessment_foundation(
         )
 
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
-    safe_title = (
-        draft.blueprint.title.strip().replace("/", "-")
-        or "assessment"
+    safe_title = safe_filename_stem(
+        draft.blueprint.title,
+        fallback="assessment",
     )
 
     if output_format == "docx":

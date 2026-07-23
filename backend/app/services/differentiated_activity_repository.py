@@ -48,7 +48,10 @@ class DifferentiatedActivityRepository:
             )
         )
 
-    def save(self, activity: DifferentiatedActivity) -> DifferentiatedActivity:
+    def save(
+        self,
+        activity: DifferentiatedActivity,
+    ) -> DifferentiatedActivity:
         activity.updated_at = datetime.now(timezone.utc)
         with self._connect() as connection:
             connection.execute(
@@ -82,44 +85,63 @@ class DifferentiatedActivityRepository:
     ) -> list[DifferentiatedActivity]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT payload FROM differentiated_activities ORDER BY updated_at DESC"
+                """
+                SELECT payload
+                FROM differentiated_activities
+                ORDER BY updated_at DESC
+                """
             ).fetchall()
         items = [
             DifferentiatedActivity.model_validate_json(row["payload"])
             for row in rows
         ]
-        if owner_account_id:
-            items = [item for item in items if item.owner_account_id == owner_account_id]
+        if owner_account_id is not None:
+            items = [
+                item
+                for item in items
+                if item.owner_account_id == owner_account_id
+            ]
         if grade is not None:
             items = [item for item in items if item.grade == grade]
         if level:
-            items = [item for item in items if item.level.value == level]
+            items = [
+                item for item in items if item.level.value == level
+            ]
         return items
 
-
-def get(self, activity_id: str) -> DifferentiatedActivity | None:
-    with self._connect() as connection:
-        row = connection.execute(
-            "SELECT payload FROM differentiated_activities WHERE id = ?",
-            (activity_id,),
-        ).fetchone()
-    if row is None:
-        return None
-    return DifferentiatedActivity.model_validate_json(row["payload"])
-
-    def delete(self, activity_id: str) -> DifferentiatedActivity | None:
+    def get(
+        self,
+        activity_id: str,
+    ) -> DifferentiatedActivity | None:
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT payload FROM differentiated_activities WHERE id = ?",
+                """
+                SELECT payload
+                FROM differentiated_activities
+                WHERE id = ?
+                """,
                 (activity_id,),
             ).fetchone()
-            if row is None:
-                return None
+        if row is None:
+            return None
+        return DifferentiatedActivity.model_validate_json(row["payload"])
+
+    def delete(
+        self,
+        activity_id: str,
+    ) -> DifferentiatedActivity | None:
+        activity = self.get(activity_id)
+        if activity is None:
+            return None
+        with self._connect() as connection:
             connection.execute(
-                "DELETE FROM differentiated_activities WHERE id = ?",
+                """
+                DELETE FROM differentiated_activities
+                WHERE id = ?
+                """,
                 (activity_id,),
             )
-        return DifferentiatedActivity.model_validate_json(row["payload"])
+        return activity
 
 
 differentiated_activity_repository = DifferentiatedActivityRepository()

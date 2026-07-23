@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from docx import Document
+
 from app.models.assessment import (
     AssessmentBlueprint,
     AssessmentDraft,
@@ -168,8 +170,9 @@ def test_foundation_export_writes_file(
     )
 
     assert Path(result.path).exists()
-    content = Path(result.path).read_text(
-        encoding="utf-8"
+    document = Document(result.path)
+    content = "\n".join(
+        paragraph.text for paragraph in document.paragraphs
     )
     assert "اختبار الفيزياء" in content
     assert "صفحة الإجابة" in content
@@ -190,7 +193,8 @@ def test_frontend_has_preview_and_export() -> None:
         / "frontend/src/features/assessment/AssessmentBuilder.tsx"
     ).read_text(encoding="utf-8")
     assert "معاينة ورقة الطالب" in content
-    assert "تصدير DOCX أولي" in content
+    assert "تصدير DOCX" in content
+    assert "تصدير PDF" in content
     assert "AssessmentStudentPreview" in content
 
 

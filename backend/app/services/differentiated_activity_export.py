@@ -15,6 +15,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from app.services.file_names import safe_filename_stem
 from app.models.differentiated_activity import (
     DifferentiatedActivity,
     DifferentiatedActivityExportResponse,
@@ -254,7 +255,10 @@ def export_activity(
         )
 
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
-    safe_title = activity.title.strip().replace("/", "-") or "activity"
+    safe_title = safe_filename_stem(
+        activity.title,
+        fallback="activity",
+    )
     filename = f"{safe_title}-{activity.id}.{output_format}"
     path = EXPORT_DIR / filename
 

@@ -1,15 +1,66 @@
 from datetime import datetime, timezone
 from enum import Enum
 from uuid import uuid4
+
 from pydantic import BaseModel, Field
+
 
 class CloudSourceProvider(str, Enum):
     google_drive = "google_drive"
     onedrive = "onedrive"
 
+
+class CloudSourceAccessScope(str, Enum):
+    read_only = "read_only"
+
+
+class CloudSourceStatus(BaseModel):
+    provider: CloudSourceProvider = CloudSourceProvider.google_drive
+    mode: str
+    configured: bool
+    ready: bool
+    reason: str
+    folder_configured: bool = False
+    token_configured: bool = False
+    supported_mime_types: list[str] = Field(default_factory=list)
+    read_only: bool = True
+
+
+class CloudSourceFile(BaseModel):
+    id: str
+    provider: CloudSourceProvider = CloudSourceProvider.google_drive
+    file_name: str
+    mime_type: str
+    size_bytes: int | None = None
+    web_url: str | None = None
+    folder_id: str | None = None
+    modified_at: datetime | None = None
+    checksum: str | None = None
+    access_scope: CloudSourceAccessScope = CloudSourceAccessScope.read_only
+
+
+class CloudSourceListResponse(BaseModel):
+    """Backward-compatible Google Drive listing contract."""
+
+    status: CloudSourceStatus
+    files: list[CloudSourceFile] = Field(default_factory=list)
+
+
+class CloudSourceImportRequest(BaseModel):
+    file_id: str
+
+
+class CloudSourceImportResult(BaseModel):
+    source: CloudSourceFile
+    downloaded: bool
+    byte_count: int
+    message: str
+
+
 class CloudSourceType(str, Enum):
     file = "file"
     folder = "folder"
+
 
 class CloudSourceSyncStatus(str, Enum):
     pending = "pending"
@@ -17,7 +68,10 @@ class CloudSourceSyncStatus(str, Enum):
     changed = "changed"
     error = "error"
 
+
 class CloudSource(BaseModel):
+    """Persisted multi-provider cloud-source registry item."""
+
     id: str = Field(default_factory=lambda: str(uuid4()))
     owner_account_id: str | None = None
     source_project_id: str | None = None
@@ -34,8 +88,13 @@ class CloudSource(BaseModel):
     last_checked_at: datetime | None = None
     last_error: str | None = None
     metadata: dict[str, str] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
 
 class CloudSourceCreateRequest(BaseModel):
     source_project_id: str | None = None
@@ -50,7 +109,15 @@ class CloudSourceCreateRequest(BaseModel):
     modified_at_external: datetime | None = None
     metadata: dict[str, str] = Field(default_factory=dict)
 
-class CloudSourceListResponse(BaseModel):
+
+class OneDriveSourceFromUrlRequest(BaseModel):
+    web_url: str
+    display_name: str
+    source_project_id: str | None = None
+    source_type: CloudSourceType = CloudSourceType.file
+
+
+class CloudSourceRegistryListResponse(BaseModel):
     items: list[CloudSource]
     total: int
 

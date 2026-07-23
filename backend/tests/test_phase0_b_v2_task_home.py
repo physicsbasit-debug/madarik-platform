@@ -36,11 +36,12 @@ def test_future_tasks_are_informational_only() -> None:
 def test_app_starts_in_task_home_mode() -> None:
     content = (ROOT / "frontend/src/app/App.tsx").read_text(encoding="utf-8")
 
-    assert 'useState<"home" | "quick" | "professional">("home")' in content
+    assert "const [workspaceMode, setWorkspaceMode] = useState<" in content
+    assert '>("home");' in content
+    assert '"home" | "quick" | "professional"' in content
     assert 'workspaceMode === "home"' in content
     assert "openQuickTranslation" in content
     assert "openProfessionalTranslation" in content
-
 
 def test_workspace_can_return_to_task_home() -> None:
     content = (ROOT / "frontend/src/app/App.tsx").read_text(encoding="utf-8")

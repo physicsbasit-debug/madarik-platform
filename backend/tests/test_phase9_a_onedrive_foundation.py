@@ -8,7 +8,9 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_parser_accepts_onedrive_url():
     payload=parse_onedrive_source_url(web_url='https://onedrive.live.com/?id=ABC123',display_name='ملف العلوم')
     assert payload.provider is CloudSourceProvider.onedrive
-    assert payload.external_id=='ABC123'
+    assert payload.external_id.startswith('u!')
+    assert payload.metadata['addressing_mode'] == 'share'
+    assert payload.metadata['share_token'] == payload.external_id
 
 def test_parser_accepts_sharepoint_url():
     payload=parse_onedrive_source_url(web_url='https://school.sharepoint.com/sites/science/document.pdf',display_name='وثيقة',source_type=CloudSourceType.file)

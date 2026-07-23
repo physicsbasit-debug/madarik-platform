@@ -25,6 +25,20 @@ import type {
   AssessmentExportResult,
   DifferentiatedActivity,
   DifferentiatedActivityCreateInput,
+  DifferentiatedActivityGenerationInput,
+  DifferentiatedActivityGenerationResult,
+  DifferentiatedActivityPreview,
+  ScienceDomain,
+  ScientificDiagram,
+  ScientificDiagramCreateInput,
+  ScientificDiagramPreview,
+  ScientificDiagramSvgExportResult,
+  ScientificDiagramType,
+  CloudSource,
+  CloudSourceProvider,
+  CloudSourceSyncResult,
+  CloudSourceType,
+  OneDriveProviderStatus,
   CognitiveCategory,
   QuestionAssetInfo,
   QuestionPart,
@@ -2688,10 +2702,16 @@ export async function createDifferentiatedActivity(
         grade: input.grade,
         science_domain: input.scienceDomain,
         subject_id: input.subjectId,
+        semester_id: input.semesterId ?? null,
+        unit_id: input.unitId ?? null,
+        lesson_id: input.lessonId ?? null,
+        learning_outcome_ids: input.learningOutcomeIds ?? [],
         level: input.level,
         objective: input.objective,
         instructions: input.instructions,
+        success_criteria: input.successCriteria ?? [],
         estimated_minutes: input.estimatedMinutes,
+        materials: input.materials ?? [],
       }),
     },
   );
@@ -2737,6 +2757,10 @@ export async function generateDifferentiatedActivities(
         grade: input.grade,
         science_domain: input.scienceDomain,
         subject_id: input.subjectId,
+        semester_id: input.semesterId ?? null,
+        unit_id: input.unitId ?? null,
+        lesson_id: input.lessonId ?? null,
+        learning_outcome_ids: input.learningOutcomeIds ?? [],
         objective: input.objective,
         core_task: input.coreTask,
         estimated_minutes: input.estimatedMinutes,
@@ -3132,11 +3156,33 @@ export async function listCloudSources(provider?: CloudSourceProvider): Promise<
   if (!response.ok) throw new Error('Failed to list cloud sources');
   const payload = await response.json(); return payload.items.map(fromApiCloudSource);
 }
-export async function createOneDriveSourceFromUrl(input:{webUrl:string;displayName:string;sourceProjectId?:string|null;sourceType?:CloudSourceType;}):Promise<CloudSource>{
-  const params = new URLSearchParams({web_url:input.webUrl,display_name:input.displayName,source_type:input.sourceType??'file'});
-  if(input.sourceProjectId) params.set('source_project_id',input.sourceProjectId);
-  const response = await fetch(`${API_BASE_URL}/projects/cloud-sources/onedrive/from-url?${params.toString()}`,{method:'POST',headers:buildAuthHeaders()});
-  if(!response.ok) throw new Error('Failed to create OneDrive source');
+export async function createOneDriveSourceFromUrl(
+  input: {
+    webUrl: string;
+    displayName: string;
+    sourceProjectId?: string | null;
+    sourceType?: CloudSourceType;
+  },
+): Promise<CloudSource> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/cloud-sources/onedrive/from-url`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeaders(),
+      },
+      body: JSON.stringify({
+        web_url: input.webUrl,
+        display_name: input.displayName,
+        source_project_id: input.sourceProjectId ?? null,
+        source_type: input.sourceType ?? 'file',
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error('Failed to create OneDrive source');
+  }
   return fromApiCloudSource(await response.json());
 }
 export async function deleteCloudSource(sourceId:string):Promise<CloudSource>{

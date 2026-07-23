@@ -5,20 +5,21 @@
 ## الحالة الحالية
 
 - الإصدار البرمجي: `2.0.0-rc.1`
-- آخر مرحلة مدمجة: `Phase 4-B1: Real AI Translation Acceptance`
-- الحالة التقنية: ناجحة في الاختبارات والبناء
-- القبول الإنتاجي النهائي: معلّق حتى نجاح ترجمة ورقة Cambridge كاملة باستخدام مزود ذكاء اصطناعي حقيقي
-- المرحلة التالية: `Final Release Candidate`
+- فرع التطوير: `feat/madarik-science-platform-v2`
+- آخر مرحلة مكتملة قبل حزمة الإصلاح: `Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter`
+- الحالة التقنية الحالية: حزمة إصلاح شاملة لتوافق Backend وFrontend والصلاحيات ومصادر السحابة
+- المرحلة التالية بعد اعتماد الإصلاح: `Phase 9-C: Cloud Source Refresh, Version History, and Project Intake`
 
-### خط الأساس المختبر
+### بوابة الاعتماد الحالية
 
-- اختبارات Phase 4-B1 المركزة: `58 passed`
-- اختبارات Backend الكاملة: `245 passed`
-- Frontend lint: ناجح
-- Frontend production build: ناجح
-- بوابة Phase 4-B1: ناجحة
+يُعتمد هذا الفرع فقط بعد نجاح:
 
-> نجاح الاختبارات التقنية لا يعني اكتمال القبول الإنتاجي. يجب التأكد من أن الترجمة ناتجة من مزود خارجي حقيقي وليست من مسار `fallback`.
+- اختبارات Backend الكاملة.
+- Frontend lint.
+- TypeScript وVite production build.
+- فحوص الصلاحيات والملكية.
+- فحوص تصدير DOCX وPDF وPNG وSVG.
+- فحوص توافق Google Drive وOneDrive دون كسر العقود القديمة.
 
 ## ماذا تفعل المنصة؟
 
@@ -342,45 +343,56 @@ feat/madarik-science-platform-v2
 
 Completed V2 phases:
 
-- Phase 0-A: Scope, architecture, and data contracts.
-- Phase 0-B: Task-oriented home.
-- Phase 1: Quick translation workflow.
-- Phase 2: Curriculum structure for grades 1–12.
-- Phase 3-A: Google Drive source foundation.
-- Phase 3-B: Curriculum source persistence.
-- Phase 3-C: Source refresh detection.
-- Phase 3-D: Source version history and manual update acceptance.
-- Phase 4-A: Science question classification foundation.
-- Phase 4-B: Curriculum linking and classification review.
-- Phase 5-A: Question bank data model and persistence.
-- Phase 5-B: Question bank library, search, and filters.
-- Phase 5-C: Reuse question bank items in projects.
-- Phase 6-A: Assessment blueprint and test builder foundation.
-- Phase 6-B: Automatic question selection and blueprint validation.
-- Phase 6-C: Assessment ordering, sections, and manual marks.
-- Phase 6-D: Student paper preview and assessment export foundation.
-- Phase 6-E: Native DOCX and PDF assessment export.
-- Phase 7-A: Differentiated science activities foundation.
-- Phase 7-B: Generate differentiated activities from curriculum and questions.
-- Phase 7-C: Differentiated activity preview and export.
-- Phase 8-A: Scientific diagram data model and workspace foundation.
-- Phase 8-B: Scientific diagram preview and SVG rendering.
-- Phase 8-C: Scientific diagram PNG and PDF export.
-- Phase 9-A: Cloud source expansion and OneDrive foundation.
+- Phase 0-A: Scope, Architecture, and Data Contracts.
+- Phase 0-B: Task-Oriented Home.
+- Phase 1: Quick Translation Workflow.
+- Phase 2: Curriculum Structure for Grades 1–12.
+- Phase 3-A: Google Drive Source Foundation.
+- Phase 3-B: Curriculum Source Persistence.
+- Phase 3-C: Source Refresh Detection.
+- Phase 3-D: Source Version History and Manual Update Acceptance.
+- Phase 4-A: Science Question Classification Foundation.
+- Phase 4-B: Curriculum Linking and Classification Review.
+- Phase 5-A: Question Bank Data Model and Persistence.
+- Phase 5-B: Question Bank Library, Search, and Filters.
+- Phase 5-C: Reuse Question Bank Items in Projects.
+- Phase 6-A: Assessment Blueprint and Test Builder Foundation.
+- Phase 6-B: Automatic Question Selection and Blueprint Validation.
+- Phase 6-C: Assessment Ordering, Sections, and Manual Marks.
+- Phase 6-D: Student Paper Preview and Assessment Export Foundation.
+- Phase 6-E: Native DOCX and PDF Assessment Export.
+- Phase 7-A: Differentiated Science Activities Foundation.
+- Phase 7-B: Generate Differentiated Activities from Curriculum and Questions.
+- Phase 7-C: Differentiated Activity Preview and Export.
+- Phase 8-A: Scientific Diagram Data Model and Workspace Foundation.
+- Phase 8-B: Scientific Diagram Preview and SVG Rendering.
+- Phase 8-C: Scientific Diagram PNG and PDF Export.
+- Phase 9-A: Cloud Source Expansion and OneDrive Foundation.
 - Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter.
 
-Phase 9-B adds:
+### Comprehensive repair baseline
 
-- environment-based app-only OneDrive configuration;
-- OAuth 2.0 client-credentials token acquisition;
-- Microsoft Graph driveItem metadata lookup;
-- ETag change detection;
-- optional file download through the preauthenticated download URL;
-- provider-status and source-sync APIs;
-- UI controls for sync checks and downloads.
+The repair package preserves the legacy Google Drive contracts while adding the
+multi-provider cloud-source registry. It also repairs TypeScript imports,
+resource ownership checks, differentiated-activity persistence, filename
+sanitization, SVG safety, OneDrive sharing-link addressing, and curriculum
+selectors for activities and diagrams.
 
-The adapter remains disabled until valid Microsoft Entra credentials and
-permissions are supplied through environment variables.
+The Microsoft Graph adapter uses app-only client credentials and never calls
+`/me`. Sharing URLs are addressed through the Microsoft Graph Shares API. The
+adapter remains disabled until valid Microsoft Entra credentials and required
+application permissions are supplied through environment variables.
+
+Validation completed for the comprehensive repair baseline:
+
+- full Backend test suite passes;
+- Python compilation and OpenAPI generation pass;
+- static API route smoke tests pass;
+- TypeScript and TSX parsing pass;
+- strict frontend type auditing passes with temporary dependency declarations.
+
+A real `npm ci`, ESLint, and Vite build remain assigned to GitHub Actions because
+the package registry returned HTTP 503 in the local audit environment.
 
 Next planned phase:
 

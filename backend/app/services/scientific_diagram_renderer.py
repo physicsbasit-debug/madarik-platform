@@ -6,6 +6,7 @@ from pathlib import Path
 import cairosvg
 from math import cos, pi, sin
 
+from app.services.file_names import safe_filename_stem
 from app.models.scientific_diagram import (
     ScientificDiagram,
     ScientificDiagramPreview,
@@ -238,7 +239,7 @@ def _node_svg(
         )
 
     return (
-        f'<g data-node-id="{node.id}">'
+        f'<g data-node-id="{escape(node.id, quote=True)}">'
         f'<rect x="{x}" y="{y}" '
         f'width="{node.width}" height="{node.height}" '
         'rx="14" fill="#ffffff" '
@@ -268,7 +269,7 @@ def _edge_svg(
         )
 
     return (
-        f'<g data-edge-id="{edge.id}">'
+        f'<g data-edge-id="{escape(edge.id, quote=True)}">'
         f'<line x1="{edge.x1}" y1="{edge.y1}" '
         f'x2="{edge.x2}" y2="{edge.y2}" '
         'stroke="#6a7da3" stroke-width="2.5" '
@@ -325,10 +326,11 @@ def export_scientific_diagram_svg(
     preview = build_scientific_diagram_preview(
         diagram
     )
-    filename = (
-        diagram.title.strip().replace("/", "-")
-        or "scientific-diagram"
-    ) + f"-{diagram.id}.svg"
+    safe_title = safe_filename_stem(
+        diagram.title,
+        fallback="scientific-diagram",
+    )
+    filename = f"{safe_title}-{diagram.id}.svg"
 
     return ScientificDiagramSvgExportResponse(
         diagram_id=diagram.id,
@@ -361,9 +363,9 @@ def export_scientific_diagram_binary(
         parents=True,
         exist_ok=True,
     )
-    safe_title = (
-        diagram.title.strip().replace("/", "-")
-        or "scientific-diagram"
+    safe_title = safe_filename_stem(
+        diagram.title,
+        fallback="scientific-diagram",
     )
     filename = (
         f"{safe_title}-{diagram.id}."

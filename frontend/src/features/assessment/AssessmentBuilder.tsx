@@ -13,8 +13,8 @@ import {
   exportAssessmentDraft,
 } from "../../services/api";
 import { localCurriculumRepository } from "../curriculum/local-curriculum.repository";
-import type {
 import { AssessmentStudentPreview } from "./AssessmentStudentPreview";
+import type {
   AssessmentBlueprint,
   AssessmentDraftDetail,
   AssessmentBlueprintValidation,
@@ -155,32 +155,32 @@ export default function AssessmentBuilder({
 
 
 async function loadStudentPreview() {
-  if (!activeDraft) return;
-  setWorking(true);
+  if (!detail) return;
+  setLoading(true);
   setError("");
   try {
     setStudentPreview(
       await getAssessmentStudentPreview(
-        activeDraft.id,
+        detail.draft.id,
       ),
     );
   } catch {
     setError("تعذر تحميل معاينة ورقة الطالب.");
   } finally {
-    setWorking(false);
+    setLoading(false);
   }
 }
 
 async function runExport(
   format: "docx" | "pdf",
 ) {
-  if (!activeDraft) return;
-  setWorking(true);
+  if (!detail) return;
+  setLoading(true);
   setError("");
   setExportMessage("");
   try {
     const result = await exportAssessmentDraft(
-      activeDraft.id,
+      detail.draft.id,
       format,
     );
     setExportMessage(
@@ -191,7 +191,7 @@ async function runExport(
   } catch {
     setError("تعذر تصدير مسودة الاختبار.");
   } finally {
-    setWorking(false);
+    setLoading(false);
   }
 }
 
@@ -248,8 +248,10 @@ function currentConfigurations() {
 }
 
 async function saveLayout(
-  nextSections = detail?.draft.sections ?? [],
-  nextConfigurations = currentConfigurations(),
+  nextSections: AssessmentDraftDetail["draft"]["sections"] =
+    detail?.draft.sections ?? [],
+  nextConfigurations: AssessmentDraftDetail["draft"]["itemConfigurations"] =
+    currentConfigurations(),
 ) {
   if (!detail) return;
   setLoading(true);

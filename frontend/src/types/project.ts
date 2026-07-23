@@ -937,9 +937,21 @@ export interface DifferentiatedActivity {
   createdAt: string; updatedAt: string;
 }
 export interface DifferentiatedActivityCreateInput {
-  sourceProjectId?: string | null; title: string; grade: number; scienceDomain: ScienceDomain;
-  subjectId: string; level: DifferentiationLevel; objective: string; instructions: string;
+  sourceProjectId?: string | null;
+  title: string;
+  grade: number;
+  scienceDomain: ScienceDomain;
+  subjectId: string;
+  semesterId?: string | null;
+  unitId?: string | null;
+  lessonId?: string | null;
+  learningOutcomeIds?: string[];
+  level: DifferentiationLevel;
+  objective: string;
+  instructions: string;
+  successCriteria?: string[];
   estimatedMinutes: number;
+  materials?: string[];
 }
 
 
@@ -950,6 +962,10 @@ export interface DifferentiatedActivityGenerationInput {
   grade: number;
   scienceDomain: ScienceDomain;
   subjectId: string;
+  semesterId?: string | null;
+  unitId?: string | null;
+  lessonId?: string | null;
+  learningOutcomeIds?: string[];
   objective: string;
   coreTask: string;
   estimatedMinutes: number;

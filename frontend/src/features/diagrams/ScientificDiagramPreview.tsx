@@ -38,12 +38,14 @@ export function ScientificDiagramPreviewCard({
         </ul>
       ) : null}
 
-      <div
-        className="scientific-diagram-svg-frame"
-        dangerouslySetInnerHTML={{
-          __html: preview.svg,
-        }}
-      />
+      <div className="scientific-diagram-svg-frame">
+        <img
+          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+            preview.svg,
+          )}`}
+          alt={preview.title}
+        />
+      </div>
     </section>
   );
 }

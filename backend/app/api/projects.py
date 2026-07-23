@@ -78,10 +78,11 @@ from app.services.scientific_diagram_repository import (
 from app.models.cloud_source import (
     CloudSource,
     CloudSourceCreateRequest,
-    CloudSourceListResponse,
+    CloudSourceRegistryListResponse,
     OneDriveProviderStatus,
     CloudSourceSyncResponse,
     CloudSourceType,
+    OneDriveSourceFromUrlRequest,
 )
 from app.services.cloud_source_repository import (
     cloud_source_repository,
@@ -185,6 +186,44 @@ def _require_project_access(project: ProjectSession, account: AuthAccountPublic 
     return project
 
 
+
+def _has_owned_resource_access(
+    owner_account_id: str | None,
+    account: AuthAccountPublic | None,
+) -> bool:
+    if owner_account_id is None:
+        return True
+    if account is None:
+        return False
+    if account.role == AccountRole.owner:
+        return True
+    return owner_account_id == account.id
+
+
+def _require_owned_resource_access(
+    resource,
+    account: AuthAccountPublic | None,
+    detail: str,
+):
+    if not _has_owned_resource_access(
+        getattr(resource, "owner_account_id", None),
+        account,
+    ):
+        raise HTTPException(status_code=403, detail=detail)
+    return resource
+
+
+def _filter_accessible_resources(items, account: AuthAccountPublic | None):
+    return [
+        item
+        for item in items
+        if _has_owned_resource_access(
+            getattr(item, "owner_account_id", None),
+            account,
+        )
+    ]
+
+
 MAX_LAYOUT_ASSET_PAGES_PER_UPLOAD = 24
 
 
@@ -222,14 +261,6 @@ def create_project(metadata: ProjectMetadata | None = None, account: AuthAccount
 
     account = account
     return project_store.create(metadata, owner_account_id=account.id if account else None)
-
-
-@router.get("/{project_id}")
-def get_project(project_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> ProjectSession:
-    """Return a temporary project session."""
-
-    return _get_or_404(project_id, account)
-
 
 
 @router.get("/{project_id}/snapshot")
@@ -1631,47 +1662,81 @@ def export_assessment_draft(
         filename=result.filename,
     )
 
-@router.get("/differentiated-activities", response_model=DifferentiatedActivityListResponse)
+@router.get(
+    "/differentiated-activities",
+    response_model=DifferentiatedActivityListResponse,
+)
 def list_differentiated_activities(
     grade: int | None = None,
     level: str | None = None,
-    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
 ) -> DifferentiatedActivityListResponse:
     items = differentiated_activity_repository.list(
-        owner_account_id=account.id if account else None,
         grade=grade,
         level=level,
     )
-    return DifferentiatedActivityListResponse(items=items, total=len(items))
+    items = _filter_accessible_resources(items, account)
+    return DifferentiatedActivityListResponse(
+        items=items,
+        total=len(items),
+    )
 
 
-@router.post("/differentiated-activities", response_model=DifferentiatedActivity)
+@router.post(
+    "/differentiated-activities",
+    response_model=DifferentiatedActivity,
+)
 def create_differentiated_activity(
     payload: DifferentiatedActivityCreateRequest,
-    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
 ) -> DifferentiatedActivity:
+    if payload.source_project_id:
+        _get_or_404(payload.source_project_id, account)
     return differentiated_activity_repository.create(
         payload,
         owner_account_id=account.id if account else None,
     )
 
 
-@router.delete("/differentiated-activities/{activity_id}", response_model=DifferentiatedActivity)
+def _get_activity_or_404(
+    activity_id: str,
+    account: AuthAccountPublic | None,
+) -> DifferentiatedActivity:
+    activity = differentiated_activity_repository.get(activity_id)
+    if activity is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Differentiated activity not found",
+        )
+    return _require_owned_resource_access(
+        activity,
+        account,
+        "Differentiated activity access denied",
+    )
+
+
+@router.delete(
+    "/differentiated-activities/{activity_id}",
+    response_model=DifferentiatedActivity,
+)
 def delete_differentiated_activity(
     activity_id: str,
-    account: AuthAccountPublic | None = Depends(_resolve_current_account),
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
 ) -> DifferentiatedActivity:
-    activity = differentiated_activity_repository.delete(activity_id)
-    if activity is None:
-        raise HTTPException(status_code=404, detail="Differentiated activity not found")
-    if (
-        account is not None
-        and activity.owner_account_id is not None
-        and activity.owner_account_id != account.id
-    ):
-        raise HTTPException(status_code=403, detail="Differentiated activity access denied")
-    return activity
-
+    activity = _get_activity_or_404(activity_id, account)
+    removed = differentiated_activity_repository.delete(activity.id)
+    if removed is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Differentiated activity not found",
+        )
+    return removed
 
 
 @router.post(
@@ -1684,6 +1749,9 @@ def generate_differentiated_activities(
         _resolve_current_account
     ),
 ) -> DifferentiatedActivityGenerationResponse:
+    if payload.source_project_id:
+        _get_or_404(payload.source_project_id, account)
+
     bank_item = None
     if payload.source_question_bank_item_id:
         bank_item = question_bank_repository.get(
@@ -1694,6 +1762,11 @@ def generate_differentiated_activities(
                 status_code=404,
                 detail="Question bank item not found",
             )
+        _require_owned_resource_access(
+            bank_item,
+            account,
+            "Question bank item access denied",
+        )
 
     return generate_differentiated_activity_set(
         payload,
@@ -1713,12 +1786,7 @@ def get_differentiated_activity_preview(
         _resolve_current_account
     ),
 ) -> DifferentiatedActivityPreview:
-    activity = differentiated_activity_repository.get(activity_id)
-    if activity is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Differentiated activity not found",
-        )
+    activity = _get_activity_or_404(activity_id, account)
     return build_activity_preview(activity)
 
 
@@ -1738,13 +1806,7 @@ def export_differentiated_activity(
             detail="Unsupported activity export format",
         )
 
-    activity = differentiated_activity_repository.get(activity_id)
-    if activity is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Differentiated activity not found",
-        )
-
+    activity = _get_activity_or_404(activity_id, account)
     result = export_activity(activity, output_format)
     if not result.export_ready:
         raise HTTPException(
@@ -1782,12 +1844,12 @@ def list_scientific_diagrams(
     ),
 ) -> ScientificDiagramListResponse:
     items = scientific_diagram_repository.list(
-        owner_account_id=account.id if account else None,
         grade=grade,
         science_domain=science_domain,
         unit_id=unit_id,
         diagram_type=diagram_type,
     )
+    items = _filter_accessible_resources(items, account)
     return ScientificDiagramListResponse(
         items=items,
         total=len(items),
@@ -1804,9 +1866,28 @@ def create_scientific_diagram(
         _resolve_current_account
     ),
 ) -> ScientificDiagram:
+    if payload.source_project_id:
+        _get_or_404(payload.source_project_id, account)
     return scientific_diagram_repository.create(
         payload,
         owner_account_id=account.id if account else None,
+    )
+
+
+def _get_diagram_or_404(
+    diagram_id: str,
+    account: AuthAccountPublic | None,
+) -> ScientificDiagram:
+    diagram = scientific_diagram_repository.get(diagram_id)
+    if diagram is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Scientific diagram not found",
+        )
+    return _require_owned_resource_access(
+        diagram,
+        account,
+        "Scientific diagram access denied",
     )
 
 
@@ -1820,15 +1901,14 @@ def delete_scientific_diagram(
         _resolve_current_account
     ),
 ) -> ScientificDiagram:
-    diagram = scientific_diagram_repository.delete(
-        diagram_id
-    )
-    if diagram is None:
+    diagram = _get_diagram_or_404(diagram_id, account)
+    removed = scientific_diagram_repository.delete(diagram.id)
+    if removed is None:
         raise HTTPException(
             status_code=404,
             detail="Scientific diagram not found",
         )
-    return diagram
+    return removed
 
 
 @router.get(
@@ -1841,17 +1921,8 @@ def get_scientific_diagram_preview(
         _resolve_current_account
     ),
 ) -> ScientificDiagramPreview:
-    diagram = scientific_diagram_repository.get(
-        diagram_id
-    )
-    if diagram is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Scientific diagram not found",
-        )
-    return build_scientific_diagram_preview(
-        diagram
-    )
+    diagram = _get_diagram_or_404(diagram_id, account)
+    return build_scientific_diagram_preview(diagram)
 
 
 @router.get(
@@ -1864,17 +1935,8 @@ def export_scientific_diagram_as_svg(
         _resolve_current_account
     ),
 ) -> ScientificDiagramSvgExportResponse:
-    diagram = scientific_diagram_repository.get(
-        diagram_id
-    )
-    if diagram is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Scientific diagram not found",
-        )
-    return export_scientific_diagram_svg(
-        diagram
-    )
+    diagram = _get_diagram_or_404(diagram_id, account)
+    return export_scientific_diagram_svg(diagram)
 
 
 @router.get(
@@ -1893,15 +1955,7 @@ def export_scientific_diagram_file(
             detail="Unsupported scientific diagram format",
         )
 
-    diagram = scientific_diagram_repository.get(
-        diagram_id
-    )
-    if diagram is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Scientific diagram not found",
-        )
-
+    diagram = _get_diagram_or_404(diagram_id, account)
     result = export_scientific_diagram_binary(
         diagram,
         output_format,
@@ -1910,9 +1964,7 @@ def export_scientific_diagram_file(
         raise HTTPException(
             status_code=409,
             detail={
-                "message": (
-                    "Scientific diagram is not export ready"
-                ),
+                "message": "Scientific diagram is not export ready",
                 "issues": result.issues,
             },
         )
@@ -1929,29 +1981,111 @@ def export_scientific_diagram_file(
     )
 
 
-@router.get("/cloud-sources", response_model=CloudSourceListResponse)
-def list_cloud_sources(provider: str | None = None, source_project_id: str | None = None, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> CloudSourceListResponse:
-    items = cloud_source_repository.list(owner_account_id=account.id if account else None, provider=provider, source_project_id=source_project_id)
-    return CloudSourceListResponse(items=items, total=len(items))
+@router.get(
+    "/cloud-sources",
+    response_model=CloudSourceRegistryListResponse,
+)
+def list_cloud_sources(
+    provider: str | None = None,
+    source_project_id: str | None = None,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> CloudSourceRegistryListResponse:
+    items = cloud_source_repository.list(
+        provider=provider,
+        source_project_id=source_project_id,
+    )
+    items = _filter_accessible_resources(items, account)
+    return CloudSourceRegistryListResponse(
+        items=items,
+        total=len(items),
+    )
 
-@router.post("/cloud-sources", response_model=CloudSource)
-def create_cloud_source(payload: CloudSourceCreateRequest, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> CloudSource:
-    return cloud_source_repository.create(payload, owner_account_id=account.id if account else None)
 
-@router.post("/cloud-sources/onedrive/from-url", response_model=CloudSource)
-def create_onedrive_source_from_url(web_url: str, display_name: str, source_project_id: str | None = None, source_type: CloudSourceType = CloudSourceType.file, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> CloudSource:
+@router.post(
+    "/cloud-sources",
+    response_model=CloudSource,
+)
+def create_cloud_source(
+    payload: CloudSourceCreateRequest,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> CloudSource:
+    if payload.source_project_id:
+        _get_or_404(payload.source_project_id, account)
+    return cloud_source_repository.create(
+        payload,
+        owner_account_id=account.id if account else None,
+    )
+
+
+@router.post(
+    "/cloud-sources/onedrive/from-url",
+    response_model=CloudSource,
+)
+def create_onedrive_source_from_url(
+    request: OneDriveSourceFromUrlRequest,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> CloudSource:
+    if request.source_project_id:
+        _get_or_404(request.source_project_id, account)
     try:
-        payload = parse_onedrive_source_url(web_url=web_url, display_name=display_name, source_project_id=source_project_id, source_type=source_type)
+        payload = parse_onedrive_source_url(
+            web_url=request.web_url,
+            display_name=request.display_name,
+            source_project_id=request.source_project_id,
+            source_type=request.source_type,
+        )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return cloud_source_repository.create(payload, owner_account_id=account.id if account else None)
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+    return cloud_source_repository.create(
+        payload,
+        owner_account_id=account.id if account else None,
+    )
 
-@router.delete("/cloud-sources/{source_id}", response_model=CloudSource)
-def delete_cloud_source(source_id: str, account: AuthAccountPublic | None = Depends(_resolve_current_account)) -> CloudSource:
-    source = cloud_source_repository.delete(source_id)
+
+def _get_cloud_source_or_404(
+    source_id: str,
+    account: AuthAccountPublic | None,
+) -> CloudSource:
+    source = cloud_source_repository.get(source_id)
     if source is None:
-        raise HTTPException(status_code=404, detail="Cloud source not found")
-    return source
+        raise HTTPException(
+            status_code=404,
+            detail="Cloud source not found",
+        )
+    return _require_owned_resource_access(
+        source,
+        account,
+        "Cloud source access denied",
+    )
+
+
+@router.delete(
+    "/cloud-sources/{source_id}",
+    response_model=CloudSource,
+)
+def delete_cloud_source(
+    source_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> CloudSource:
+    source = _get_cloud_source_or_404(source_id, account)
+    removed = cloud_source_repository.delete(source.id)
+    if removed is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Cloud source not found",
+        )
+    return removed
 
 
 @router.get(
@@ -1977,12 +2111,7 @@ def sync_cloud_source(
         _resolve_current_account
     ),
 ) -> CloudSourceSyncResponse:
-    source = cloud_source_repository.get(source_id)
-    if source is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Cloud source not found",
-        )
+    source = _get_cloud_source_or_404(source_id, account)
     if source.provider.value != "onedrive":
         raise HTTPException(
             status_code=400,
@@ -2008,3 +2137,17 @@ def sync_cloud_source(
             status_code=502,
             detail=str(exc),
         ) from exc
+
+
+# Keep the plain project-id route last so static collection routes such as
+# /cloud-sources and /scientific-diagrams are not shadowed by it.
+@router.get("/{project_id}")
+def get_project(
+    project_id: str,
+    account: AuthAccountPublic | None = Depends(
+        _resolve_current_account
+    ),
+) -> ProjectSession:
+    """Return a project session after all static routes are checked."""
+
+    return _get_or_404(project_id, account)

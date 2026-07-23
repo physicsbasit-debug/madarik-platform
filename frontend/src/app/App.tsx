@@ -74,10 +74,10 @@ import QuickTranslationWorkspace from "../features/workflow/QuickTranslationWork
 import CurriculumBrowser from "../features/curriculum/CurriculumBrowser";
 import AssessmentBuilder from "../features/assessment/AssessmentBuilder";
 import QuestionBankLibrary from "../features/question-bank/QuestionBankLibrary";
-import type {
 import DifferentiatedActivities from "../features/activities/DifferentiatedActivities";
 import ScientificDiagrams from "../features/diagrams/ScientificDiagrams";
 import CloudSources from "../features/cloud/CloudSources";
+import type {
   AnswerKeyItem,
   EducationalAnalysisReport,
   EducationalQualityToolsReport,

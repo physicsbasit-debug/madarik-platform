@@ -25,8 +25,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Image as RLImage, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-import arabic_reshaper
-from bidi.algorithm import get_display
+from app.services.arabic_text import display_arabic
 
 from app.models.project import (
     OutputMode,
@@ -935,8 +934,7 @@ def _shape_arabic(text: str) -> str:
 
     if not text:
         return ""
-    reshaped = arabic_reshaper.reshape(text)
-    return get_display(reshaped)
+    return display_arabic(text)
 
 
 

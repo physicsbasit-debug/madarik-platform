@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -18,6 +19,7 @@ from app.models.cloud_source import (
 from app.services.cloud_source_repository import (
     CloudSourceRepository,
 )
+from app.services.file_names import safe_filename_stem
 
 
 DOWNLOAD_DIR = (
@@ -152,20 +154,24 @@ def _auth_headers(token: OneDriveToken) -> dict[str, str]:
 
 
 def _drive_item_url(source: CloudSource) -> str:
-    drive_id = source.metadata.get("drive_id", "").strip()
-    item_id = (
-        source.metadata.get("item_id", "").strip()
-        or source.external_id.strip()
-    )
-    if not item_id:
-        raise OneDriveGraphError(
-            "OneDrive source has no item identifier"
-        )
-
     base = settings.onedrive_graph_base_url.rstrip("/")
-    if drive_id:
+    share_token = source.metadata.get("share_token", "").strip()
+    if share_token:
+        return f"{base}/shares/{share_token}/driveItem"
+
+    drive_id = source.metadata.get("drive_id", "").strip()
+    item_id = source.metadata.get("item_id", "").strip()
+    user_id = source.metadata.get("user_id", "").strip()
+
+    if drive_id and item_id:
         return f"{base}/drives/{drive_id}/items/{item_id}"
-    return f"{base}/me/drive/items/{item_id}"
+    if user_id and item_id:
+        return f"{base}/users/{user_id}/drive/items/{item_id}"
+
+    raise OneDriveGraphError(
+        "OneDrive app-only access requires a share token, "
+        "drive_id + item_id, or user_id + item_id"
+    )
 
 
 def fetch_drive_item_metadata(
@@ -263,10 +269,9 @@ def synchronize_onedrive_source(
         str(metadata.get("name", "")).strip()
         or source.display_name
     )
-    source.external_id = (
-        str(metadata.get("id", "")).strip()
-        or source.external_id
-    )
+    graph_item_id = str(metadata.get("id", "")).strip()
+    if graph_item_id:
+        source.metadata["item_id"] = graph_item_id
     source.web_url = (
         str(metadata.get("webUrl", "")).strip()
         or source.web_url
@@ -289,7 +294,6 @@ def synchronize_onedrive_source(
         if drive_id:
             source.metadata["drive_id"] = drive_id
 
-    source.metadata["item_id"] = source.external_id
     download_url = str(
         metadata.get("@microsoft.graph.downloadUrl", "")
     ).strip()
@@ -298,15 +302,23 @@ def synchronize_onedrive_source(
     downloaded = False
 
     if download:
-        if not download_url:
-            raise OneDriveGraphError(
-                "OneDrive item did not provide a download URL"
+        parsed_download_url = urlparse(download_url)
+        if (
+            not download_url
+            or parsed_download_url.scheme != "https"
+            or not parsed_download_url.hostname
+        ):
+            source.sync_status = CloudSourceSyncStatus.error
+            source.last_error = (
+                "OneDrive item did not provide a valid HTTPS download URL"
             )
+            repository.save(source)
+            raise OneDriveGraphError(source.last_error)
 
         DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        safe_name = (
-            source.display_name.replace("/", "-")
-            or source.external_id
+        safe_name = safe_filename_stem(
+            source.display_name,
+            fallback="onedrive-file",
         )
         target = DOWNLOAD_DIR / f"{source.id}-{safe_name}"
 
