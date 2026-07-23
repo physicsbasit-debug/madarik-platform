@@ -440,3 +440,12 @@
 - Excluded image masks and alpha soft masks from exported attachment totals.
 - Pinned ReportLab to `4.4.9`, the version used by the passing local full suite.
 - Added regression tests for nested images, masks, and RTL/split question headings.
+
+
+### Phase 10-A Fix 2: Deterministic PDF Render Evidence
+
+- Added deterministic PDF render evidence to artifact metadata after question, part, and valid image flowables are queued.
+- Kept the original V1 expected-structure manifest fields for backwards compatibility.
+- Made new PDFs use render evidence for question, marks, order, and attachment acceptance instead of environment-sensitive text/XObject extraction alone.
+- Preserved extractor-based inspection as a fallback for older PDF artifacts.
+- Added real generated-PDF regression tests, including deliberately inconsistent reader diagnostics and invalid-image rejection.
