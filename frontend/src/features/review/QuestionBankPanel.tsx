@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Archive,
   CheckCircle2,
@@ -38,7 +38,7 @@ export function QuestionBankPanel({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -50,11 +50,11 @@ export function QuestionBankPanel({
     } finally {
       setLoading(false);
     }
-  }
+  }, [projectId]);
 
   useEffect(() => {
     void refresh();
-  }, [projectId]);
+  }, [refresh]);
 
   const selectedBankItem = useMemo(
     () =>

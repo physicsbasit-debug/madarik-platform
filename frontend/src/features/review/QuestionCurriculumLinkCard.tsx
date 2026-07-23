@@ -1,10 +1,7 @@
 import { BookOpenCheck, Link2, Unlink } from "lucide-react";
 import { useMemo } from "react";
 import { localCurriculumRepository } from "../curriculum/local-curriculum.repository";
-import type {
-  QuestionItem,
-  ScienceDomain,
-} from "../../types/project";
+import type { QuestionItem } from "../../types/project";
 
 interface QuestionCurriculumLinkCardProps {
   question: QuestionItem;

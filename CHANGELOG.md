@@ -449,3 +449,14 @@
 - Made new PDFs use render evidence for question, marks, order, and attachment acceptance instead of environment-sensitive text/XObject extraction alone.
 - Preserved extractor-based inspection as a fallback for older PDF artifacts.
 - Added real generated-PDF regression tests, including deliberately inconsistent reader diagnostics and invalid-image rejection.
+
+
+### Phase 10-A Fix 3: Frontend Lint and Wiring Closure
+
+- Closed all 9 Frontend ESLint errors reported by GitHub Actions.
+- Closed all 3 React Hooks dependency warnings reported by GitHub Actions.
+- Replaced five explicit `any` mappings with exact API response interfaces.
+- Wired Google Drive source-update acceptance into the linked-source UI.
+- Wired scientific diagrams and cloud sources into the science task home instead of leaving dead callback props.
+- Removed the unused curriculum type import.
+- Stabilized initial question-bank loading without turning filter changes into unintended automatic searches.

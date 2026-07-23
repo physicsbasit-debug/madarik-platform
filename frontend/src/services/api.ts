@@ -2439,7 +2439,25 @@ export async function removeAssessmentBankItem(
 }
 
 
-function fromApiAssessmentValidation(payload: any): AssessmentBlueprintValidation {
+interface ApiAssessmentBlueprintValidation {
+  ready: boolean;
+  total_selected_questions: number;
+  target_questions: number;
+  total_selected_marks: number;
+  target_marks: number;
+  knowledge_selected: number;
+  knowledge_target: number;
+  application_selected: number;
+  application_target: number;
+  reasoning_selected: number;
+  reasoning_target: number;
+  unclassified_selected: number;
+  issues: string[];
+}
+
+function fromApiAssessmentValidation(
+  payload: ApiAssessmentBlueprintValidation,
+): AssessmentBlueprintValidation {
   return {
     ready: payload.ready,
     totalSelectedQuestions: payload.total_selected_questions,
@@ -2529,6 +2547,38 @@ export async function updateAssessmentLayout(
 }
 
 
+interface ApiAssessmentStudentPaperQuestion {
+  bank_item_id: string;
+  number: number;
+  question_number: string;
+  text: string;
+  marks: number;
+  section_id: string | null;
+  section_title: string | null;
+}
+
+interface ApiAssessmentStudentPaperSection {
+  id: string;
+  title: string;
+  instructions: string | null;
+  order_index: number;
+  questions: ApiAssessmentStudentPaperQuestion[];
+}
+
+interface ApiAssessmentStudentPaperPreview {
+  draft_id: string;
+  title: string;
+  grade: number;
+  science_domain: string | null;
+  subject_id: string | null;
+  duration_minutes: number;
+  total_marks: number;
+  question_count: number;
+  export_ready: boolean;
+  issues: string[];
+  sections: ApiAssessmentStudentPaperSection[];
+}
+
 export async function getAssessmentStudentPreview(
   draftId: string,
 ): Promise<AssessmentStudentPaperPreview> {
@@ -2544,7 +2594,8 @@ export async function getAssessmentStudentPreview(
     );
   }
 
-  const payload = await response.json();
+  const payload =
+    (await response.json()) as ApiAssessmentStudentPaperPreview;
 
   return {
     draftId: payload.draft_id,
@@ -2557,12 +2608,12 @@ export async function getAssessmentStudentPreview(
     questionCount: payload.question_count,
     exportReady: payload.export_ready,
     issues: payload.issues,
-    sections: payload.sections.map((section: any) => ({
+    sections: payload.sections.map((section) => ({
       id: section.id,
       title: section.title,
       instructions: section.instructions,
       orderIndex: section.order_index,
-      questions: section.questions.map((question: any) => ({
+      questions: section.questions.map((question) => ({
         bankItemId: question.bank_item_id,
         number: question.number,
         questionNumber: question.question_number,
@@ -3013,6 +3064,40 @@ export async function deleteScientificDiagram(
 }
 
 
+interface ApiScientificDiagramPreviewNode {
+  id: string;
+  label: string;
+  description: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface ApiScientificDiagramPreviewEdge {
+  id: string;
+  source_node_id: string;
+  target_node_id: string;
+  label: string | null;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+interface ApiScientificDiagramPreview {
+  id: string;
+  title: string;
+  diagram_type: ScientificDiagramType;
+  width: number;
+  height: number;
+  nodes: ApiScientificDiagramPreviewNode[];
+  edges: ApiScientificDiagramPreviewEdge[];
+  svg: string;
+  export_ready: boolean;
+  issues: string[];
+}
+
 export async function getScientificDiagramPreview(
   diagramId: string,
 ): Promise<ScientificDiagramPreview> {
@@ -3028,14 +3113,15 @@ export async function getScientificDiagramPreview(
     );
   }
 
-  const payload = await response.json();
+  const payload =
+    (await response.json()) as ApiScientificDiagramPreview;
   return {
     id: payload.id,
     title: payload.title,
     diagramType: payload.diagram_type,
     width: payload.width,
     height: payload.height,
-    nodes: payload.nodes.map((node: any) => ({
+    nodes: payload.nodes.map((node) => ({
       id: node.id,
       label: node.label,
       description: node.description,
@@ -3044,7 +3130,7 @@ export async function getScientificDiagramPreview(
       width: node.width,
       height: node.height,
     })),
-    edges: payload.edges.map((edge: any) => ({
+    edges: payload.edges.map((edge) => ({
       id: edge.id,
       sourceNodeId: edge.source_node_id,
       targetNodeId: edge.target_node_id,

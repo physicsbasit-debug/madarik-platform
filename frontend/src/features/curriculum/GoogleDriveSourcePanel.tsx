@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -66,7 +66,7 @@ export default function GoogleDriveSourcePanel({
   const [refreshSummary, setRefreshSummary] =
     useState("");
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -93,18 +93,11 @@ export default function GoogleDriveSourcePanel({
     } finally {
       setLoading(false);
     }
-  }
+  }, [projectId]);
 
   useEffect(() => {
     void refresh();
-  }, [
-    projectId,
-    grade,
-    scienceDomain,
-    semesterId,
-    subjectId,
-    unitId,
-  ]);
+  }, [refresh]);
 
   async function attachFile(fileId: string) {
     if (!projectId) {
@@ -138,30 +131,30 @@ export default function GoogleDriveSourcePanel({
   }
 
 
-async function acceptSourceUpdate(
-  attachmentId: string,
-) {
-  if (!projectId) return;
+  async function acceptSourceUpdate(
+    attachmentId: string,
+  ) {
+    if (!projectId) return;
 
-  setWorkingId(`accept-${attachmentId}`);
-  setError("");
-  try {
-    await acceptProjectCurriculumSourceUpdate(
-      projectId,
-      attachmentId,
-    );
-    setAttached(
-      await listProjectCurriculumSources(projectId),
-    );
-    setRefreshSummary(
-      "تم اعتماد النسخة الجديدة وحفظ النسخة السابقة في السجل.",
-    );
-  } catch {
-    setError("تعذر اعتماد النسخة الجديدة للمصدر.");
-  } finally {
-    setWorkingId(null);
+    setWorkingId(`accept-${attachmentId}`);
+    setError("");
+    try {
+      await acceptProjectCurriculumSourceUpdate(
+        projectId,
+        attachmentId,
+      );
+      setAttached(
+        await listProjectCurriculumSources(projectId),
+      );
+      setRefreshSummary(
+        "تم اعتماد النسخة الجديدة وحفظ النسخة السابقة في السجل.",
+      );
+    } catch {
+      setError("تعذر اعتماد النسخة الجديدة للمصدر.");
+    } finally {
+      setWorkingId(null);
+    }
   }
-}
 
   async function removeAttachment(
     attachmentId: string,
@@ -392,6 +385,28 @@ async function acceptSourceUpdate(
                       </details>
                     ) : null}
                   </div>
+                  {item.sourceRefreshStatus === "changed" ? (
+                    <button
+                      type="button"
+                      className="secondary-button compact"
+                      disabled={
+                        workingId === `accept-${item.id}`
+                      }
+                      onClick={() =>
+                        void acceptSourceUpdate(item.id)
+                      }
+                    >
+                      {workingId === `accept-${item.id}` ? (
+                        <Loader2
+                          size={15}
+                          className="spin-icon"
+                        />
+                      ) : (
+                        <CheckCircle2 size={15} />
+                      )}
+                      اعتماد النسخة
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="secondary-button compact"

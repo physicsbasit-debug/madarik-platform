@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Archive,
@@ -19,6 +19,7 @@ import { localCurriculumRepository } from "../curriculum/local-curriculum.reposi
 import type {
   CognitiveCategory,
   QuestionBankItem,
+  QuestionBankSearchFilters,
   QuestionItem,
   ScienceDomain,
 } from "../../types/project";
@@ -92,40 +93,56 @@ export default function QuestionBankLibrary({
     );
   }, [grade, subjects, semesters]);
 
-  async function runSearch() {
-    setLoading(true);
-    setError("");
-    try {
-      const result =
-        await searchQuestionBankLibrary({
-          query,
-          grade,
-          scienceDomain,
-          unitId,
-          cognitiveCategory: category,
+  const loadItems = useCallback(
+    async (filters: QuestionBankSearchFilters) => {
+      setLoading(true);
+      setError("");
+      try {
+        const result =
+          await searchQuestionBankLibrary(filters);
+        setItems(result.items);
+        setSelectedItem((current) => {
+          if (
+            current &&
+            result.items.some(
+              (item) => item.id === current.id,
+            )
+          ) {
+            return current;
+          }
+          return result.items[0] ?? null;
         });
-      setItems(result.items);
-      setSelectedItem((current) => {
-        if (
-          current &&
-          result.items.some(
-            (item) => item.id === current.id,
-          )
-        ) {
-          return current;
-        }
-        return result.items[0] ?? null;
-      });
-    } catch {
-      setError("تعذر البحث في بنك الأسئلة.");
-    } finally {
-      setLoading(false);
-    }
-  }
+      } catch {
+        setError("تعذر البحث في بنك الأسئلة.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const runSearch = useCallback(
+    () =>
+      loadItems({
+        query,
+        grade,
+        scienceDomain,
+        unitId,
+        cognitiveCategory: category,
+      }),
+    [
+      category,
+      grade,
+      loadItems,
+      query,
+      scienceDomain,
+      unitId,
+    ],
+  );
 
   useEffect(() => {
-    void runSearch();
-  }, []);
+    void loadItems({});
+  }, [loadItems]);
 
   function clearFilters() {
     setQuery("");

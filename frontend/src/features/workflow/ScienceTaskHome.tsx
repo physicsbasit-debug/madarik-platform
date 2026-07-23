@@ -46,6 +46,18 @@ const comingSoonTasks = [
     description:
       "إنشاء أنشطة دعم وأساسية ومتقدمة وإثرائية من نفس المحتوى العلمي.",
   },
+  {
+    icon: Layers3,
+    title: "الرسوم والمخططات العلمية",
+    description:
+      "إنشاء مخططات علمية قابلة للمعاينة والتصدير بصيغ SVG وPNG وPDF.",
+  },
+  {
+    icon: Cloud,
+    title: "المصادر السحابية",
+    description:
+      "ربط مصادر Google Drive وOneDrive ومراجعة نسخها وإدخالها إلى المشاريع.",
+  },
 ];
 
 export default function ScienceTaskHome({
@@ -146,22 +158,32 @@ export default function ScienceTaskHome({
             const isQuestionBank = task.title === "بنك الأسئلة";
             const isAssessment = task.title === "إنشاء اختبار";
             const isDifferentiated = task.title === "أنشطة متمايزة";
+            const isScientificDiagrams =
+              task.title === "الرسوم والمخططات العلمية";
+            const isCloudSources =
+              task.title === "المصادر السحابية";
 
-            if (isCurriculum || isQuestionBank || isAssessment || isDifferentiated) {
+            const action = isCloudSources
+              ? onOpenCloudSources
+              : isScientificDiagrams
+                ? onOpenScientificDiagrams
+                : isDifferentiated
+                  ? onOpenDifferentiatedActivities
+                  : isAssessment
+                    ? onOpenAssessmentBuilder
+                    : isQuestionBank
+                      ? onOpenQuestionBank
+                      : isCurriculum
+                        ? onOpenCurriculum
+                        : null;
+
+            if (action) {
               return (
                 <button
                   type="button"
                   className="science-task-coming-card is-available"
                   key={task.title}
-                  onClick={
-                    isDifferentiated
-                      ? onOpenDifferentiatedActivities
-                      : isAssessment
-                        ? onOpenAssessmentBuilder
-                        : isQuestionBank
-                        ? onOpenQuestionBank
-                        : onOpenCurriculum
-                  }
+                  onClick={action}
                 >
                   <div className="science-task-coming-icon">
                     <Icon size={24} />
@@ -170,13 +192,17 @@ export default function ScienceTaskHome({
                   <h3>{task.title}</h3>
                   <p>{task.description}</p>
                   <strong>
-                    {isDifferentiated
-                      ? "فتح الأنشطة المتمايزة"
-                      : isAssessment
-                        ? "فتح منشئ الاختبارات"
-                        : isQuestionBank
-                        ? "فتح بنك الأسئلة"
-                        : "فتح مكتبة المناهج"}
+                    {isCloudSources
+                      ? "فتح المصادر السحابية"
+                      : isScientificDiagrams
+                        ? "فتح الرسوم العلمية"
+                        : isDifferentiated
+                          ? "فتح الأنشطة المتمايزة"
+                          : isAssessment
+                            ? "فتح منشئ الاختبارات"
+                            : isQuestionBank
+                              ? "فتح بنك الأسئلة"
+                              : "فتح مكتبة المناهج"}
                   </strong>
                 </button>
               );
@@ -202,8 +228,8 @@ export default function ScienceTaskHome({
           <strong>المصادر السحابية</strong>
         </div>
         <p>
-          سيتم ربط Google Drive أولًا بمكتبة المناهج والاختبارات الأصلية،
-          ثم OneDrive في مرحلة لاحقة.
+          يدعم المسار الحالي Google Drive وOneDrive مع سجل نسخ واعتماد
+          وإدخال مباشر للمصدر إلى المشروع.
         </p>
       </section>
     </main>
