@@ -25,8 +25,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Image as RLImage, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-import arabic_reshaper
-from bidi.algorithm import get_display
+from app.services.arabic_text import display_arabic
 
 from app.models.project import (
     OutputMode,
@@ -40,7 +39,10 @@ from app.services.export_review import (
     student_export_mode_label,
     student_export_total_label,
 )
-from app.services.full_exam_export import build_full_exam_export_manifest
+from app.services.full_exam_export import (
+    build_full_exam_export_manifest,
+    build_full_exam_pdf_render_manifest,
+)
 from app.services.scientific_text import normalise_scientific_text, protect_scientific_bidi
 
 DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -935,8 +937,7 @@ def _shape_arabic(text: str) -> str:
 
     if not text:
         return ""
-    reshaped = arabic_reshaper.reshape(text)
-    return get_display(reshaped)
+    return display_arabic(text)
 
 
 
@@ -1150,9 +1151,14 @@ def _add_pdf_header(story: list, project: ProjectSession, questions: list[Questi
     story.append(Spacer(1, 10))
 
 
-def _add_pdf_question_assets(story: list, question: QuestionItem, styles: dict[str, ParagraphStyle]) -> None:
+def _add_pdf_question_assets(
+    story: list,
+    question: QuestionItem,
+    styles: dict[str, ParagraphStyle],
+) -> list[str]:
+    rendered_attachment_ids: list[str] = []
     if not question.attachments:
-        return
+        return rendered_attachment_ids
 
     for asset in question.attachments:
         asset_bytes = _asset_bytes(asset.data_base64)
@@ -1168,8 +1174,17 @@ def _add_pdf_question_assets(story: list, question: QuestionItem, styles: dict[s
             image.hAlign = "CENTER"
             story.append(image)
             story.append(Spacer(1, 0.2 * cm))
+            rendered_attachment_ids.append(asset.id)
         except Exception:
-            story.append(_pdf_paragraph(f"تعذر إدراج المرفق: {asset.name}", styles["small"], rtl=True))
+            story.append(
+                _pdf_paragraph(
+                    f"تعذر إدراج المرفق: {asset.name}",
+                    styles["small"],
+                    rtl=True,
+                )
+            )
+
+    return rendered_attachment_ids
 
 
 def _add_pdf_question_parts(
@@ -1177,7 +1192,8 @@ def _add_pdf_question_parts(
     project: ProjectSession,
     question: QuestionItem,
     styles: dict[str, ParagraphStyle],
-) -> None:
+) -> list[str]:
+    rendered_part_ids: list[str] = []
     for part in _sorted_question_parts(question):
         depth = _question_part_depth(
             part,
@@ -1202,6 +1218,7 @@ def _add_pdf_question_parts(
                 rtl=False,
             )
         )
+        rendered_part_ids.append(part.id)
 
         has_part_text = bool(
             part.original_text.strip()
@@ -1238,7 +1255,7 @@ def _add_pdf_question_parts(
                 indent_level=depth,
             )
 
-
+    return rendered_part_ids
 
 
 def _add_pdf_questions(
@@ -1246,7 +1263,13 @@ def _add_pdf_questions(
     project: ProjectSession,
     questions: list[QuestionItem],
     styles: dict[str, ParagraphStyle],
-) -> None:
+) -> dict[str, object]:
+    rendered_question_ids: list[str] = []
+    rendered_part_ids: list[str] = []
+    rendered_attachment_ids: list[str] = []
+    rendered_order: list[int] = []
+    rendered_marks = 0
+
     for display_number, question in enumerate(
         questions,
         start=1,
@@ -1261,13 +1284,18 @@ def _add_pdf_questions(
                 rtl=True,
             )
         )
+        rendered_question_ids.append(question.id)
+        rendered_order.append(display_number)
+        rendered_marks += _question_total_marks(question) or 0
 
         if question.parts:
-            _add_pdf_question_parts(
-                story,
-                project,
-                question,
-                styles,
+            rendered_part_ids.extend(
+                _add_pdf_question_parts(
+                    story,
+                    project,
+                    question,
+                    styles,
+                )
             )
         elif (
             project.metadata.output_mode
@@ -1299,16 +1327,15 @@ def _add_pdf_questions(
                 fallback="[تحتاج ترجمة]",
             )
 
-        _add_pdf_question_assets(
-            story,
-            question,
-            styles,
+        rendered_attachment_ids.extend(
+            _add_pdf_question_assets(
+                story,
+                question,
+                styles,
+            )
         )
 
-        attachment_note = (
-            _attachment_note_for_export(question)
-        )
-
+        attachment_note = _attachment_note_for_export(question)
         if attachment_note:
             story.append(
                 _pdf_paragraph(
@@ -1317,6 +1344,15 @@ def _add_pdf_questions(
                     rtl=True,
                 )
             )
+
+    return {
+        "rendered_question_ids": rendered_question_ids,
+        "rendered_part_ids": rendered_part_ids,
+        "rendered_attachment_ids": rendered_attachment_ids,
+        "rendered_marks": rendered_marks,
+        "rendered_order": rendered_order,
+    }
+
 
 def _draw_pdf_footer(canvas, doc) -> None:
     font = _ensure_pdf_font()
@@ -1337,6 +1373,18 @@ def build_project_pdf_bytes(project: ProjectSession) -> bytes:
         raise ValueError("لا توجد أسئلة نشطة قابلة للتصدير.")
 
     output = BytesIO()
+    styles = _pdf_styles()
+    story: list = []
+
+    _add_pdf_logo(story, project)
+    _add_pdf_header(story, project, questions, styles)
+    render_evidence = _add_pdf_questions(
+        story,
+        project,
+        questions,
+        styles,
+    )
+
     document = SimpleDocTemplate(
         output,
         pagesize=A4,
@@ -1346,17 +1394,21 @@ def build_project_pdf_bytes(project: ProjectSession) -> bytes:
         bottomMargin=1.8 * cm,
         title=project.metadata.paper_title or "Madarik Export",
         author="Madarik Platform",
-        subject=build_full_exam_export_manifest(project),
-        keywords="Madarik Phase 4-A6c full exam export acceptance",
+        subject=build_full_exam_pdf_render_manifest(
+            project,
+            rendered_question_ids=render_evidence["rendered_question_ids"],
+            rendered_part_ids=render_evidence["rendered_part_ids"],
+            rendered_attachment_ids=render_evidence["rendered_attachment_ids"],
+            rendered_marks=int(render_evidence["rendered_marks"]),
+            rendered_order=render_evidence["rendered_order"],
+        ),
+        keywords="Madarik Phase 10-A Fix 2 deterministic PDF render evidence",
     )
-    styles = _pdf_styles()
-    story: list = []
-
-    _add_pdf_logo(story, project)
-    _add_pdf_header(story, project, questions, styles)
-    _add_pdf_questions(story, project, questions, styles)
-
-    document.build(story, onFirstPage=_draw_pdf_footer, onLaterPages=_draw_pdf_footer)
+    document.build(
+        story,
+        onFirstPage=_draw_pdf_footer,
+        onLaterPages=_draw_pdf_footer,
+    )
     return output.getvalue()
 
 

@@ -225,22 +225,25 @@ def question_export_total_marks(question: QuestionItem) -> int | None:
     return sum(concrete_totals) if concrete_totals else None
 
 
+def _sequence_digest(values: Iterable[str]) -> str:
+    source = "\x1f".join(values)
+    return hashlib.sha256(source.encode("utf-8")).hexdigest()[:20]
+
+
 def _expected_structure(project: ProjectSession) -> dict[str, object]:
     questions = _active_questions(project)
-    sequence_source = "\x1f".join(question.id for question in questions)
-    sequence = hashlib.sha256(sequence_source.encode("utf-8")).hexdigest()[:20]
     return {
         "questions": len(questions),
         "parts": sum(len(question.parts) for question in questions),
         "attachments": sum(len(question.attachments) for question in questions),
         "marks": sum(question_export_total_marks(question) or 0 for question in questions),
         "order": ",".join(str(index) for index in range(1, len(questions) + 1)),
-        "sequence": sequence,
+        "sequence": _sequence_digest(question.id for question in questions),
     }
 
 
 def build_full_exam_export_manifest(project: ProjectSession) -> str:
-    """Build an ASCII artifact manifest stored invisibly in DOCX/PDF metadata."""
+    """Build the backwards-compatible expected-structure artifact manifest."""
 
     structure = _expected_structure(project)
     return ";".join(
@@ -256,6 +259,42 @@ def build_full_exam_export_manifest(project: ProjectSession) -> str:
     )
 
 
+def build_full_exam_pdf_render_manifest(
+    project: ProjectSession,
+    *,
+    rendered_question_ids: Iterable[str],
+    rendered_part_ids: Iterable[str],
+    rendered_attachment_ids: Iterable[str],
+    rendered_marks: int,
+    rendered_order: Iterable[int],
+) -> str:
+    """Build PDF metadata from flowables successfully queued for rendering.
+
+    The expected structure remains in the V1-compatible fields. The additional
+    render-evidence fields are created from the actual question, part, and image
+    flowables appended to the PDF story before ``document.build`` succeeds.
+    """
+
+    question_ids = list(rendered_question_ids)
+    part_ids = list(rendered_part_ids)
+    attachment_ids = list(rendered_attachment_ids)
+    order = list(rendered_order)
+
+    return ";".join(
+        [
+            build_full_exam_export_manifest(project),
+            "render_evidence=1",
+            f"rendered_questions={len(question_ids)}",
+            f"rendered_parts={len(part_ids)}",
+            f"rendered_attachments={len(attachment_ids)}",
+            f"rendered_marks={rendered_marks}",
+            f"rendered_order={','.join(str(item) for item in order)}",
+            f"rendered_sequence={_sequence_digest(question_ids)}",
+            f"rendered_attachment_sequence={_sequence_digest(attachment_ids)}",
+        ]
+    )
+
+
 def _parse_manifest(value: str | None) -> dict[str, object] | None:
     manifest = (value or "").strip()
     if not manifest.startswith(f"{EXPORT_MANIFEST_PREFIX};"):
@@ -267,16 +306,40 @@ def _parse_manifest(value: str | None) -> dict[str, object] | None:
     }
 
     try:
-        return {
+        result: dict[str, object] = {
             "questions": int(fields["questions"]),
             "parts": int(fields["parts"]),
             "attachments": int(fields["attachments"]),
             "marks": int(fields["marks"]),
             "order": fields.get("order", ""),
             "sequence": fields.get("sequence", ""),
+            "render_evidence": fields.get("render_evidence") == "1",
         }
     except (KeyError, TypeError, ValueError):
         return None
+
+    if not result["render_evidence"]:
+        return result
+
+    try:
+        result.update(
+            {
+                "rendered_questions": int(fields["rendered_questions"]),
+                "rendered_parts": int(fields["rendered_parts"]),
+                "rendered_attachments": int(fields["rendered_attachments"]),
+                "rendered_marks": int(fields["rendered_marks"]),
+                "rendered_order": fields.get("rendered_order", ""),
+                "rendered_sequence": fields["rendered_sequence"],
+                "rendered_attachment_sequence": fields[
+                    "rendered_attachment_sequence"
+                ],
+                "render_evidence_valid": True,
+            }
+        )
+    except (KeyError, TypeError, ValueError):
+        result["render_evidence_valid"] = False
+
+    return result
 
 
 def _is_valid_image_payload(data_base64: str) -> bool:
@@ -297,17 +360,21 @@ def _valid_logo_count(project: ProjectSession) -> int:
     return int(_is_valid_image_payload(project.school_logo.data_base64))
 
 
-def _valid_attachment_ids(project: ProjectSession) -> set[str]:
-    return {
+def _valid_attachment_ids_in_order(project: ProjectSession) -> list[str]:
+    return [
         attachment.id
         for question in _active_questions(project)
         for attachment in question.attachments
         if _is_valid_image_payload(attachment.data_base64)
-    }
+    ]
+
+
+def _valid_attachment_ids(project: ProjectSession) -> set[str]:
+    return set(_valid_attachment_ids_in_order(project))
 
 
 def _valid_attachment_count(project: ProjectSession) -> int:
-    return len(_valid_attachment_ids(project))
+    return len(_valid_attachment_ids_in_order(project))
 
 
 def _docx_text(document: Document) -> str:
@@ -499,6 +566,105 @@ def _manifest_checks(
     ]
 
 
+def _pdf_render_evidence(
+    project: ProjectSession,
+    manifest: dict[str, object] | None,
+) -> tuple[bool, list[FullExamExportCheck]] | None:
+    """Validate deterministic PDF render evidence when the artifact has it.
+
+    Old artifacts without render evidence keep the extractor-based fallback.
+    New artifacts fail closed when the evidence marker exists but is incomplete
+    or differs from the active project structure.
+    """
+
+    if manifest is None or not manifest.get("render_evidence"):
+        return None
+
+    expected = _expected_structure(project)
+    valid_attachment_ids = _valid_attachment_ids_in_order(project)
+    expected_attachment_sequence = _sequence_digest(valid_attachment_ids)
+
+    if not manifest.get("render_evidence_valid"):
+        return (
+            False,
+            [
+                FullExamExportCheck(
+                    code="pdf_render_evidence",
+                    passed=False,
+                    message="بصمة دليل توليد PDF موجودة لكنها ناقصة أو غير صالحة.",
+                )
+            ],
+        )
+
+    comparisons = [
+        (
+            "rendered_questions",
+            expected["questions"],
+            "عدد الأسئلة التي أضيفت فعليًا إلى قصة PDF",
+        ),
+        (
+            "rendered_parts",
+            expected["parts"],
+            "عدد أجزاء الأسئلة التي أضيفت فعليًا إلى قصة PDF",
+        ),
+        (
+            "rendered_attachments",
+            len(valid_attachment_ids),
+            "عدد مرفقات الأسئلة الصالحة التي أضيفت فعليًا إلى قصة PDF",
+        ),
+        (
+            "rendered_marks",
+            expected["marks"],
+            "مجموع الدرجات في عناوين الأسئلة المولدة داخل PDF",
+        ),
+        (
+            "rendered_order",
+            expected["order"],
+            "ترتيب الأسئلة المولد داخل PDF",
+        ),
+        (
+            "rendered_sequence",
+            expected["sequence"],
+            "تسلسل هويات الأسئلة المولدة داخل PDF",
+        ),
+        (
+            "rendered_attachment_sequence",
+            expected_attachment_sequence,
+            "تسلسل هويات المرفقات المولدة داخل PDF",
+        ),
+    ]
+
+    checks = [
+        FullExamExportCheck(
+            code=f"pdf_{field}",
+            passed=manifest.get(field) == expected_value,
+            message=(
+                f"تطابق {label}."
+                if manifest.get(field) == expected_value
+                else (
+                    f"لا يطابق {label}: القيمة المولدة "
+                    f"({manifest.get(field)}) والمتوقعة ({expected_value})."
+                )
+            ),
+        )
+        for field, expected_value, label in comparisons
+    ]
+    valid = all(check.passed for check in checks)
+    checks.insert(
+        0,
+        FullExamExportCheck(
+            code="pdf_render_evidence",
+            passed=valid,
+            message=(
+                "دليل توليد PDF مكتمل ومتوافق مع بنية المشروع."
+                if valid
+                else "دليل توليد PDF لا يطابق بنية المشروع الحالية."
+            ),
+        ),
+    )
+    return valid, checks
+
+
 def _inspect_docx(
     project: ProjectSession,
     artifact_bytes: bytes,
@@ -656,9 +822,11 @@ def _inspect_pdf(
 ) -> FullExamExportFormatSummary:
     checks: list[FullExamExportCheck] = []
     warnings: list[str] = []
+    diagnostic_errors: list[str] = []
     manifest: dict[str, object] | None = None
     page_count = 0
-    exported_images = 0
+    extracted_image_count = 0
+    extracted_heading_count = 0
     extracted_text = ""
 
     signature_valid = artifact_bytes.startswith(b"%PDF")
@@ -674,22 +842,40 @@ def _inspect_pdf(
         )
     )
 
+    reader: PdfReader | None = None
     try:
         reader = PdfReader(BytesIO(artifact_bytes))
         page_count = len(reader.pages)
         manifest = _parse_manifest(
             _metadata_value(reader.metadata, "subject")
         )
-        exported_images = max(
-            0,
-            _pdf_image_count(reader) - _valid_logo_count(project),
-        )
-        extracted_text = "\n".join(
-            page.extract_text() or ""
-            for page in reader.pages
-        )
     except Exception as exc:
-        warnings.append(f"تعذر فحص محتوى PDF تفصيليًا: {exc}")
+        warnings.append(f"تعذر فتح بنية PDF أو قراءة بياناته الوصفية: {exc}")
+
+    if reader is not None:
+        try:
+            extracted_image_count = max(
+                0,
+                _pdf_image_count(reader) - _valid_logo_count(project),
+            )
+        except Exception as exc:
+            diagnostic_errors.append(
+                f"تعذر تشخيص XObject داخل PDF: {exc}"
+            )
+
+        try:
+            extracted_text = "\n".join(
+                page.extract_text() or ""
+                for page in reader.pages
+            )
+            extracted_heading_count = _pdf_question_heading_count(
+                project,
+                extracted_text,
+            )
+        except Exception as exc:
+            diagnostic_errors.append(
+                f"تعذر تشخيص طبقة النص داخل PDF: {exc}"
+            )
 
     checks.extend(_manifest_checks(project, manifest))
     expected = _expected_structure(project)
@@ -699,6 +885,129 @@ def _inspect_pdf(
         _active_questions(project),
         valid_attachment_ids=valid_attachment_ids,
     )
+
+    render_evidence = _pdf_render_evidence(project, manifest)
+    if render_evidence is not None:
+        render_evidence_valid, render_checks = render_evidence
+        checks.extend(render_checks)
+        rendered_questions = (
+            int(manifest.get("rendered_questions", 0))
+            if manifest
+            else 0
+        )
+        rendered_parts = (
+            int(manifest.get("rendered_parts", 0))
+            if manifest
+            else 0
+        )
+        rendered_attachments = (
+            int(manifest.get("rendered_attachments", 0))
+            if manifest
+            else 0
+        )
+        rendered_marks = (
+            int(manifest.get("rendered_marks", 0))
+            if manifest
+            else 0
+        )
+        rendered_order = (
+            str(manifest.get("rendered_order", ""))
+            if manifest
+            else ""
+        )
+
+        heading_passed = (
+            render_evidence_valid
+            and rendered_questions == expected["questions"]
+        )
+        attachment_passed = (
+            render_evidence_valid
+            and rendered_attachments == valid_attachments
+        )
+        text_layer_passed = (
+            render_evidence_valid
+            and rendered_questions > 0
+        )
+        exported_question_count = rendered_questions
+        exported_part_count = rendered_parts
+        exported_attachment_count = rendered_attachments
+        detected_total_marks = rendered_marks
+        question_order = [
+            item
+            for item in rendered_order.split(",")
+            if item
+        ]
+        heading_message = (
+            "دليل التوليد يثبت إدراج جميع عناوين الأسئلة في PDF "
+            f"(تشخيص قارئ النص اكتشف {extracted_heading_count})."
+            if heading_passed
+            else "دليل التوليد لا يثبت إدراج جميع عناوين الأسئلة في PDF."
+        )
+        attachment_message = (
+            "دليل التوليد يثبت إدراج مرفقات الأسئلة الصالحة مرة واحدة "
+            f"(تشخيص XObject اكتشف {extracted_image_count})."
+            if attachment_passed
+            else "دليل التوليد لا يثبت إدراج مرفقات الأسئلة الصالحة مرة واحدة."
+        )
+        text_layer_message = (
+            "دليل التوليد يثبت إضافة عناصر نصية إلى PDF "
+            f"(استخراج القارئ أعاد {len(extracted_text.strip())} محرفًا)."
+            if text_layer_passed
+            else "دليل التوليد لا يثبت إضافة عناصر نصية إلى PDF."
+        )
+    else:
+        # Backwards-compatible fallback for PDF files generated before Fix 2.
+        warnings.extend(diagnostic_errors)
+        heading_passed = extracted_heading_count == expected["questions"]
+        attachment_passed = extracted_image_count == valid_attachments
+        text_layer_passed = bool(extracted_text.strip())
+        exported_question_count = (
+            int(manifest["questions"])
+            if manifest
+            else 0
+        )
+        exported_part_count = (
+            int(manifest["parts"])
+            if manifest
+            else 0
+        )
+        exported_attachment_count = extracted_image_count
+        detected_total_marks = (
+            int(manifest["marks"])
+            if manifest
+            else 0
+        )
+        manifest_order = (
+            str(manifest.get("order", ""))
+            if manifest
+            else ""
+        )
+        question_order = [
+            item
+            for item in manifest_order.split(",")
+            if item
+        ]
+        heading_message = (
+            "عدد عناوين الأسئلة المرئية داخل PDF مطابق للبنية المتوقعة."
+            if heading_passed
+            else (
+                "عدد عناوين الأسئلة المكتشف داخل PDF لا يطابق "
+                "عدد الأسئلة النشطة."
+            )
+        )
+        attachment_message = (
+            "أُدرجت مرفقات الأسئلة الصالحة مرة واحدة في PDF."
+            if attachment_passed
+            else (
+                f"عدد صور الأسئلة داخل PDF ({extracted_image_count}) لا يطابق "
+                f"المرفقات الصالحة ({valid_attachments})."
+            )
+        )
+        text_layer_message = (
+            "يحتوي PDF على طبقة نصية قابلة للاستخراج."
+            if text_layer_passed
+            else "لم تُكتشف طبقة نصية قابلة للاستخراج داخل PDF."
+        )
 
     checks.extend(
         [
@@ -713,37 +1022,13 @@ def _inspect_pdf(
             ),
             FullExamExportCheck(
                 code="pdf_question_headings",
-                passed=(
-                    _pdf_question_heading_count(
-                        project,
-                        extracted_text,
-                    )
-                    == expected["questions"]
-                ),
-                message=(
-                    "عدد عناوين الأسئلة المرئية داخل PDF مطابق للبنية المتوقعة."
-                    if _pdf_question_heading_count(
-                        project,
-                        extracted_text,
-                    )
-                    == expected["questions"]
-                    else (
-                        "عدد عناوين الأسئلة المكتشف داخل PDF لا يطابق "
-                        "عدد الأسئلة النشطة."
-                    )
-                ),
+                passed=heading_passed,
+                message=heading_message,
             ),
             FullExamExportCheck(
                 code="pdf_attachments_once",
-                passed=exported_images == valid_attachments,
-                message=(
-                    "أُدرجت مرفقات الأسئلة الصالحة مرة واحدة في PDF."
-                    if exported_images == valid_attachments
-                    else (
-                        f"عدد صور الأسئلة داخل PDF ({exported_images}) لا يطابق "
-                        f"المرفقات الصالحة ({valid_attachments})."
-                    )
-                ),
+                passed=attachment_passed,
+                message=attachment_message,
             ),
             FullExamExportCheck(
                 code="pdf_visual_question_coverage",
@@ -759,12 +1044,8 @@ def _inspect_pdf(
             ),
             FullExamExportCheck(
                 code="pdf_text_layer",
-                passed=bool(extracted_text.strip()),
-                message=(
-                    "يحتوي PDF على طبقة نصية قابلة للاستخراج."
-                    if extracted_text.strip()
-                    else "لم تُكتشف طبقة نصية قابلة للاستخراج داخل PDF."
-                ),
+                passed=text_layer_passed,
+                message=text_layer_message,
             ),
         ]
     )
@@ -783,33 +1064,16 @@ def _inspect_pdf(
     if not signature_valid or manifest is None or page_count == 0:
         status = FullExamExportArtifactStatus.failed
 
-    manifest_order = str(manifest.get("order", "")) if manifest else ""
     return FullExamExportFormatSummary(
         format=ExportFormat.pdf,
         status=status,
         byte_size=len(artifact_bytes),
         page_count=page_count or None,
-        exported_question_count=(
-            int(manifest["questions"])
-            if manifest is not None
-            else 0
-        ),
-        exported_part_count=(
-            int(manifest["parts"])
-            if manifest is not None
-            else 0
-        ),
-        exported_attachment_count=exported_images,
-        detected_total_marks=(
-            int(manifest["marks"])
-            if manifest is not None
-            else 0
-        ),
-        question_order=[
-            item
-            for item in manifest_order.split(",")
-            if item
-        ],
+        exported_question_count=exported_question_count,
+        exported_part_count=exported_part_count,
+        exported_attachment_count=exported_attachment_count,
+        detected_total_marks=detected_total_marks,
+        question_order=question_order,
         checks=checks,
         warnings=warnings,
     )

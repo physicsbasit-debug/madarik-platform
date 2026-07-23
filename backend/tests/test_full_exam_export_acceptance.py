@@ -30,6 +30,7 @@ from app.services.export import (
 )
 from app.services.full_exam_export import (
     EXPORT_MANIFEST_PREFIX,
+    _parse_manifest,
     _pdf_image_count,
     _pdf_question_heading_count,
     build_full_exam_export_report,
@@ -270,6 +271,88 @@ def test_pdf_image_count_excludes_soft_masks() -> None:
     )
 
     assert _pdf_image_count(reader) == 1
+
+def test_pdf_manifest_records_actual_render_evidence() -> None:
+    project = _full_exam_project()
+    pdf_bytes = build_project_pdf_bytes(project)
+    reader = PdfReader(BytesIO(pdf_bytes))
+    manifest = _parse_manifest(str(reader.metadata.subject))
+
+    assert manifest is not None
+    assert manifest["render_evidence"] is True
+    assert manifest["render_evidence_valid"] is True
+    assert manifest["rendered_questions"] == 2
+    assert manifest["rendered_parts"] == 3
+    assert manifest["rendered_attachments"] == 1
+    assert manifest["rendered_marks"] == 5
+    assert manifest["rendered_order"] == "1,2"
+    assert manifest["rendered_sequence"] == manifest["sequence"]
+
+
+def test_pdf_acceptance_uses_render_evidence_when_reader_diagnostics_vary(
+    monkeypatch,
+) -> None:
+    project = _full_exam_project()
+    docx_report = build_full_exam_export_report(
+        project,
+        ExportFormat.docx,
+        build_project_docx_bytes(project),
+    )
+    pdf_bytes = build_project_pdf_bytes(project)
+
+    monkeypatch.setattr(
+        "app.services.full_exam_export._pdf_question_heading_count",
+        lambda *args, **kwargs: 0,
+    )
+    def fail_image_diagnostics(*args, **kwargs):
+        raise RuntimeError("simulated environment-specific XObject failure")
+
+    monkeypatch.setattr(
+        "app.services.full_exam_export._pdf_image_count",
+        fail_image_diagnostics,
+    )
+
+    report = build_full_exam_export_report(
+        project,
+        ExportFormat.pdf,
+        pdf_bytes,
+        docx_report,
+    )
+
+    assert report.status == FullExamExportAcceptanceStatus.accepted
+    pdf_summary = next(
+        item for item in report.formats
+        if item.format == ExportFormat.pdf
+    )
+    assert pdf_summary.status == FullExamExportArtifactStatus.accepted
+    assert pdf_summary.exported_question_count == 2
+    assert pdf_summary.exported_attachment_count == 1
+    assert any(
+        check.code == "pdf_render_evidence" and check.passed
+        for check in pdf_summary.checks
+    )
+
+
+def test_invalid_pdf_attachment_is_not_claimed_by_render_evidence() -> None:
+    project = _full_exam_project(
+        export_formats=[ExportFormat.pdf],
+        invalid_attachment=True,
+    )
+    pdf_bytes = build_project_pdf_bytes(project)
+    report = build_full_exam_export_report(
+        project,
+        ExportFormat.pdf,
+        pdf_bytes,
+    )
+
+    assert report.status == FullExamExportAcceptanceStatus.needs_review
+    assert report.formats[0].status == FullExamExportArtifactStatus.needs_review
+    assert report.formats[0].exported_attachment_count == 0
+    assert any(
+        "تعذر إدراج 1 مرفق" in warning
+        for warning in report.formats[0].warnings
+    )
+
 
 def test_docx_report_is_incomplete_until_requested_pdf_is_generated() -> None:
     project = _full_exam_project()
