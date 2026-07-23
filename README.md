@@ -343,13 +343,13 @@ feat/madarik-science-platform-v2
 
 Completed V2 phases:
 
-- Phase 0-A: Scope, Architecture, and Data Contracts.
-- Phase 0-B: Task-Oriented Home.
-- Phase 1: Quick Translation Workflow.
-- Phase 2: Curriculum Structure for Grades 1–12.
-- Phase 3-A: Google Drive Source Foundation.
-- Phase 3-B: Curriculum Source Persistence.
-- Phase 3-C: Source Refresh Detection.
+- Phase 0-A: Scope, architecture, and data contracts.
+- Phase 0-B: Task-oriented home.
+- Phase 1: Quick translation workflow.
+- Phase 2: Curriculum structure for grades 1–12.
+- Phase 3-A: Google Drive source foundation.
+- Phase 3-B: Curriculum source persistence.
+- Phase 3-C: Source refresh detection.
 - Phase 3-D: Source Version History and Manual Update Acceptance.
 - Phase 4-A: Science Question Classification Foundation.
 - Phase 4-B: Curriculum Linking and Classification Review.
@@ -369,33 +369,23 @@ Completed V2 phases:
 - Phase 8-C: Scientific Diagram PNG and PDF Export.
 - Phase 9-A: Cloud Source Expansion and OneDrive Foundation.
 - Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter.
+- Phase 9-C: Cloud Source Refresh, Version History, and Project Intake.
 
-### Comprehensive repair baseline
+Phase 9-C adds:
 
-The repair package preserves the legacy Google Drive contracts while adding the
-multi-provider cloud-source registry. It also repairs TypeScript imports,
-resource ownership checks, differentiated-activity persistence, filename
-sanitization, SVG safety, OneDrive sharing-link addressing, and curriculum
-selectors for activities and diagrams.
+- persistent cloud-source version history;
+- content fingerprints and SHA-256 checksums;
+- first-version baseline acceptance;
+- manual acceptance for later versions;
+- accepted, detected, and superseded states;
+- PDF project intake from an accepted downloaded version;
+- creation of a new project when no target project is selected;
+- ownership-safe version, acceptance, and intake APIs.
 
-The Microsoft Graph adapter uses app-only client credentials and never calls
-`/me`. Sharing URLs are addressed through the Microsoft Graph Shares API. The
-adapter remains disabled until valid Microsoft Entra credentials and required
-application permissions are supplied through environment variables.
-
-Validation completed for the comprehensive repair baseline:
-
-- full Backend test suite passes;
-- Python compilation and OpenAPI generation pass;
-- static API route smoke tests pass;
-- TypeScript and TSX parsing pass;
-- strict frontend type auditing passes with temporary dependency declarations.
-
-A real `npm ci`, ESLint, and Vite build remain assigned to GitHub Actions because
-the package registry returned HTTP 503 in the local audit environment.
+The cloud-source workflow is now functionally closed.
 
 Next planned phase:
 
 ```text
-Phase 9-C: Cloud Source Refresh, Version History, and Project Intake
+Phase 10-A: Release Hardening and End-to-End Acceptance
 ```

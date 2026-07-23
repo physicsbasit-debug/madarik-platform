@@ -397,3 +397,15 @@
 - Preserved cloud-source primary keys during upsert.
 - Removed duplicate dependency pins and generated SQLite data.
 - Updated stale tests and added comprehensive regression coverage.
+
+
+### Phase 9-C: Cloud Source Refresh, Version History, and Project Intake
+
+- Added persistent cloud-source version history.
+- Added content fingerprints, SHA-256 checksums, and version states.
+- Added first-version baseline acceptance and manual later-version acceptance.
+- Added PDF project intake from accepted downloaded versions.
+- Added version, refresh, acceptance, and intake APIs.
+- Added version-history and project-intake controls to the RTL workspace.
+- Added source-version cleanup when a cloud source is deleted.
+- Updated README and closed the cloud-source workflow.

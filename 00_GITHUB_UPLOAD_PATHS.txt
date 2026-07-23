@@ -1,0 +1,47 @@
+PHASE 9-C - GITHUB UPLOAD PATHS
+========================================
+
+كل الملفات موجودة في مجلد واحد.
+ارفع كل ملف إلى المسار المقابل له في GitHub.
+
+1. CHANGELOG.md
+   GitHub: CHANGELOG.md
+
+2. README.md
+   GitHub: README.md
+
+3. projects.py
+   GitHub: backend/app/api/projects.py
+
+4. cloud_source_version.py
+   GitHub: backend/app/models/cloud_source_version.py
+
+5. cloud_source_lifecycle.py
+   GitHub: backend/app/services/cloud_source_lifecycle.py
+
+6. cloud_source_repository.py
+   GitHub: backend/app/services/cloud_source_repository.py
+
+7. cloud_source_version_repository.py
+   GitHub: backend/app/services/cloud_source_version_repository.py
+
+8. test_phase9_c_cloud_version_history.py
+   GitHub: backend/tests/test_phase9_c_cloud_version_history.py
+
+9. PHASE_9_C_CLOUD_VERSION_HISTORY_AND_INTAKE.md
+   GitHub: docs/PHASE_9_C_CLOUD_VERSION_HISTORY_AND_INTAKE.md
+
+10. App.tsx
+   GitHub: frontend/src/app/App.tsx
+
+11. CloudSources.tsx
+   GitHub: frontend/src/features/cloud/CloudSources.tsx
+
+12. api.ts
+   GitHub: frontend/src/services/api.ts
+
+13. global.css
+   GitHub: frontend/src/styles/global.css
+
+14. project.ts
+   GitHub: frontend/src/types/project.ts
