@@ -1,15 +1,20 @@
 # قائمة القبول النهائي للإصدار
 
+- الإصدار: `2.0.0-rc.2`
+- المرحلة: `Phase 10-B`
+
 ## أولا: البوابة الآلية
 
-- [ ] `RUN_PHASE10_A_RELEASE_AUDIT.py` ناجح.
+- [ ] `RUN_PHASE10_B_RC_PREFLIGHT.py` ناجح.
+- [ ] يوجد Workflow إصدار واحد فقط باسم `Phase 10-B Final RC Gate`.
 - [ ] لا SQLite أو ZIP أو Patch أو ملفات bytecode متتبعة.
 - [ ] لا ملفات `.env` أو مفاتيح أو شهادات متتبعة.
-- [ ] الإصدار متطابق بين README وBackend وFrontend وpackage-lock.
+- [ ] الإصدار متطابق بين README وBackend وFrontend وpackage-lock وملف الحالة.
 - [ ] OpenAPI دون `operationId` مكرر.
 - [ ] `/api/health/readiness` يرجع `technical_ready=true`.
 - [ ] `python -m compileall -q backend/app backend/tests` ناجح.
-- [ ] اختبارات Phase 10-A المركزة ناجحة.
+- [ ] `python -m pip check` ناجح.
+- [ ] اختبارات Phase 10-B المركزة ناجحة.
 - [ ] اختبارات Backend الكاملة ناجحة.
 - [ ] `npm ci` ناجح.
 - [ ] `npm run lint` ناجح.
@@ -59,7 +64,8 @@
 - [ ] أنشئ Tag بعد القبول فقط.
 - [ ] أنشئ GitHub Release بعد القبول فقط.
 
-## الحكم الحالي بعد Phase 10-A
+## الحكم الحالي بعد Phase 10-B
 
-- البوابة التقنية: قابلة للإغلاق بعد نجاح GitHub Actions.
-- الإصدار الإنتاجي: غير معتمد قبل القبول الحي والمراجعة البصرية.
+- المرشح التقني: `ready_for_ci`.
+- الإصدار الإنتاجي: `blocked`.
+- الحاجزان المفتوحان: القبول الحي والمراجعة البصرية.

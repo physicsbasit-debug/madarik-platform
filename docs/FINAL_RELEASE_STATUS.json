@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "product": "Madarik",
+  "version": "2.0.0-rc.2",
+  "channel": "release-candidate",
+  "phase": "Phase 10-B",
+  "phase_title": "Final Release Candidate Consolidation and Sign-off",
+  "technical_candidate": "ready_for_ci",
+  "production_release": "blocked",
+  "blockers": [
+    {
+      "id": "live_external_provider_acceptance",
+      "status": "open",
+      "label": "ترجمة ورقة Cambridge كاملة عبر مزود خارجي حقيقي"
+    },
+    {
+      "id": "visual_docx_pdf_review",
+      "status": "open",
+      "label": "مراجعة DOCX وPDF بصريًا وتوثيق نتيجة القبول"
+    }
+  ],
+  "tag_allowed": false,
+  "github_release_allowed": false
+}

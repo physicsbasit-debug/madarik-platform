@@ -2,8 +2,9 @@
 
 ## بيانات النسخة
 
-- الإصدار: `2.0.0-rc.1`
-- الفرع:
+- الإصدار: `2.0.0-rc.2`
+- المرحلة: `Phase 10-B`
+- الفرع: `feat/madarik-science-platform-v2`
 - Commit:
 - تاريخ الاختبار:
 - المختبر:
@@ -17,9 +18,11 @@
 
 | الفحص | النتيجة | الدليل |
 |---|---|---|
-| Git hygiene | غير منفذ | |
+| Phase 10-B RC preflight | غير منفذ | |
+| Repository hygiene | غير منفذ | |
 | Python compileall | غير منفذ | |
 | pip check | غير منفذ | |
+| Backend focused acceptance | غير منفذ | |
 | Backend full pytest | غير منفذ | |
 | npm ci | غير منفذ | |
 | Frontend lint | غير منفذ | |

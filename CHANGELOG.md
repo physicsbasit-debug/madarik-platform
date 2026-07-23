@@ -19,6 +19,24 @@
 - توثيق نتيجة القبول النهائية.
 - إنشاء Tag وGitHub Release بعد اجتياز جميع البوابات.
 
+
+## [2.0.0-rc.2] - 2026-07-23
+
+### ثُبّت
+
+- توحيد إصدار المرشح النهائي عبر Backend وFrontend وpackage-lock وREADME وملف حالة الإصدار.
+- ترقية بيانات الإصدار إلى `Phase 10-B: Final Release Candidate Consolidation and Sign-off`.
+- إضافة بوابة `RUN_PHASE10_B_RC_PREFLIGHT.py` لفحص المستودع والإصدار والـWorkflow وOpenAPI والجاهزية.
+- توحيد GitHub Actions تحت بوابة إصدار واحدة مع حفظ تقرير Preflight كأثر.
+- إضافة اختبارات إصدار مركزة لبيانات RC وحالة الحواجز وWorkflow النهائي.
+- إبقاء Tag وGitHub Release محجوبين حتى القبول الحي والمراجعة البصرية.
+
+### تحقق
+
+- Phase 10-A وFixes 1–3 مغلقة تقنيًا.
+- Frontend lint وproduction build اجتازا GitHub Actions قبل بدء Phase 10-B.
+- القبول الحي لمزود خارجي ومراجعة DOCX/PDF ما زالا حاجزين إلزاميين.
+
 ## [2.0.0-rc.1] - 2026-07-19
 
 ### أضيف

@@ -27,6 +27,6 @@ def test_readme_reflects_current_release_candidate() -> None:
     content = readme.read_text(encoding="utf-8")
 
     assert content.startswith("# منصة مدارك\n")
-    assert "2.0.0-rc.1" in content
+    assert "2.0.0-rc.2" in content
     assert "Phase 4-B1" in content
     assert "Final Release Candidate" in content

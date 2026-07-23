@@ -4,11 +4,11 @@
 
 ## الحالة الحالية
 
-- الإصدار البرمجي: `2.0.0-rc.1`
+- الإصدار البرمجي: `2.0.0-rc.2`
 - فرع التطوير: `feat/madarik-science-platform-v2`
-- آخر مرحلة مكتملة: `Phase 10-A: Release Hardening and End-to-End Acceptance`
-- الحالة التقنية الحالية: `Phase 10-A Fix 3` لإغلاق أخطاء وتحذيرات Frontend lint وربط الوظائف غير المستخدمة فعليًا
-- المتبقي قبل الإصدار الإنتاجي: نجاح GitHub Actions، ثم اختبار مزود خارجي حقيقي ومراجعة DOCX/PDF بصريًا
+- آخر مرحلة مكتملة: `Phase 10-B: Final Release Candidate Consolidation and Sign-off`
+- الحالة التقنية الحالية: المرشح النهائي `2.0.0-rc.2` جاهز لبوابة GitHub Actions الموحدة
+- الإصدار الإنتاجي: محجوب حتى اختبار مزود خارجي حقيقي ومراجعة DOCX/PDF بصريًا
 
 ### بوابة الاعتماد الحالية
 
@@ -370,6 +370,8 @@ Completed V2 phases:
 - Phase 9-A: Cloud Source Expansion and OneDrive Foundation.
 - Phase 9-B: OneDrive Authentication and Microsoft Graph Adapter.
 - Phase 9-C: Cloud Source Refresh, Version History, and Project Intake.
+- Phase 10-A: Release Hardening and End-to-End Acceptance.
+- Phase 10-B: Final Release Candidate Consolidation and Sign-off.
 
 Phase 9-C adds:
 
@@ -408,3 +410,11 @@ Phase 10-A adds:
 The technical release gate is now defined. Production release remains blocked
 until a real external provider translates a full Cambridge paper and the DOCX
 and PDF outputs pass visual review.
+
+Phase 10-B consolidates the final release candidate:
+
+- version `2.0.0-rc.2` is unified across Backend, Frontend, lockfile, README, and release status;
+- one active release-gate workflow runs preflight, Backend, Frontend, and whitespace checks;
+- a machine-readable final-release status keeps production release and tagging blocked;
+- the RC preflight validates repository hygiene, secrets, versions, workflow identity, OpenAPI, and readiness;
+- the technical candidate is ready for CI, while live external-provider acceptance and visual DOCX/PDF review remain mandatory.
