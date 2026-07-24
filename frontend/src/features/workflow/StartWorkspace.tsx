@@ -31,6 +31,10 @@ type WorkStatus = {
   label: string;
 };
 
+interface StartWorkspaceLegacyCallbacks {
+  onDeleteLayoutAsset: (assetId: string) => void;
+}
+
 interface StartWorkspaceProps {
   metadata: ProjectMetadata;
   schoolLogo: SchoolLogoInfo | null;
@@ -53,7 +57,8 @@ interface StartWorkspaceProps {
   onOpenProject: (projectId: string) => void;
   onDeleteProject: (projectId: string) => void;
   onDeleteProjects: (projectIds: string[]) => void;
-  onDeleteLayoutAsset: (assetId: string) => void;
+  /** Optional in the simplified library; retained for compatibility with the legacy start stage. */
+  onDeleteLayoutAsset?: StartWorkspaceLegacyCallbacks["onDeleteLayoutAsset"];
   onParseQuestions: () => void;
 }
 
@@ -254,7 +259,10 @@ export function StartWorkspace(props: StartWorkspaceProps) {
         </button>
       </section>
 
-      <section className="mdk-current-work" aria-labelledby="current-work-title">
+      <section
+        className="mdk-current-work start-overview-strip"
+        aria-labelledby="current-work-title"
+      >
         <div className="mdk-current-work__icon" aria-hidden="true">
           <FolderOpen />
         </div>
