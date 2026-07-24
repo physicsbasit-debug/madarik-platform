@@ -1260,3 +1260,129 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Batch 3: automatic paper preparation and progressive disclosure */
+.mdk-simple-process--automatic {
+  max-width: 1040px;
+  margin-inline: auto;
+}
+
+.mdk-simple-upload-stage.is-empty {
+  border-color: #cfd7eb;
+  box-shadow: var(--mdk-shadow);
+}
+
+.mdk-simple-upload-stage.has-file {
+  border-color: #cfd8ef;
+}
+
+.mdk-simple-selected-file {
+  margin-top: 18px;
+  padding: 15px;
+  border: 1px solid #dfe4ef;
+  border-radius: 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  background: #f8faff;
+}
+
+.mdk-simple-selected-file__icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #e9eeff;
+  color: var(--mdk-primary);
+}
+
+.mdk-simple-selected-file__meta {
+  min-width: 0;
+}
+
+.mdk-simple-selected-file__meta small,
+.mdk-simple-selected-file__meta strong {
+  display: block;
+}
+
+.mdk-simple-selected-file__meta small {
+  margin-bottom: 3px;
+  color: var(--mdk-muted);
+  font-size: 12px;
+}
+
+.mdk-simple-selected-file__meta strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mdk-simple-replace-file {
+  min-height: 39px;
+  padding: 8px 11px;
+  border: 1px solid var(--mdk-line);
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: white;
+  color: var(--mdk-primary);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mdk-simple-replace-file input {
+  display: none;
+}
+
+.mdk-simple-auto-stage {
+  border-color: #dce3f5;
+  background:
+    linear-gradient(135deg, rgba(49, 86, 211, 0.035), transparent 45%),
+    white;
+}
+
+.mdk-simple-auto-badge {
+  min-height: 36px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #eef2ff;
+  color: var(--mdk-primary);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.mdk-simple-auto-badge.is-completed {
+  background: #ecfdf7;
+  color: var(--mdk-success);
+}
+
+.mdk-simple-auto-badge.is-error {
+  background: #fff1f0;
+  color: var(--mdk-danger);
+}
+
+.mdk-simple-error-action {
+  margin-top: 12px;
+}
+
+@media (max-width: 640px) {
+  .mdk-simple-selected-file {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .mdk-simple-replace-file {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  .mdk-simple-auto-badge {
+    align-self: flex-start;
+  }
+}

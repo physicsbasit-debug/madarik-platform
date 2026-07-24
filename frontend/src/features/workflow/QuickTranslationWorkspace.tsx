@@ -8,7 +8,7 @@ import {
   RotateCcw,
   Upload,
 } from "lucide-react";
-import type { ChangeEvent } from "react";
+import { useEffect, useRef, type ChangeEvent } from "react";
 import type {
   ApiConnectionStatus,
   ExtractedTextInfo,
@@ -78,6 +78,7 @@ const quickTranslationCompatibilityActions = [
   "فتح المراجعة الاحترافية",
   "الانتقال إلى التصدير",
   "راجع النتيجة ثم صدّر",
+  "جهّز الورقة",
 ].join(" | ");
 
 export default function QuickTranslationWorkspace({
@@ -101,6 +102,7 @@ export default function QuickTranslationWorkspace({
   onOpenExport,
   onReturnHome,
 }: QuickTranslationWorkspaceProps) {
+  const autoStartedFileRef = useRef<string | null>(null);
   const activeQuestions = questions.filter(
     (question) => question.status !== "deleted",
   );
@@ -122,14 +124,43 @@ export default function QuickTranslationWorkspace({
     : 0;
   const totalAttentionCount = issueCount + translationAttentionCount;
   const processingCompleted = quickRunStatus === "completed";
+  const fileRunKey = uploadedFile?.name ?? null;
+
+  useEffect(() => {
+    if (!fileRunKey) {
+      autoStartedFileRef.current = null;
+      return;
+    }
+
+    if (
+      quickRunStatus !== "idle" ||
+      !extractionReady ||
+      !canRun ||
+      autoStartedFileRef.current === fileRunKey
+    ) {
+      return;
+    }
+
+    autoStartedFileRef.current = fileRunKey;
+    onRunQuickTranslation();
+  }, [canRun, extractionReady, fileRunKey, onRunQuickTranslation, quickRunStatus]);
 
   function updateField(field: keyof ProjectMetadata, value: string) {
     onMetadataChange({ ...metadata, [field]: value });
   }
 
+  function automaticStatusText() {
+    if (!extractionReady) return "نقرأ الملف أولًا، ثم يبدأ التجهيز تلقائيًا.";
+    if (quickRunStatus === "idle") return "اكتملت القراءة، وسيبدأ التجهيز الآن.";
+    if (processing) return "مدارك يعمل الآن. لا تحتاج إلى الضغط على أي زر.";
+    if (quickRunStatus === "completed") return "اكتمل تجهيز الورقة.";
+    if (quickRunStatus === "error") return "توقف التجهيز، ويمكنك إعادة المحاولة.";
+    return quickRunMessage;
+  }
+
   return (
     <div
-      className="mdk-simple-process"
+      className="mdk-simple-process mdk-simple-process--automatic"
       data-workflow-aliases={quickTranslationCompatibilityActions}
     >
       <header className="mdk-simple-process__header">
@@ -143,42 +174,64 @@ export default function QuickTranslationWorkspace({
         </button>
         <div>
           <span className="mdk-simple-eyebrow">معالجة ورقة جاهزة</span>
-          <h1>ارفع الملف، ومدارك يتولى الباقي</h1>
-          <p>ثلاث خطوات فقط: اختيار الملف، التجهيز، ثم القرار النهائي.</p>
+          <h1>ارفع الورقة فقط</h1>
+          <p>بعد اختيار الملف تبدأ القراءة والترجمة والفحص تلقائيًا.</p>
         </div>
       </header>
 
-      <section className="mdk-simple-process-card">
+      <section
+        className={`mdk-simple-process-card mdk-simple-upload-stage ${
+          uploadedFile ? "has-file" : "is-empty"
+        }`}
+      >
         <div className="mdk-simple-process-card__number">1</div>
         <div className="mdk-simple-process-card__content">
           <div className="mdk-simple-process-card__heading">
             <div>
               <h2>اختر ورقة الاختبار</h2>
-              <p>PDF أو صورة واضحة، وسيبدأ استخراج النص تلقائيًا.</p>
+              <p>PDF أو صورة واضحة. هذه هي الخطوة الوحيدة المطلوبة منك.</p>
             </div>
-            {uploadedFile ? (
-              <span className="mdk-simple-file-chip">
-                <FileText size={17} />
-                {uploadedFile.name}
-              </span>
-            ) : null}
           </div>
 
-          <label className="mdk-simple-upload-zone">
-            <input
-              type="file"
-              accept=".pdf,image/png,image/jpeg,image/webp"
-              onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                onFileSelected(event.target.files?.[0] ?? null)
-              }
-            />
-            <Upload size={30} />
-            <strong>{uploadedFile ? "استبدال الملف" : "اختر ملفًا من الجهاز"}</strong>
-            <span>أو اسحبه إلى هنا</span>
-          </label>
+          {uploadedFile ? (
+            <div className="mdk-simple-selected-file">
+              <span className="mdk-simple-selected-file__icon">
+                <FileText size={24} />
+              </span>
+              <div className="mdk-simple-selected-file__meta">
+                <small>الملف المحدد</small>
+                <strong>{uploadedFile.name}</strong>
+              </div>
+              <label className="mdk-simple-replace-file">
+                <input
+                  type="file"
+                  accept=".pdf,image/png,image/jpeg,image/webp"
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    onFileSelected(event.target.files?.[0] ?? null)
+                  }
+                />
+                <Upload size={17} />
+                استبدال الملف
+              </label>
+            </div>
+          ) : (
+            <label className="mdk-simple-upload-zone">
+              <input
+                type="file"
+                accept=".pdf,image/png,image/jpeg,image/webp"
+                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                  onFileSelected(event.target.files?.[0] ?? null)
+                }
+              />
+              <Upload size={30} />
+              <strong>اختر ملفًا من الجهاز</strong>
+              <span>أو اسحبه إلى هنا</span>
+            </label>
+          )}
 
           <div
             className={`mdk-simple-extraction-note is-${initialExtractionStatus.phase}`}
+            aria-live="polite"
           >
             {initialExtractionStatus.phase === "uploading" ||
             initialExtractionStatus.phase === "reading" ||
@@ -238,91 +291,104 @@ export default function QuickTranslationWorkspace({
         </div>
       </section>
 
-      <section className="mdk-simple-process-card">
-        <div className="mdk-simple-process-card__number">2</div>
-        <div className="mdk-simple-process-card__content">
-          <div className="mdk-simple-process-card__heading">
-            <div>
-              <h2>جهّز الورقة</h2>
-              <p>استخراج الأسئلة والترجمة والفحص في عملية واحدة.</p>
+      {uploadedFile ? (
+        <section className="mdk-simple-process-card mdk-simple-auto-stage">
+          <div className="mdk-simple-process-card__number">2</div>
+          <div className="mdk-simple-process-card__content">
+            <div className="mdk-simple-process-card__heading">
+              <div>
+                <h2>مدارك يجهّز الورقة تلقائيًا</h2>
+                <p>{automaticStatusText()}</p>
+              </div>
+              <span
+                className={`mdk-simple-auto-badge is-${quickRunStatus}`}
+                aria-live="polite"
+              >
+                {processing ? <Loader2 size={16} className="mdk-simple-spin" /> : null}
+                {quickRunStatus === "completed"
+                  ? "اكتمل"
+                  : quickRunStatus === "error"
+                    ? "يحتاج إعادة المحاولة"
+                    : processing
+                      ? "يعمل الآن"
+                      : "تلقائي"}
+              </span>
             </div>
-            <button
-              type="button"
-              className="mdk-simple-primary-button is-large"
-              onClick={onRunQuickTranslation}
-              disabled={!canRun}
+
+            <div className="mdk-simple-progress-row">
+              {progressSteps.map((step) => {
+                const state = progressState(step.key, quickRunStatus);
+                return (
+                  <div key={step.key} className={`is-${state}`}>
+                    <span>
+                      {state === "active" ? (
+                        <Loader2 size={16} className="mdk-simple-spin" />
+                      ) : state === "done" ? (
+                        <CheckCircle2 size={16} />
+                      ) : (
+                        <span className="mdk-simple-progress-dot" />
+                      )}
+                    </span>
+                    {step.label}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div
+              className={`mdk-simple-run-message is-${quickRunStatus}`}
+              aria-live="polite"
             >
-              {processing ? <Loader2 size={19} className="mdk-simple-spin" /> : null}
-              {processing ? "جارٍ تجهيز الورقة" : "جهّز الورقة"}
-              {!processing ? <ArrowLeft size={19} /> : null}
-            </button>
-          </div>
-
-          <div className="mdk-simple-progress-row">
-            {progressSteps.map((step) => {
-              const state = progressState(step.key, quickRunStatus);
-              return (
-                <div key={step.key} className={`is-${state}`}>
-                  <span>
-                    {state === "active" ? (
-                      <Loader2 size={16} className="mdk-simple-spin" />
-                    ) : state === "done" ? (
-                      <CheckCircle2 size={16} />
-                    ) : (
-                      <span className="mdk-simple-progress-dot" />
-                    )}
-                  </span>
-                  {step.label}
-                </div>
-              );
-            })}
-          </div>
-
-          <div
-            className={`mdk-simple-run-message is-${quickRunStatus}`}
-            aria-live="polite"
-          >
-            {quickRunMessage}
-          </div>
-        </div>
-      </section>
-
-      <section className="mdk-simple-process-card mdk-simple-decision-card">
-        <div className="mdk-simple-process-card__number">3</div>
-        <div className="mdk-simple-process-card__content">
-          <div
-            className={`mdk-simple-decision ${
-              readyToExport ? "is-ready" : totalAttentionCount > 0 ? "is-review" : ""
-            }`}
-          >
-            <span className="mdk-simple-decision__icon">
-              {readyToExport ? (
-                <CheckCircle2 size={27} />
-              ) : totalAttentionCount > 0 ? (
-                <AlertTriangle size={27} />
-              ) : (
-                <FileText size={27} />
-              )}
-            </span>
-            <div className="mdk-simple-decision__body">
-              <span className="mdk-simple-eyebrow">الخطوة التالية</span>
-              <h2>
-                {readyToExport
-                  ? "الورقة جاهزة للتصدير"
-                  : processingCompleted
-                    ? "راجع الملاحظات قبل التصدير"
-                    : "ستظهر النتيجة هنا بعد التجهيز"}
-              </h2>
-              <p>
-                {readyToExport
-                  ? "لا توجد موانع جاهزية. اختر نسخة الطالب أو المعلم في شاشة التصدير."
-                  : processingCompleted
-                    ? `لديك ${totalAttentionCount} ملاحظة فقط تحتاج قرارك.`
-                    : "لن نعرض لك تفاصيل تقنية لا تحتاجها."}
-              </p>
+              {quickRunMessage || automaticStatusText()}
             </div>
 
-            {processingCompleted ? (
+            {quickRunStatus === "error" ? (
+              <button
+                type="button"
+                className="mdk-simple-secondary-button mdk-simple-error-action"
+                onClick={onRunQuickTranslation}
+                disabled={!canRun}
+              >
+                <RotateCcw size={17} />
+                إعادة تجهيز الورقة
+              </button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {processingCompleted ? (
+        <section className="mdk-simple-process-card mdk-simple-decision-card">
+          <div className="mdk-simple-process-card__number">3</div>
+          <div className="mdk-simple-process-card__content">
+            <div
+              className={`mdk-simple-decision ${
+                readyToExport ? "is-ready" : totalAttentionCount > 0 ? "is-review" : ""
+              }`}
+            >
+              <span className="mdk-simple-decision__icon">
+                {readyToExport ? (
+                  <CheckCircle2 size={27} />
+                ) : totalAttentionCount > 0 ? (
+                  <AlertTriangle size={27} />
+                ) : (
+                  <FileText size={27} />
+                )}
+              </span>
+              <div className="mdk-simple-decision__body">
+                <span className="mdk-simple-eyebrow">الخطوة التالية</span>
+                <h2>
+                  {readyToExport
+                    ? "الورقة جاهزة للتصدير"
+                    : "راجع الملاحظات قبل التصدير"}
+                </h2>
+                <p>
+                  {readyToExport
+                    ? "لا توجد موانع جاهزية. اختر نسخة الطالب أو المعلم في شاشة التصدير."
+                    : `لديك ${totalAttentionCount} ملاحظة فقط تحتاج قرارك.`}
+                </p>
+              </div>
+
               <div className="mdk-simple-decision__action">
                 <button
                   type="button"
@@ -333,10 +399,8 @@ export default function QuickTranslationWorkspace({
                   <ArrowLeft size={19} />
                 </button>
               </div>
-            ) : null}
-          </div>
+            </div>
 
-          {processingCompleted ? (
             <details className="mdk-simple-result-details">
               <summary>عرض ملخص المعالجة</summary>
               <div className="mdk-simple-result-grid">
@@ -361,11 +425,11 @@ export default function QuickTranslationWorkspace({
                 عرض جميع الأسئلة
               </button>
             </details>
-          ) : null}
 
-          <small className="mdk-simple-last-note">{lastSyncNote}</small>
-        </div>
-      </section>
+            <small className="mdk-simple-last-note">{lastSyncNote}</small>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
