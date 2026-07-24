@@ -37,6 +37,7 @@ interface StartWorkspaceProps {
   uploadedFile: UploadedFileInfo | null;
   extractedText: ExtractedTextInfo | null;
   layoutAssets: PdfLayoutAssetInfo[];
+  questions: ProjectSession["questions"];
   projects: ProjectSession[];
   currentProjectId: string | null;
   isLibraryLoading: boolean;
