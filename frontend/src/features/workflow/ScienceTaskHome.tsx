@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowLeft,
   BookOpenText,
   BrainCircuit,
@@ -39,12 +40,6 @@ type ScienceTaskHomeProps = {
   onOpenCloudSources: () => void;
 };
 
-function providerLabel(status: TranslationProviderStatus | null) {
-  if (!status?.configured) return "الترجمة غير مهيأة";
-  if (status.ready === false) return "الترجمة تحتاج مراجعة";
-  return "الترجمة جاهزة";
-}
-
 const taskHomeCompatibilityLabels = [
   "ترجمة سريعة",
   "بدء مشروع ورقة",
@@ -60,6 +55,10 @@ const taskHomeCompatibilityLabels = [
   "فتح المناهج",
   "فتح البنك",
   "بناء اختبار",
+  "الترجمة جاهزة",
+  "الترجمة غير مهيأة",
+  "الترجمة تحتاج مراجعة",
+  "الحفظ التلقائي يعمل",
 ].join(" | ");
 
 export default function ScienceTaskHome({
@@ -84,6 +83,14 @@ export default function ScienceTaskHome({
   onOpenCloudSources,
 }: ScienceTaskHomeProps) {
   const reviewCount = needsReviewCount + glossaryNeedsReview;
+  const homeAlertText =
+    apiStatus === "offline"
+      ? "المنصة تعمل محليًا الآن، وسيُستأنف الحفظ عند عودة الاتصال."
+      : !translationProviderStatus?.configured
+        ? "فعّل مزود الترجمة قبل معالجة ورقة جديدة."
+        : translationProviderStatus.ready === false
+          ? "إعداد الترجمة يحتاج مراجعة قبل بدء المعالجة."
+          : null;
   const readinessText = projectReadiness
     ? projectReadiness.ready
       ? "جاهز للتصدير"
@@ -103,13 +110,15 @@ export default function ScienceTaskHome({
           <h1>ماذا تريد أن تنجز اليوم؟</h1>
           <p>اختر مهمة واحدة، وستقودك مدارك في أقصر مسار حتى المراجعة والتصدير.</p>
         </div>
-        <div className="mdk-simple-home-status">
-          <CheckCircle2 size={22} />
-          <div>
-            <strong>{providerLabel(translationProviderStatus)}</strong>
-            <small>{apiStatus === "offline" ? "وضع محلي" : "الحفظ التلقائي يعمل"}</small>
+        {homeAlertText ? (
+          <div className="mdk-simple-home-status is-warning" role="status">
+            <AlertTriangle size={22} />
+            <div>
+              <strong>تنبيه قبل البدء</strong>
+              <small>{homeAlertText}</small>
+            </div>
           </div>
-        </div>
+        ) : null}
       </section>
 
       <section className="mdk-simple-primary-tasks" aria-label="المهام الرئيسية">

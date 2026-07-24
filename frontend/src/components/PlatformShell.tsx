@@ -117,9 +117,6 @@ export function PlatformShell({
   }
 
   const projectTitle = metadata.paperTitle?.trim() || "عمل جديد";
-  const projectSubtitle = [metadata.subject, metadata.grade]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <div
@@ -207,30 +204,36 @@ export function PlatformShell({
                   <Plus size={17} />
                   عمل جديد
                 </button>
-                <label>
-                  <Upload size={17} />
-                  استيراد نسخة عمل
-                  <input
-                    type="file"
-                    accept="application/json,.json"
-                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                      onImportSnapshot(event.target.files?.[0] ?? null);
-                      event.currentTarget.value = "";
-                      setMoreOpen(false);
-                    }}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onDownloadSnapshot();
-                    setMoreOpen(false);
-                  }}
-                  disabled={!projectId}
-                >
-                  <Download size={17} />
-                  تنزيل نسخة العمل
-                </button>
+
+                <details className="mdk-simple-advanced-menu">
+                  <summary>إدارة متقدمة</summary>
+                  <div>
+                    <label>
+                      <Upload size={17} />
+                      استيراد نسخة عمل
+                      <input
+                        type="file"
+                        accept="application/json,.json"
+                        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                          onImportSnapshot(event.target.files?.[0] ?? null);
+                          event.currentTarget.value = "";
+                          setMoreOpen(false);
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onDownloadSnapshot();
+                        setMoreOpen(false);
+                      }}
+                      disabled={!projectId}
+                    >
+                      <Download size={17} />
+                      تنزيل نسخة العمل
+                    </button>
+                  </div>
+                </details>
               </div>
             ) : null}
           </div>
@@ -284,7 +287,6 @@ export function PlatformShell({
           <div>
             <span>{sectionTitles[activeSection]}</span>
             <strong>{projectTitle}</strong>
-            {projectSubtitle ? <small>{projectSubtitle}</small> : null}
           </div>
           <button type="button" onClick={() => navigate("home")}>
             العودة للرئيسية
