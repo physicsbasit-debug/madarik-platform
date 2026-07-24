@@ -16,9 +16,9 @@ def test_paper_processing_starts_in_one_click_without_source_dialog() -> None:
     assert "sourceChooserOpen" not in source
     assert "setSourceChooserOpen" not in source
     assert "من أين تريد اختيار الملف؟" not in source
-    assert "هذه هي الخطوة الوحيدة المطلوبة منك" in read(
-        "features/workflow/QuickTranslationWorkspace.tsx"
-    )
+    quick_source = read("features/workflow/QuickTranslationWorkspace.tsx")
+    assert "الخطوة الوحيدة المطلوبة منك" in quick_source
+    assert "اختر ورقة الاختبار" in quick_source
 
 
 def test_cloud_sources_remain_available_without_blocking_primary_flow() -> None:

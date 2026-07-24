@@ -17,18 +17,19 @@ def test_uploaded_file_starts_preparation_automatically() -> None:
     assert 'quickRunStatus !== "idle"' in source
     assert "autoStartedFileRef.current === fileRunKey" in source
     assert "onRunQuickTranslation();" in source
-    assert "مدارك يجهّز الورقة تلقائيًا" in source
+    assert "مدارك يجهّز الورقة" in source
     assert "لا تحتاج إلى الضغط على أي زر" in source
 
 
 def test_workspace_reveals_only_the_current_stage() -> None:
     source = read("features/workflow/QuickTranslationWorkspace.tsx")
 
-    assert "{uploadedFile ? (" in source
-    assert "{processingCompleted ? (" in source
-    assert "mdk-simple-upload-stage" in source
-    assert "mdk-simple-auto-stage" in source
-    assert "mdk-simple-decision-card" in source
+    assert 'type JourneyView = "upload" | "processing" | "error" | "decision"' in source
+    assert 'viewStage === "upload"' in source
+    assert 'viewStage === "processing"' in source
+    assert 'viewStage === "error"' in source
+    assert 'viewStage === "decision"' in source
+    assert "mdk-simple-single-stage" in source
     assert "ستظهر النتيجة هنا بعد التجهيز" not in source
 
 
@@ -36,16 +37,17 @@ def test_error_state_keeps_a_safe_manual_retry() -> None:
     source = read("features/workflow/QuickTranslationWorkspace.tsx")
 
     assert 'quickRunStatus === "error"' in source
-    assert "إعادة تجهيز الورقة" in source
-    assert "disabled={!canRun}" in source
-    assert "onClick={onRunQuickTranslation}" in source
+    assert "إعادة المحاولة" in source
+    assert "retryDisabled" in source
+    assert "retryAction" in source
+    assert "onRunQuickTranslation" in source
 
 
 def test_batch_3_styles_support_selected_file_and_mobile_layout() -> None:
     source = read("styles/simplified-platform.css")
 
-    assert ".mdk-simple-selected-file" in source
-    assert ".mdk-simple-auto-badge" in source
+    assert ".mdk-simple-file-ribbon" in source
+    assert ".mdk-simple-journey-nav" in source
     assert ".mdk-simple-replace-file" in source
     assert "@media (max-width: 640px)" in source
     assert source.count("{") == source.count("}")

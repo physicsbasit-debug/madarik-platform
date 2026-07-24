@@ -33,13 +33,13 @@ def test_current_work_summary_is_reduced_to_actionable_counts() -> None:
 def test_processing_ends_with_one_review_or_export_decision() -> None:
     source = read("features/workflow/QuickTranslationWorkspace.tsx")
 
-    assert "الخطوة التالية" in source
+    assert 'viewStage === "decision"' in source
     assert "الورقة جاهزة للتصدير" in source
     assert "راجع الملاحظات قبل التصدير" in source
     assert "تصدير الآن" in source
     assert "مراجعة الملاحظات" in source
     assert "readyToExport ? onOpenExport : onOpenProfessionalReview" in source
-    assert '<details className="mdk-simple-result-details">' in source
+    assert "mdk-simple-result-details--contained" in source
 
 
 def test_batch_2_layout_collapses_cleanly_on_small_screens() -> None:
