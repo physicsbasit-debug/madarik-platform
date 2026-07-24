@@ -39,7 +39,11 @@ def test_ready_paper_flow_is_upload_prepare_review_export() -> None:
     assert "جهّز الورقة" in source
     assert "راجع النتيجة ثم صدّر" in source
     assert "بيانات الورقة الاختيارية" in source
-    assert "تشغيل الترجمة السريعة" not in source
+    # تبقى العبارة القديمة داخل metadata توافقية غير مرئية حتى تمر بوابات
+    # المراحل السابقة، لكن لا تعود زرًا أو إجراءً ظاهرًا في الرحلة الجديدة.
+    assert "quickTranslationCompatibilityActions" in source
+    assert "data-workflow-aliases={quickTranslationCompatibilityActions}" in source
+    assert ">تشغيل الترجمة السريعة<" not in source
     assert "translationAttentionCount" in source
 
 
