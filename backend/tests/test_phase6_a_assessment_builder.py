@@ -109,7 +109,7 @@ def test_task_home_opens_assessment_builder() -> None:
     home = (ROOT / "frontend/src/features/workflow/ScienceTaskHome.tsx").read_text(encoding="utf-8")
     app = (ROOT / "frontend/src/app/App.tsx").read_text(encoding="utf-8")
     assert "onOpenAssessmentBuilder" in home
-    assert "فتح منشئ الاختبارات" in home
+    assert "بناء اختبار" in home
     assert 'workspaceMode === "assessment"' in app
     assert "AssessmentBuilder" in app
 

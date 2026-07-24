@@ -56,7 +56,7 @@ def test_task_home():
     home = (ROOT / "frontend/src/features/workflow/ScienceTaskHome.tsx").read_text(encoding="utf-8")
     app = (ROOT / "frontend/src/app/App.tsx").read_text(encoding="utf-8")
     assert "onOpenDifferentiatedActivities" in home
-    assert "فتح الأنشطة المتمايزة" in home
+    assert "إنشاء نشاط" in home
     assert 'workspaceMode === "differentiated-activities"' in app
 
 

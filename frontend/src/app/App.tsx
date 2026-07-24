@@ -1,5 +1,16 @@
 import { ArrowLeft, ArrowRight, DatabaseZap } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  PlatformShell,
+  type PlatformSection,
+} from "../components/PlatformShell";
 import { WorkflowStatusStrip } from "../components/WorkflowStatusStrip";
 import { WorkspaceShell } from "../components/WorkspaceShell";
 import { WorkspaceSidebar } from "../components/WorkspaceSidebar";
@@ -172,7 +183,8 @@ function applyProjectSession(
 
 export function App() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [workspaceMode, setWorkspaceMode] = useState<"home" | "quick" | "professional" | "curriculum" | "question-bank" | "assessment" | "differentiated-activities" | "scientific-diagrams" | "cloud-sources">("home");
+  const [workspaceMode, setWorkspaceMode] =
+    useState<PlatformSection>("home");
   const [quickRunStatus, setQuickRunStatus] = useState<
     "idle" | "parsing" | "translating" | "checking" | "completed" | "error"
   >("idle");
@@ -712,6 +724,42 @@ function openProfessionalTranslation() {
 function returnToTaskHome() {
   setWorkspaceMode("home");
   setActiveIndex(0);
+}
+
+function navigatePlatform(section: PlatformSection) {
+  if (section === "home") {
+    returnToTaskHome();
+    return;
+  }
+  if (section === "quick") {
+    openQuickTranslation();
+    return;
+  }
+  if (section === "professional") {
+    openProfessionalTranslation();
+    return;
+  }
+  if (section === "cloud-sources") {
+    openCloudSources();
+    return;
+  }
+  if (section === "curriculum") {
+    openCurriculum();
+    return;
+  }
+  if (section === "question-bank") {
+    openQuestionBank();
+    return;
+  }
+  if (section === "assessment") {
+    openAssessmentBuilder();
+    return;
+  }
+  if (section === "differentiated-activities") {
+    openDifferentiatedActivities();
+    return;
+  }
+  openScientificDiagrams();
 }
 
 
@@ -1969,165 +2017,280 @@ function openQuickExport() {
   }
 
 
-if (workspaceMode === "home") {
-  return (
-    <ScienceTaskHome
-      onQuickTranslation={openQuickTranslation}
-      onProfessionalTranslation={openProfessionalTranslation}
-      onOpenCurriculum={openCurriculum}
-      onOpenQuestionBank={openQuestionBank}
-      onOpenAssessmentBuilder={openAssessmentBuilder}
-      onOpenDifferentiatedActivities={openDifferentiatedActivities}
-      onOpenScientificDiagrams={openScientificDiagrams}
-      onOpenCloudSources={openCloudSources}
-    />
-  );
-}
+  let platformContent: ReactNode;
 
-if (workspaceMode === "cloud-sources") {
-  return (
-    <CloudSources
-      projectId={projectId}
-      onReturnHome={returnToTaskHome}
-      onProjectIntake={handleCloudProjectIntake}
-    />
-  );
-}
-
-if (workspaceMode === "scientific-diagrams") {
-  return (
-    <ScientificDiagrams
-      projectId={projectId}
-      onReturnHome={returnToTaskHome}
-    />
-  );
-}
-
-if (workspaceMode === "differentiated-activities") {
-  return (
-    <DifferentiatedActivities
-      projectId={projectId}
-      onReturnHome={returnToTaskHome}
-    />
-  );
-}
-
-if (workspaceMode === "assessment") {
-  return (
-    <AssessmentBuilder
-      projectId={projectId}
-      onReturnHome={returnToTaskHome}
-    />
-  );
-}
-
-if (workspaceMode === "question-bank") {
-  return (
-    <QuestionBankLibrary
-      projectId={projectId}
-      onQuestionReused={(question) => {
-        setQuestions((current) =>
-          current.some((item) => item.id === question.id)
-            ? current
-            : [...current, question],
-        );
-        setLastSyncNote(
-          "تمت إضافة سؤال من بنك الأسئلة إلى المشروع الحالي.",
-        );
-      }}
-      onReturnHome={returnToTaskHome}
-    />
-  );
-}
-
-if (workspaceMode === "curriculum") {
-  return (
-    <CurriculumBrowser
-      projectId={projectId}
-      onReturnHome={returnToTaskHome}
-    />
-  );
-}
-
-if (workspaceMode === "quick") {
-  return (
-    <QuickTranslationWorkspace
-      metadata={metadata}
-      uploadedFile={uploadedFile}
-      extractedText={extractedText}
-      initialExtractionStatus={initialExtractionStatus}
-      questions={questions}
-      projectReadiness={projectReadiness}
-      translationBatchSummary={translationBatchSummary}
-      isBusy={apiStatus === "syncing" || apiStatus === "connecting"}
-      apiStatus={apiStatus}
-      lastSyncNote={lastSyncNote}
-      quickRunStatus={quickRunStatus}
-      quickRunMessage={quickRunMessage}
-      onMetadataChange={handleMetadataChange}
-      onFileSelected={handleFileSelected}
-      onRetryInitialExtraction={retryInitialExtraction}
-      onRunQuickTranslation={() => void runQuickTranslationWorkflow()}
-      onOpenProfessionalReview={openQuickProfessionalReview}
-      onOpenExport={openQuickExport}
-      onReturnHome={returnToTaskHome}
-    />
-  );
-}
-
-  return (
-    <WorkspaceShell
-      sidebar={
-        <WorkspaceSidebar
-          steps={steps}
-          activeIndex={activeIndex}
-          onSelectStep={setActiveIndex}
-          onOpenSettings={() => setAuthPanelOpen(true)}
+  if (workspaceMode === "home") {
+    platformContent = (
+      <ScienceTaskHome
+        metadata={metadata}
+        uploadedFile={uploadedFile}
+        apiStatus={apiStatus}
+        projectId={projectId}
+        projectCount={projectLibrary.length}
+        activeQuestionCount={approvedCount + needsReviewCount}
+        approvedCount={approvedCount}
+        needsReviewCount={needsReviewCount}
+        glossaryNeedsReview={
+          glossary.filter((term) => term.status === "needs_review").length
+        }
+        projectReadiness={projectReadiness}
+        translationProviderStatus={translationProviderStatus}
+        onQuickTranslation={openQuickTranslation}
+        onProfessionalTranslation={openProfessionalTranslation}
+        onOpenCurriculum={openCurriculum}
+        onOpenQuestionBank={openQuestionBank}
+        onOpenAssessmentBuilder={openAssessmentBuilder}
+        onOpenDifferentiatedActivities={openDifferentiatedActivities}
+        onOpenScientificDiagrams={openScientificDiagrams}
+        onOpenCloudSources={openCloudSources}
+      />
+    );
+  } else if (workspaceMode === "cloud-sources") {
+    platformContent = (
+      <div className="platform-module-view">
+        <CloudSources
+          projectId={projectId}
+          onReturnHome={returnToTaskHome}
+          onProjectIntake={handleCloudProjectIntake}
         />
-      }
-      topbar={
-        <WorkspaceTopBar
+      </div>
+    );
+  } else if (workspaceMode === "scientific-diagrams") {
+    platformContent = (
+      <div className="platform-module-view">
+        <ScientificDiagrams
+          projectId={projectId}
+          onReturnHome={returnToTaskHome}
+        />
+      </div>
+    );
+  } else if (workspaceMode === "differentiated-activities") {
+    platformContent = (
+      <div className="platform-module-view">
+        <DifferentiatedActivities
+          projectId={projectId}
+          onReturnHome={returnToTaskHome}
+        />
+      </div>
+    );
+  } else if (workspaceMode === "assessment") {
+    platformContent = (
+      <div className="platform-module-view">
+        <AssessmentBuilder
+          projectId={projectId}
+          onReturnHome={returnToTaskHome}
+        />
+      </div>
+    );
+  } else if (workspaceMode === "question-bank") {
+    platformContent = (
+      <div className="platform-module-view">
+        <QuestionBankLibrary
+          projectId={projectId}
+          onQuestionReused={(question) => {
+            setQuestions((current) =>
+              current.some((item) => item.id === question.id)
+                ? current
+                : [...current, question],
+            );
+            setLastSyncNote(
+              "تمت إضافة سؤال من بنك الأسئلة إلى المشروع الحالي.",
+            );
+          }}
+          onReturnHome={returnToTaskHome}
+        />
+      </div>
+    );
+  } else if (workspaceMode === "curriculum") {
+    platformContent = (
+      <div className="platform-module-view">
+        <CurriculumBrowser
+          projectId={projectId}
+          onReturnHome={returnToTaskHome}
+        />
+      </div>
+    );
+  } else if (workspaceMode === "quick") {
+    platformContent = (
+      <div className="platform-module-view">
+        <QuickTranslationWorkspace
           metadata={metadata}
+          uploadedFile={uploadedFile}
+          extractedText={extractedText}
+          initialExtractionStatus={initialExtractionStatus}
+          questions={questions}
+          projectReadiness={projectReadiness}
+          translationBatchSummary={translationBatchSummary}
+          isBusy={apiStatus === "syncing" || apiStatus === "connecting"}
           apiStatus={apiStatus}
           lastSyncNote={lastSyncNote}
-          projectId={projectId}
-          onOpenStart={() => setActiveIndex(0)}
-          onDownloadSnapshot={() => void downloadProjectSnapshot()}
-          onImportSnapshot={(file) => void importProjectSnapshotFile(file)}
-          onNewProject={() => void resetProject()}
+          quickRunStatus={quickRunStatus}
+          quickRunMessage={quickRunMessage}
+          onMetadataChange={handleMetadataChange}
+          onFileSelected={handleFileSelected}
+          onRetryInitialExtraction={retryInitialExtraction}
+          onRunQuickTranslation={() => void runQuickTranslationWorkflow()}
+          onOpenProfessionalReview={openQuickProfessionalReview}
+          onOpenExport={openQuickExport}
+          onReturnHome={returnToTaskHome}
         />
-      }
-      status={
-        <WorkflowStatusStrip
-          activeQuestions={approvedCount + needsReviewCount}
-          needsReview={needsReviewCount}
-          glossaryNeedsReview={glossary.filter((term) => term.status === "needs_review").length}
-          outputLabel={metadata.outputMode === "bilingual" ? "ثنائي" : "عربي"}
-        />
-      }
-    >
-      <button
-        type="button"
-        className="workspace-task-home-button"
-        onClick={returnToTaskHome}
+      </div>
+    );
+  } else {
+    platformContent = (
+      <WorkspaceShell
+        sidebar={
+          <WorkspaceSidebar
+            steps={steps}
+            activeIndex={activeIndex}
+            onSelectStep={setActiveIndex}
+          />
+        }
+        topbar={
+          <WorkspaceTopBar
+            metadata={metadata}
+            apiStatus={apiStatus}
+            lastSyncNote={lastSyncNote}
+            projectId={projectId}
+            onOpenStart={() => setActiveIndex(0)}
+            onDownloadSnapshot={() => void downloadProjectSnapshot()}
+            onImportSnapshot={(file) => void importProjectSnapshotFile(file)}
+            onNewProject={() => void resetProject()}
+          />
+        }
+        status={
+          <WorkflowStatusStrip
+            activeQuestions={approvedCount + needsReviewCount}
+            needsReview={needsReviewCount}
+            glossaryNeedsReview={
+              glossary.filter((term) => term.status === "needs_review").length
+            }
+            outputLabel={
+              metadata.outputMode === "bilingual" ? "ثنائي" : "عربي"
+            }
+          />
+        }
       >
-        العودة إلى المهام
-      </button>
-      <details
-        className="workspace-settings-panel"
-        open={isAuthPanelOpen}
-        onToggle={(event) => setAuthPanelOpen(event.currentTarget.open)}
-      >
-        <summary className="workspace-settings-summary">
-          <span>
-            <strong>الحساب والصلاحيات</strong>
-            <small>
-              {authAccount
-                ? `الحساب: ${authAccount.displayName}`
-                : `الحساب غير مسجل · ${apiStatus === "offline" ? "وضع محلي" : "جاهز للربط"}`}
-            </small>
-          </span>
-        </summary>
+        <section className="workspace-stage-surface">
+          <div className="step-header workspace-stage-header">
+            <div>
+              <p className="eyebrow">المرحلة {progressLabel}</p>
+              <h2>{activeStep.label}</h2>
+              <p>{activeStep.description}</p>
+            </div>
+            <DatabaseZap size={32} aria-hidden="true" />
+          </div>
+
+          <WorkspaceContent
+            stageKey={activeStep.key}
+            metadata={metadata}
+            schoolLogo={schoolLogo}
+            uploadedFile={uploadedFile}
+            extractedText={extractedText}
+            fullExamIntakeReport={fullExamIntakeReport}
+            fullExamTranslationReport={fullExamTranslationReport}
+            fullExamExportReport={fullExamExportReport}
+            fullExamEndToEndReport={fullExamEndToEndReport}
+            questions={questions}
+            glossary={glossary}
+            layoutAssets={layoutAssets}
+            answerKey={answerKey}
+            educationalAnalysis={educationalAnalysis}
+            qualityTools={qualityTools}
+            translationProviderStatus={translationProviderStatus}
+            translationBatchSummary={translationBatchSummary}
+            projectReadiness={projectReadiness}
+            projects={projectLibrary}
+            currentProjectId={projectId}
+            isLibraryLoading={isProjectLibraryLoading}
+            isBusy={apiStatus === "syncing" || apiStatus === "connecting"}
+            initialExtractionStatus={initialExtractionStatus}
+            lastSyncNote={lastSyncNote}
+            onMetadataChange={handleMetadataChange}
+            onLogoSelected={handleLogoSelected}
+            onLogoRemove={handleLogoRemove}
+            onFileSelected={handleFileSelected}
+            onRetryInitialExtraction={retryInitialExtraction}
+            onRefreshProjects={() => void refreshProjectLibrary()}
+            onOpenProject={(id) => void openPersistedProject(id)}
+            onDeleteProject={(id) => void deletePersistedProject(id)}
+            onDeleteProjects={(ids) => void deletePersistedProjects(ids)}
+            onUpdateQuestion={updateQuestion}
+            onMoveQuestion={moveQuestion}
+            onUpdateGlossaryTerm={updateGlossaryTerm}
+            onGenerateGlossary={generateGlossaryFromQuestionCards}
+            onApproveAllGlossary={approveAllCompletedGlossaryTerms}
+            onTranslateQuestions={translateQuestions}
+            onRetryQuestionTranslation={retryQuestionTranslationForReview}
+            onBulkUpdateStatus={bulkUpdateReviewStatus}
+            onUploadQuestionAsset={handleQuestionAssetUpload}
+            onDeleteQuestionAsset={handleQuestionAssetDelete}
+            onLinkQuestionLayoutAsset={handleQuestionLayoutAssetLink}
+            onUnlinkQuestionLayoutAsset={handleQuestionLayoutAssetUnlink}
+            onCropQuestionLayoutAsset={handleQuestionLayoutAssetCrop}
+            onDeleteLayoutAsset={handleLayoutAssetDelete}
+            onReloadDemo={reloadDemoFromBackend}
+            onParseQuestions={parseQuestionsFromExtractedText}
+            onExportDocx={exportDocx}
+            onExportPdf={exportPdf}
+            onRefreshReadiness={refreshProjectReadiness}
+            onGenerateAnswerKey={generateProjectAnswerKey}
+            onClearAnswerKey={clearProjectAnswerKey}
+            onGenerateEducationalAnalysis={generateProjectEducationalAnalysis}
+            onClearEducationalAnalysis={clearProjectEducationalAnalysis}
+            onGenerateQualityTools={generateProjectQualityTools}
+            onClearQualityTools={clearProjectQualityTools}
+            onRunFullExamAcceptance={runFullExamAcceptanceGate}
+            canExportDocx={Boolean(projectId && apiStatus !== "offline")}
+            canExportPdf={Boolean(projectId && apiStatus !== "offline")}
+          />
+
+          <div className="actions-row workflow-actions-row workspace-stage-actions">
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={goPrevious}
+              disabled={activeIndex === 0}
+            >
+              <ArrowRight size={18} />
+              السابق
+            </button>
+            {activeIndex < steps.length - 1 ? (
+              <button
+                className="primary-button"
+                type="button"
+                onClick={goNext}
+                disabled={activeIndex === 0 && !canAdvanceFromStart}
+              >
+                {activeIndex === 0
+                  ? "الانتقال إلى المراجعة"
+                  : "الانتقال إلى التصدير"}
+                <ArrowLeft size={18} />
+              </button>
+            ) : null}
+            {activeIndex === 0 && !canAdvanceFromStart ? (
+              <span className="workspace-next-requirement">
+                أكمل رفع الملف واستخراج النص أولًا.
+              </span>
+            ) : null}
+          </div>
+        </section>
+      </WorkspaceShell>
+    );
+  }
+
+  return (
+    <PlatformShell
+      activeSection={workspaceMode}
+      onNavigate={navigatePlatform}
+      metadata={metadata}
+      apiStatus={apiStatus}
+      lastSyncNote={lastSyncNote}
+      projectId={projectId}
+      authAccount={authAccount}
+      isAccountOpen={isAuthPanelOpen}
+      onAccountOpenChange={setAuthPanelOpen}
+      accountPanel={
         <AuthPanel
           status={authStatus}
           account={authAccount}
@@ -2141,113 +2304,13 @@ if (workspaceMode === "quick") {
           onCreateAccount={createManagedAccount}
           onToggleAccount={toggleManagedAccount}
         />
-      </details>
-
-      <section className="workspace-stage-surface">
-        <div className="step-header workspace-stage-header">
-          <div>
-            <p className="eyebrow">المرحلة {progressLabel}</p>
-            <h2>{activeStep.label}</h2>
-            <p>{activeStep.description}</p>
-          </div>
-          <DatabaseZap size={32} aria-hidden="true" />
-        </div>
-
-        <WorkspaceContent
-          stageKey={activeStep.key}
-          metadata={metadata}
-          schoolLogo={schoolLogo}
-          uploadedFile={uploadedFile}
-          extractedText={extractedText}
-          fullExamIntakeReport={fullExamIntakeReport}
-          fullExamTranslationReport={fullExamTranslationReport}
-          fullExamExportReport={fullExamExportReport}
-          fullExamEndToEndReport={fullExamEndToEndReport}
-          questions={questions}
-          glossary={glossary}
-          layoutAssets={layoutAssets}
-          answerKey={answerKey}
-          educationalAnalysis={educationalAnalysis}
-          qualityTools={qualityTools}
-          translationProviderStatus={translationProviderStatus}
-          translationBatchSummary={translationBatchSummary}
-          projectReadiness={projectReadiness}
-          projects={projectLibrary}
-          currentProjectId={projectId}
-          isLibraryLoading={isProjectLibraryLoading}
-          isBusy={apiStatus === "syncing" || apiStatus === "connecting"}
-          initialExtractionStatus={initialExtractionStatus}
-          lastSyncNote={lastSyncNote}
-          onMetadataChange={handleMetadataChange}
-          onLogoSelected={handleLogoSelected}
-          onLogoRemove={handleLogoRemove}
-          onFileSelected={handleFileSelected}
-          onRetryInitialExtraction={retryInitialExtraction}
-          onRefreshProjects={() => void refreshProjectLibrary()}
-          onOpenProject={(id) => void openPersistedProject(id)}
-          onDeleteProject={(id) => void deletePersistedProject(id)}
-          onDeleteProjects={(ids) => void deletePersistedProjects(ids)}
-          onUpdateQuestion={updateQuestion}
-          onMoveQuestion={moveQuestion}
-          onUpdateGlossaryTerm={updateGlossaryTerm}
-          onGenerateGlossary={generateGlossaryFromQuestionCards}
-          onApproveAllGlossary={approveAllCompletedGlossaryTerms}
-          onTranslateQuestions={translateQuestions}
-          onRetryQuestionTranslation={retryQuestionTranslationForReview}
-          onBulkUpdateStatus={bulkUpdateReviewStatus}
-          onUploadQuestionAsset={handleQuestionAssetUpload}
-          onDeleteQuestionAsset={handleQuestionAssetDelete}
-          onLinkQuestionLayoutAsset={handleQuestionLayoutAssetLink}
-          onUnlinkQuestionLayoutAsset={handleQuestionLayoutAssetUnlink}
-          onCropQuestionLayoutAsset={handleQuestionLayoutAssetCrop}
-          onDeleteLayoutAsset={handleLayoutAssetDelete}
-          onReloadDemo={reloadDemoFromBackend}
-          onParseQuestions={parseQuestionsFromExtractedText}
-          onExportDocx={exportDocx}
-          onExportPdf={exportPdf}
-          onRefreshReadiness={refreshProjectReadiness}
-          onGenerateAnswerKey={generateProjectAnswerKey}
-          onClearAnswerKey={clearProjectAnswerKey}
-          onGenerateEducationalAnalysis={generateProjectEducationalAnalysis}
-          onClearEducationalAnalysis={clearProjectEducationalAnalysis}
-          onGenerateQualityTools={generateProjectQualityTools}
-          onClearQualityTools={clearProjectQualityTools}
-          onRunFullExamAcceptance={runFullExamAcceptanceGate}
-          canExportDocx={Boolean(projectId && apiStatus !== "offline")}
-          canExportPdf={Boolean(projectId && apiStatus !== "offline")}
-        />
-
-        <div className="actions-row workflow-actions-row workspace-stage-actions">
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={goPrevious}
-            disabled={activeIndex === 0}
-          >
-            <ArrowRight size={18} />
-            السابق
-          </button>
-          {activeIndex < steps.length - 1 ? (
-            <button
-              className="primary-button"
-              type="button"
-              onClick={goNext}
-              disabled={activeIndex === 0 && !canAdvanceFromStart}
-            >
-              {activeIndex === 0
-                ? "الانتقال إلى المراجعة"
-                : "الانتقال إلى التصدير"}
-              <ArrowLeft size={18} />
-            </button>
-          ) : null}
-          {activeIndex === 0 && !canAdvanceFromStart ? (
-            <span className="workspace-next-requirement">
-              أكمل رفع الملف واستخراج النص أولًا.
-            </span>
-          ) : null}
-        </div>
-      </section>
-    </WorkspaceShell>
+      }
+      onDownloadSnapshot={() => void downloadProjectSnapshot()}
+      onImportSnapshot={(file) => void importProjectSnapshotFile(file)}
+      onNewProject={() => void resetProject()}
+    >
+      {platformContent}
+    </PlatformShell>
   );
 }
 

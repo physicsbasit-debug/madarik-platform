@@ -73,7 +73,7 @@ def test_task_home_opens_curriculum_browser() -> None:
     app = read("frontend/src/app/App.tsx")
 
     assert "onOpenCurriculum" in home
-    assert "فتح مكتبة المناهج" in home
+    assert "فتح المناهج" in home
     assert 'workspaceMode === "curriculum"' in app
     assert "CurriculumBrowser" in app
 

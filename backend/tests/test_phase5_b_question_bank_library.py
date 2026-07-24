@@ -205,7 +205,7 @@ def test_task_home_opens_question_bank() -> None:
     ).read_text(encoding="utf-8")
 
     assert "onOpenQuestionBank" in home
-    assert "فتح بنك الأسئلة" in home
+    assert "فتح البنك" in home
     assert 'workspaceMode === "question-bank"' in app
     assert "QuestionBankLibrary" in app
 

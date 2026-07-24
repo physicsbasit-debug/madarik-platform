@@ -10,35 +10,34 @@ def test_science_task_home_component_exists() -> None:
     ).exists()
 
 
-def test_task_home_exposes_two_real_workflows() -> None:
+def test_task_home_exposes_translation_workflows() -> None:
     content = (
         ROOT / "frontend/src/features/workflow/ScienceTaskHome.tsx"
     ).read_text(encoding="utf-8")
 
     assert "ترجمة سريعة" in content
-    assert "ترجمة احترافية" in content
+    assert "بدء مشروع ورقة" in content
     assert "onQuickTranslation" in content
     assert "onProfessionalTranslation" in content
 
 
-def test_future_tasks_are_informational_only() -> None:
+def test_product_modules_are_first_class_actions() -> None:
     content = (
         ROOT / "frontend/src/features/workflow/ScienceTaskHome.tsx"
     ).read_text(encoding="utf-8")
 
-    assert "مكتبة المناهج والمصادر" in content
+    assert "المناهج والدروس" in content
     assert "بنك الأسئلة" in content
-    assert "إنشاء اختبار" in content
-    assert "أنشطة متمايزة" in content
-    assert "قريبًا" in content
+    assert "منشئ الاختبارات" in content
+    assert "الأنشطة التعليمية" in content
+    assert "قريبًا" not in content
 
 
 def test_app_starts_in_task_home_mode() -> None:
     content = (ROOT / "frontend/src/app/App.tsx").read_text(encoding="utf-8")
 
-    assert "const [workspaceMode, setWorkspaceMode] = useState<" in content
-    assert '>("home");' in content
-    assert '"home" | "quick" | "professional"' in content
+    assert 'useState<PlatformSection>("home")' in content
+    assert "type PlatformSection" in content
     assert 'workspaceMode === "home"' in content
     assert "openQuickTranslation" in content
     assert "openProfessionalTranslation" in content
@@ -47,7 +46,8 @@ def test_workspace_can_return_to_task_home() -> None:
     content = (ROOT / "frontend/src/app/App.tsx").read_text(encoding="utf-8")
 
     assert "returnToTaskHome" in content
-    assert "العودة إلى المهام" in content
+    assert "onNavigate={navigatePlatform}" in content
+    assert "<PlatformShell" in content
 
 
 def test_task_home_styles_are_responsive() -> None:
@@ -55,10 +55,10 @@ def test_task_home_styles_are_responsive() -> None:
         ROOT / "frontend/src/styles/global.css"
     ).read_text(encoding="utf-8")
 
-    assert ".science-task-home" in content
-    assert ".science-task-primary-grid" in content
-    assert "@media (max-width: 820px)" in content
-    assert "@media (max-width: 560px)" in content
+    assert ".platform-dashboard" in content
+    assert ".platform-module-grid" in content
+    assert "@media (max-width: 1040px)" in content
+    assert "@media (max-width: 720px)" in content
 
 
 def test_phase_document_exists() -> None:
