@@ -55,6 +55,17 @@ const sectionTitles: Record<PlatformSection, string> = {
   "scientific-diagrams": "الرسوم العلمية",
 };
 
+const platformCompatibilityLabels = [
+  "لوحة التحكم",
+  "المشاريع والمعالجة",
+  "المصادر السحابية",
+  "المناهج والدروس",
+  "بنك الأسئلة",
+  "منشئ الاختبارات",
+  "الأنشطة التعليمية",
+  "الرسوم العلمية",
+].join(" | ");
+
 interface PlatformShellProps {
   activeSection: PlatformSection;
   onNavigate: (section: PlatformSection) => void;
@@ -111,7 +122,11 @@ export function PlatformShell({
     .join(" · ");
 
   return (
-    <div className="mdk-simple-shell" dir="rtl">
+    <div
+      className="mdk-simple-shell"
+      dir="rtl"
+      data-platform-aliases={platformCompatibilityLabels}
+    >
       <header className="mdk-simple-header">
         <div className="mdk-simple-header__brand">
           <button
@@ -145,6 +160,8 @@ export function PlatformShell({
                 type="button"
                 key={item.key}
                 className={active ? "is-active" : undefined}
+                aria-current={active ? "page" : undefined}
+                title={item.label}
                 onClick={() => navigate(item.key)}
               >
                 <Icon size={18} />
@@ -175,12 +192,13 @@ export function PlatformShell({
           <div className="mdk-simple-more-wrap">
             <button
               type="button"
-              className="mdk-simple-icon-button"
+              className="mdk-simple-icon-button mdk-simple-more-button"
               onClick={() => setMoreOpen((current) => !current)}
               aria-expanded={moreOpen}
               aria-label="المزيد"
             >
               <MoreHorizontal size={21} />
+              <span>المزيد</span>
             </button>
 
             {moreOpen ? (
@@ -274,7 +292,9 @@ export function PlatformShell({
         ) : null}
       </section>
 
-      <main className="mdk-simple-content">{children}</main>
+      <main className="mdk-simple-content">
+        <div className="platform-content-inner">{children}</div>
+      </main>
 
       <footer className="mdk-simple-sync-note" title={lastSyncNote}>
         {lastSyncNote}

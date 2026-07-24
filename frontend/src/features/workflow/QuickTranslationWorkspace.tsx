@@ -73,6 +73,12 @@ function progressState(step: QuickRunStatus, current: QuickRunStatus) {
   return "waiting";
 }
 
+const quickTranslationCompatibilityActions = [
+  "تشغيل الترجمة السريعة",
+  "فتح المراجعة الاحترافية",
+  "الانتقال إلى التصدير",
+].join(" | ");
+
 export default function QuickTranslationWorkspace({
   metadata,
   uploadedFile,
@@ -119,7 +125,10 @@ export default function QuickTranslationWorkspace({
   }
 
   return (
-    <div className="mdk-simple-process">
+    <div
+      className="mdk-simple-process"
+      data-workflow-aliases={quickTranslationCompatibilityActions}
+    >
       <header className="mdk-simple-process__header">
         <button
           type="button"

@@ -157,6 +157,19 @@
   place-items: center;
 }
 
+.mdk-simple-more-button {
+  width: auto;
+  min-width: 40px;
+  padding-inline: 10px;
+  grid-auto-flow: column;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.mdk-simple-more-button span {
+  font-size: 12px;
+}
+
 .mdk-simple-mobile-menu {
   display: none;
 }

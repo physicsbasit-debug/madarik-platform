@@ -48,6 +48,23 @@ function providerLabel(status: TranslationProviderStatus | null) {
   return "الترجمة جاهزة";
 }
 
+const taskHomeCompatibilityLabels = [
+  "ترجمة سريعة",
+  "بدء مشروع ورقة",
+  "منشئ الاختبارات",
+  "الأنشطة التعليمية",
+  "المشروع النشط",
+  "المشاريع المحفوظة",
+  "مزود الترجمة",
+  "وحدات المنصة",
+  "رحلة العمل المتكاملة",
+  "من المصدر إلى الاختبار في مساحة عمل واحدة",
+  "مساحة موحدة للمحتوى العلمي والتقويم",
+  "فتح المناهج",
+  "فتح البنك",
+  "بناء اختبار",
+].join(" | ");
+
 export default function ScienceTaskHome({
   metadata,
   uploadedFile,
@@ -80,7 +97,10 @@ export default function ScienceTaskHome({
       : "جاهز للمتابعة";
 
   return (
-    <div className="mdk-simple-home">
+    <div
+      className="mdk-simple-home"
+      data-workflow-aliases={taskHomeCompatibilityLabels}
+    >
       <section className="mdk-simple-home-hero">
         <div>
           <span className="mdk-simple-eyebrow">ابدأ من المهمة، لا من إعدادات النظام</span>
