@@ -1,15 +1,17 @@
 # منصة مدارك
 
-منصة تعليمية ذكية لمعالجة أوراق الاختبارات الأجنبية وتحويلها إلى نسخ عربية أو ثنائية اللغة قابلة للمراجعة والتدقيق والتصدير بصيغ مناسبة للطباعة.
+منصة تعليمية ذكية للعلوم تجمع مصادر المحتوى والمناهج وبنك الأسئلة وبناء الاختبارات والأنشطة والرسوم العلمية، مع مساحة متكاملة لمعالجة أوراق الاختبارات الأجنبية وترجمتها ومراجعتها وتصديرها.
 
 ## الحالة الحالية
 
+- معاينة الواجهة الحالية: `Phase 11-A Fix 1: GitHub Pages Preview Deployment`
+
 - الإصدار البرمجي: `2.0.0-rc.2`
 - فرع التطوير: `feat/madarik-science-platform-v2`
-- آخر مرحلة مكتملة: `Phase 10-B: Final Release Candidate Consolidation and Sign-off`
-- بوابة القبول الحالية: `Phase 10-C: Live Gemini Acceptance` جاهزة للتشغيل عبر GitHub Actions
-- اختبار مزود خارجي حقيقي: ينتظر نتيجة بوابة Gemini الحية الموثقة
-- الحالة التقنية الحالية: المرشح `2.0.0-rc.2` اجتاز البوابة التقنية وينتظر دليل Gemini الحي المنقح
+- آخر مرحلة مكتملة: `Phase 10-C: Live Gemini Acceptance`
+- المرحلة الحالية: `Phase 11-A: Product UX Realignment`
+- اختبار مزود خارجي حقيقي: ناجح عبر بوابة Gemini الحية المنقحة
+- الحالة التقنية الحالية: إعادة تنظيم واجهة المنتج حول منصة موحدة للمصادر والمناهج والأسئلة والاختبارات والأنشطة ومعالجة الأوراق
 - الإصدار الإنتاجي: محجوب حتى ترجمة ورقة Cambridge كاملة ومراجعة DOCX/PDF بصريًا
 
 ### بوابة الاعتماد الحالية
@@ -25,7 +27,9 @@
 
 ## ماذا تفعل المنصة؟
 
-تدعم منصة مدارك رحلة معالجة الورقة التعليمية من الملف الأصلي إلى نسخة عربية قابلة للمراجعة والتصدير:
+تجمع منصة مدارك وحدات العمل العلمي في غلاف واحد: المصادر السحابية، المناهج والدروس، بنك الأسئلة، منشئ الاختبارات، الأنشطة المتمايزة، الرسوم العلمية، ومعالجة أوراق الاختبارات.
+
+وتبقى رحلة معالجة الورقة التعليمية وحدة متكاملة داخل المنصة:
 
 ```text
 إنشاء مشروع
@@ -374,6 +378,8 @@ Completed V2 phases:
 - Phase 9-C: Cloud Source Refresh, Version History, and Project Intake.
 - Phase 10-A: Release Hardening and End-to-End Acceptance.
 - Phase 10-B: Final Release Candidate Consolidation and Sign-off.
+- Phase 10-C: Live Gemini Acceptance.
+- Phase 11-A: Product UX Realignment.
 
 Phase 9-C adds:
 
@@ -434,3 +440,31 @@ Phase 10-C prepares the redacted live Gemini acceptance:
   SHA-256 hashes only;
 - keeps the full Cambridge and visual DOCX/PDF blockers open after the smoke
   test, because one live question is evidence of connectivity, not sainthood.
+
+
+Phase 11-A realigns the product interface:
+
+- replaces the old task page with a platform dashboard and persistent navigation;
+- exposes cloud sources, curriculum, question bank, assessments, activities,
+  diagrams, quick translation, and professional paper processing as first-class modules;
+- keeps the active project, connection state, project actions, and account access
+  visible throughout the platform;
+- turns the import-review-export journey into a contextual workspace inside the
+  wider product shell;
+- preserves Backend contracts, storage, translation, OCR, and export behavior.
+
+## نشر معاينة Phase 11-A على GitHub Pages
+
+تنشر الواجهة الجديدة عبر Workflow مستقل:
+
+```text
+.github/workflows/deploy-phase11a-preview.yml
+```
+
+ويجب ضبط مصدر Pages على `GitHub Actions`. يبني Workflow مجلد `frontend/dist` عبر `vite build --base=/madarik-platform/`،
+ثم يرفعه وينشره على رابط المستودع نفسه دون تغيير إعداد التطوير المحلي.
+عنوان Backend الاختياري يقرأ من Repository Variable باسم:
+
+```text
+MADARIK_API_BASE_URL
+```

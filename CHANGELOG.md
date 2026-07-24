@@ -489,3 +489,21 @@
 - Added Arabic-quality, scientific-fidelity, and approved-glossary validation.
 - Added offline tests for success, one correction, fallback rejection, unsafe host rejection, missing-key rejection, report redaction, and workflow safety.
 - Kept the full Cambridge translation and visual DOCX/PDF review as open production blockers.
+
+
+### Phase 11-A: Product UX Realignment
+
+- Replaced the old task-oriented landing page with a full platform dashboard.
+- Added persistent product navigation for projects, quick translation, cloud sources, curriculum, question bank, assessments, activities, and scientific diagrams.
+- Added a unified top bar with active-project context, connection state, snapshot actions, and new-project access.
+- Made account and permission management available from every platform module through a global drawer.
+- Reframed the import-review-export journey as a contextual paper-processing workspace inside the wider platform.
+- Added responsive desktop, tablet, and mobile navigation without changing Backend contracts or feature logic.
+- Added Phase 11-A structural regression tests.
+
+### Phase 11-A Fix 1: GitHub Pages Preview Deployment
+
+- Added an actual GitHub Pages build-and-deploy workflow for the Phase 11-A platform shell.
+- Passed the repository base path through the Vite build CLI while preserving the existing local configuration.
+- Passed the optional Backend URL from the `MADARIK_API_BASE_URL` repository variable.
+- Added regression tests for Pages permissions, artifact upload, deployment, and Vite base-path handling.
