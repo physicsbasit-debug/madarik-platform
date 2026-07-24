@@ -101,14 +101,11 @@ export default function ScienceTaskHome({
       className="mdk-simple-home"
       data-workflow-aliases={taskHomeCompatibilityLabels}
     >
-      <section className="mdk-simple-home-hero">
+      <section className="mdk-simple-home-hero mdk-simple-home-hero--compact">
         <div>
-          <span className="mdk-simple-eyebrow">ابدأ من المهمة، لا من إعدادات النظام</span>
+          <span className="mdk-simple-eyebrow">ابدأ من النتيجة التي تريدها</span>
           <h1>ماذا تريد أن تنجز اليوم؟</h1>
-          <p>
-            اختر المهمة، ودع مدارك تتولى الخطوات التقنية تلقائيًا. نعم، البرنامج
-            يستطيع العمل من دون أن يطلب من المعلم شهادة في هندسة المفاعلات.
-          </p>
+          <p>اختر مهمة واحدة، وستقودك مدارك في أقصر مسار حتى المراجعة والتصدير.</p>
         </div>
         <div className="mdk-simple-home-status">
           <CheckCircle2 size={22} />
@@ -169,14 +166,14 @@ export default function ScienceTaskHome({
         </button>
       </section>
 
-      <section className="mdk-simple-resume-card">
+      <section className="mdk-simple-resume-card mdk-simple-resume-card--focused">
         <div className="mdk-simple-resume-card__main">
-          <span className="mdk-simple-eyebrow">أكمل من حيث توقفت</span>
-          <h2>{metadata.paperTitle || "العمل الحالي"}</h2>
+          <span className="mdk-simple-eyebrow">العمل الحالي</span>
+          <h2>{metadata.paperTitle || "لا يوجد عمل مفتوح"}</h2>
           <p>
             {uploadedFile?.name
-              ? `الملف الحالي: ${uploadedFile.name}`
-              : "لا يوجد ملف مرفوع بعد. يمكنك بدء معالجة ورقة أو فتح عمل محفوظ."}
+              ? `${uploadedFile.name} · ${activeQuestionCount} سؤالًا · ${approvedCount} معتمدًا`
+              : "ابدأ ورقة جديدة أو افتح عملًا محفوظًا."}
           </p>
           <div className="mdk-simple-resume-actions">
             <button
@@ -187,49 +184,28 @@ export default function ScienceTaskHome({
               {projectId ? "متابعة العمل" : "فتح أعمالي"}
               <ArrowLeft size={18} />
             </button>
-            <button
-              type="button"
-              className="mdk-simple-secondary-button"
-              onClick={onOpenQuestionBank}
-            >
-              فتح بنك الأسئلة
-            </button>
           </div>
         </div>
 
-        <div className="mdk-simple-resume-metrics">
+        <div className="mdk-simple-resume-summary" aria-label="ملخص الأعمال">
           <div>
             <strong>{projectCount}</strong>
             <span>أعمال محفوظة</span>
-          </div>
-          <div>
-            <strong>{activeQuestionCount}</strong>
-            <span>سؤالًا في العمل</span>
           </div>
           <div className={reviewCount > 0 ? "needs-attention" : undefined}>
             <strong>{reviewCount}</strong>
             <span>تحتاج مراجعة</span>
           </div>
-          <div>
-            <strong>{approvedCount}</strong>
-            <span>معتمدة</span>
-          </div>
-        </div>
-
-        <div className="mdk-simple-readiness">
-          <CheckCircle2 size={20} />
-          <span>{readinessText}</span>
+          <p>
+            <CheckCircle2 size={18} />
+            {readinessText}
+          </p>
         </div>
       </section>
 
-      <section className="mdk-simple-secondary-section">
-        <div className="mdk-simple-section-heading">
-          <div>
-            <span className="mdk-simple-eyebrow">أدوات مساندة</span>
-            <h2>افتحها عند الحاجة فقط</h2>
-          </div>
-        </div>
-
+      <details className="mdk-simple-tools-drawer">
+        <summary>أدوات إضافية</summary>
+        <p>المناهج، بنك الأسئلة، الرسوم والمصادر السحابية. افتحها فقط عندما تحتاجها.</p>
         <div className="mdk-simple-tool-grid">
           <button type="button" onClick={onOpenQuestionBank}>
             <LibraryBig size={22} />
@@ -260,7 +236,7 @@ export default function ScienceTaskHome({
             </span>
           </button>
         </div>
-      </section>
+      </details>
 
       {sourceChooserOpen ? (
         <div className="mdk-simple-modal-layer" role="dialog" aria-modal="true">

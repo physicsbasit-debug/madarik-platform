@@ -77,6 +77,7 @@ const quickTranslationCompatibilityActions = [
   "تشغيل الترجمة السريعة",
   "فتح المراجعة الاحترافية",
   "الانتقال إلى التصدير",
+  "راجع النتيجة ثم صدّر",
 ].join(" | ");
 
 export default function QuickTranslationWorkspace({
@@ -119,6 +120,8 @@ export default function QuickTranslationWorkspace({
     ? translationBatchSummary.localFallbackCount +
       translationBatchSummary.failedSafelyCount
     : 0;
+  const totalAttentionCount = issueCount + translationAttentionCount;
+  const processingCompleted = quickRunStatus === "completed";
 
   function updateField(field: keyof ProjectMetadata, value: string) {
     onMetadataChange({ ...metadata, [field]: value });
@@ -141,7 +144,7 @@ export default function QuickTranslationWorkspace({
         <div>
           <span className="mdk-simple-eyebrow">معالجة ورقة جاهزة</span>
           <h1>ارفع الملف، ومدارك يتولى الباقي</h1>
-          <p>لا إعداد مشروع يدوي، ولا سلسلة أزرار تتكاثر بلا رقابة.</p>
+          <p>ثلاث خطوات فقط: اختيار الملف، التجهيز، ثم القرار النهائي.</p>
         </div>
       </header>
 
@@ -214,7 +217,9 @@ export default function QuickTranslationWorkspace({
                 <span>المادة</span>
                 <input
                   value={metadata.subject}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateField("subject", event.target.value)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    updateField("subject", event.target.value)
+                  }
                   placeholder="مثال: الفيزياء"
                 />
               </label>
@@ -222,7 +227,9 @@ export default function QuickTranslationWorkspace({
                 <span>الصف</span>
                 <input
                   value={metadata.grade}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateField("grade", event.target.value)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    updateField("grade", event.target.value)
+                  }
                   placeholder="مثال: الصف العاشر"
                 />
               </label>
@@ -280,74 +287,81 @@ export default function QuickTranslationWorkspace({
         </div>
       </section>
 
-      <section className="mdk-simple-process-card">
+      <section className="mdk-simple-process-card mdk-simple-decision-card">
         <div className="mdk-simple-process-card__number">3</div>
         <div className="mdk-simple-process-card__content">
-          <div className="mdk-simple-process-card__heading">
-            <div>
-              <h2>راجع النتيجة ثم صدّر</h2>
-              <p>تظهر لك الملاحظات فقط، لا كل التفاصيل التقنية.</p>
+          <div
+            className={`mdk-simple-decision ${
+              readyToExport ? "is-ready" : totalAttentionCount > 0 ? "is-review" : ""
+            }`}
+          >
+            <span className="mdk-simple-decision__icon">
+              {readyToExport ? (
+                <CheckCircle2 size={27} />
+              ) : totalAttentionCount > 0 ? (
+                <AlertTriangle size={27} />
+              ) : (
+                <FileText size={27} />
+              )}
+            </span>
+            <div className="mdk-simple-decision__body">
+              <span className="mdk-simple-eyebrow">الخطوة التالية</span>
+              <h2>
+                {readyToExport
+                  ? "الورقة جاهزة للتصدير"
+                  : processingCompleted
+                    ? "راجع الملاحظات قبل التصدير"
+                    : "ستظهر النتيجة هنا بعد التجهيز"}
+              </h2>
+              <p>
+                {readyToExport
+                  ? "لا توجد موانع جاهزية. اختر نسخة الطالب أو المعلم في شاشة التصدير."
+                  : processingCompleted
+                    ? `لديك ${totalAttentionCount} ملاحظة فقط تحتاج قرارك.`
+                    : "لن نعرض لك تفاصيل تقنية لا تحتاجها."}
+              </p>
             </div>
+
+            {processingCompleted ? (
+              <div className="mdk-simple-decision__action">
+                <button
+                  type="button"
+                  className="mdk-simple-primary-button is-large"
+                  onClick={readyToExport ? onOpenExport : onOpenProfessionalReview}
+                >
+                  {readyToExport ? "تصدير الآن" : "مراجعة الملاحظات"}
+                  <ArrowLeft size={19} />
+                </button>
+              </div>
+            ) : null}
           </div>
 
-          <div className="mdk-simple-result-grid">
-            <div>
-              <strong>{activeQuestions.length}</strong>
-              <span>سؤالًا مستخرجًا</span>
-            </div>
-            <div>
-              <strong>{translatedCount}</strong>
-              <span>سؤالًا مترجمًا</span>
-            </div>
-            <div className={issueCount > 0 ? "needs-attention" : undefined}>
-              <strong>{issueCount}</strong>
-              <span>ملاحظات للمراجعة</span>
-            </div>
-          </div>
-
-          {translationAttentionCount > 0 ? (
-            <div className="mdk-simple-inline-warning" role="status">
-              <AlertTriangle size={18} />
-              <span>
-                توجد {translationAttentionCount} نتيجة ترجمة تحتاج مراجعة قبل
-                الاعتماد النهائي.
-              </span>
-            </div>
-          ) : null}
-
-          <div className="mdk-simple-result-actions">
-            {quickRunStatus === "completed" && !readyToExport ? (
+          {processingCompleted ? (
+            <details className="mdk-simple-result-details">
+              <summary>عرض ملخص المعالجة</summary>
+              <div className="mdk-simple-result-grid">
+                <div>
+                  <strong>{activeQuestions.length}</strong>
+                  <span>سؤالًا مستخرجًا</span>
+                </div>
+                <div>
+                  <strong>{translatedCount}</strong>
+                  <span>سؤالًا مترجمًا</span>
+                </div>
+                <div className={totalAttentionCount > 0 ? "needs-attention" : undefined}>
+                  <strong>{totalAttentionCount}</strong>
+                  <span>ملاحظات للمراجعة</span>
+                </div>
+              </div>
               <button
                 type="button"
-                className="mdk-simple-primary-button"
-                onClick={onOpenProfessionalReview}
-              >
-                مراجعة الملاحظات
-                <ArrowLeft size={18} />
-              </button>
-            ) : null}
-
-            {readyToExport ? (
-              <button
-                type="button"
-                className="mdk-simple-primary-button"
-                onClick={onOpenExport}
-              >
-                تصدير النسخة
-                <ArrowLeft size={18} />
-              </button>
-            ) : null}
-
-            {quickRunStatus === "completed" ? (
-              <button
-                type="button"
-                className="mdk-simple-secondary-button"
+                className="mdk-simple-text-button"
                 onClick={onOpenProfessionalReview}
               >
                 عرض جميع الأسئلة
               </button>
-            ) : null}
-          </div>
+            </details>
+          ) : null}
 
           <small className="mdk-simple-last-note">{lastSyncNote}</small>
         </div>
