@@ -2337,3 +2337,174 @@
     flex: 0 0 auto;
   }
 }
+
+/* Batch 8: one review-and-export decision hub */
+.mdk-review-export-hub {
+  max-width: 780px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+}
+
+.mdk-review-export-hub__status {
+  min-height: 150px;
+  padding: 22px;
+  border: 1px solid var(--mdk-line);
+  border-radius: 18px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  background: var(--mdk-soft);
+}
+
+.mdk-review-export-hub.is-ready .mdk-review-export-hub__status {
+  border-color: #b9e1d2;
+  background: #effaf6;
+}
+
+.mdk-review-export-hub.needs-review .mdk-review-export-hub__status {
+  border-color: #efd8a4;
+  background: #fff9eb;
+}
+
+.mdk-review-export-hub__status-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: white;
+  color: var(--mdk-warning);
+}
+
+.mdk-review-export-hub.is-ready .mdk-review-export-hub__status-icon {
+  color: var(--mdk-success);
+}
+
+.mdk-review-export-hub__status h2 {
+  margin: 5px 0 7px;
+  font-size: 24px;
+}
+
+.mdk-review-export-hub__status p {
+  margin: 0;
+  color: var(--mdk-muted);
+  line-height: 1.75;
+}
+
+.mdk-review-export-hub__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mdk-review-export-hub__actions > button {
+  width: 100%;
+  min-height: 48px;
+  justify-content: center;
+}
+
+.mdk-review-export-hub__actions > button:disabled {
+  border-color: #d8dde8;
+  background: #f4f5f8;
+  color: #8c94a4;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.mdk-review-export-hub__issues {
+  padding: 14px;
+  border: 1px solid #f0dfb8;
+  border-radius: 15px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  background: #fffcf4;
+}
+
+.mdk-review-export-hub__issues > div {
+  padding: 11px 12px;
+  border-radius: 11px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  color: var(--mdk-muted);
+}
+
+.mdk-review-export-hub__issues > div strong {
+  color: var(--mdk-warning);
+  font-size: 19px;
+}
+
+.mdk-review-export-hub__issues > small {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--mdk-muted);
+}
+
+.mdk-review-export-hub__summary {
+  padding: 13px 15px;
+  border: 1px solid var(--mdk-line);
+  border-radius: 14px;
+  background: #fafbfe;
+}
+
+.mdk-review-export-hub__summary > summary {
+  color: var(--mdk-primary);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.mdk-review-export-hub__summary > div {
+  margin-top: 13px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mdk-review-export-hub__summary span {
+  min-height: 58px;
+  padding: 10px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: white;
+  color: var(--mdk-muted);
+  text-align: center;
+}
+
+.mdk-review-export-hub__summary strong {
+  color: var(--mdk-ink);
+  font-size: 20px;
+}
+
+@media (max-width: 720px) {
+  .mdk-review-export-hub__actions,
+  .mdk-review-export-hub__issues,
+  .mdk-review-export-hub__summary > div {
+    grid-template-columns: 1fr;
+  }
+
+  .mdk-review-export-hub__issues > small {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .mdk-review-export-hub__status {
+    padding: 18px;
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .mdk-review-export-hub__status-icon {
+    margin-inline: auto;
+  }
+}

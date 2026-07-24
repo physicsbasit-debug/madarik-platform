@@ -30,16 +30,18 @@ def test_current_work_summary_is_reduced_to_actionable_counts() -> None:
     assert "mdk-simple-resume-metrics" not in source
 
 
-def test_processing_ends_with_one_review_or_export_decision() -> None:
+def test_processing_ends_with_one_review_and_export_hub() -> None:
     source = read("features/workflow/QuickTranslationWorkspace.tsx")
+    hub = read("features/workflow/ReviewExportDecision.tsx")
 
     assert 'viewStage === "decision"' in source
-    assert "الورقة جاهزة للتصدير" in source
-    assert "راجع الملاحظات قبل التصدير" in source
-    assert "تصدير الآن" in source
-    assert "مراجعة الملاحظات" in source
-    assert "readyToExport ? onOpenExport : onOpenProfessionalReview" in source
-    assert "mdk-simple-result-details--contained" in source
+    assert "ReviewExportDecision" in source
+    assert "readyToExport={readyToExport}" in source
+    assert "onReview={onOpenProfessionalReview}" in source
+    assert "onExport={onOpenExport}" in source
+    assert "راجع الملاحظات ثم صدّر" in hub
+    assert "معاينة وتصدير" in hub
+    assert "readyToExport ? onOpenExport : onOpenProfessionalReview" not in source
 
 
 def test_batch_2_layout_collapses_cleanly_on_small_screens() -> None:

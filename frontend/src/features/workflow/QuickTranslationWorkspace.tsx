@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   FileText,
@@ -19,6 +18,7 @@ import type {
   TranslationBatchSummary,
   UploadedFileInfo,
 } from "../../types/project";
+import ReviewExportDecision from "./ReviewExportDecision";
 
 type QuickRunStatus =
   | "idle"
@@ -131,7 +131,6 @@ export default function QuickTranslationWorkspace({
     ? translationBatchSummary.localFallbackCount +
       translationBatchSummary.failedSafelyCount
     : 0;
-  const totalAttentionCount = issueCount + translationAttentionCount;
   const fileRunKey = uploadedFile?.name ?? null;
   const extractionFailed =
     initialExtractionStatus.phase === "error" && !extractionReady;
@@ -204,7 +203,7 @@ export default function QuickTranslationWorkspace({
       </header>
 
       <nav className="mdk-simple-journey-nav" aria-label="تقدم معالجة الورقة">
-        {["اختيار الملف", "التجهيز", "النتيجة"].map((label, index) => {
+        {["اختيار الملف", "التجهيز", "المراجعة والتصدير"].map((label, index) => {
           const stepNumber = index + 1;
           const state =
             stepNumber < activeJourneyStep
@@ -393,66 +392,15 @@ export default function QuickTranslationWorkspace({
 
       {viewStage === "decision" ? (
         <section className="mdk-simple-single-stage mdk-simple-single-stage--decision">
-          <div
-            className={`mdk-simple-decision mdk-simple-decision--centered ${
-              readyToExport ? "is-ready" : "is-review"
-            }`}
-          >
-            <span className="mdk-simple-decision__icon">
-              {readyToExport ? (
-                <CheckCircle2 size={30} />
-              ) : (
-                <AlertTriangle size={30} />
-              )}
-            </span>
-            <div className="mdk-simple-decision__body">
-              <span className="mdk-simple-eyebrow">اكتمل التجهيز</span>
-              <h2>
-                {readyToExport
-                  ? "الورقة جاهزة للتصدير"
-                  : "راجع الملاحظات قبل التصدير"}
-              </h2>
-              <p>
-                {readyToExport
-                  ? "لا توجد موانع جاهزية. انتقل مباشرة إلى نسخة الطالب أو المعلم."
-                  : `توجد ${totalAttentionCount} ملاحظة فقط تحتاج قرارك.`}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="mdk-simple-primary-button is-large"
-              onClick={readyToExport ? onOpenExport : onOpenProfessionalReview}
-            >
-              {readyToExport ? "تصدير الآن" : "مراجعة الملاحظات"}
-              <ArrowLeft size={19} />
-            </button>
-          </div>
-
-          <details className="mdk-simple-result-details mdk-simple-result-details--contained">
-            <summary>عرض ملخص المعالجة</summary>
-            <div className="mdk-simple-result-grid">
-              <div>
-                <strong>{activeQuestions.length}</strong>
-                <span>سؤالًا مستخرجًا</span>
-              </div>
-              <div>
-                <strong>{translatedCount}</strong>
-                <span>سؤالًا مترجمًا</span>
-              </div>
-              <div className={totalAttentionCount > 0 ? "needs-attention" : undefined}>
-                <strong>{totalAttentionCount}</strong>
-                <span>ملاحظات للمراجعة</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="mdk-simple-text-button"
-              onClick={onOpenProfessionalReview}
-            >
-              عرض جميع الأسئلة
-            </button>
-          </details>
-
+          <ReviewExportDecision
+            readyToExport={readyToExport}
+            issueCount={issueCount}
+            translationAttentionCount={translationAttentionCount}
+            questionCount={activeQuestions.length}
+            translatedCount={translatedCount}
+            onReview={onOpenProfessionalReview}
+            onExport={onOpenExport}
+          />
           <small className="mdk-simple-last-note">{lastSyncNote}</small>
         </section>
       ) : null}

@@ -3,6 +3,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 QUICK = ROOT / "frontend/src/features/workflow/QuickTranslationWorkspace.tsx"
 CSS = ROOT / "frontend/src/styles/simplified-platform.css"
+HUB = ROOT / "frontend/src/features/workflow/ReviewExportDecision.tsx"
 
 
 def read(path: Path) -> str:
@@ -24,16 +25,17 @@ def test_batch_6_keeps_automatic_processing_and_single_decision() -> None:
     assert "autoStartedFileRef" in source
     assert "onRunQuickTranslation();" in source
     assert "مدارك يجهّز الورقة" in source
-    assert "مراجعة الملاحظات" in source
-    assert "تصدير الآن" in source
+    assert "ReviewExportDecision" in source
+    assert '"المراجعة والتصدير"' in source
 
 
 def test_batch_6_exposes_clear_file_replacement_and_progress() -> None:
     source = read(QUICK)
+    hub = read(HUB)
     assert "رحلة من شاشة واحدة" in source
     assert "تغيير الملف" in source
     assert 'aria-label="تقدم معالجة الورقة"' in source
-    assert "عرض ملخص المعالجة" in source
+    assert "ملخص الورقة" in hub
 
 
 def test_batch_6_has_responsive_single_stage_styles() -> None:
