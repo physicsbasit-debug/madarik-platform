@@ -3,13 +3,12 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  FileSearch,
   FileText,
-  Languages,
   Loader2,
   RotateCcw,
-  UploadCloud,
+  Upload,
 } from "lucide-react";
+import type { ChangeEvent } from "react";
 import type {
   ApiConnectionStatus,
   ExtractedTextInfo,
@@ -51,35 +50,15 @@ type QuickTranslationWorkspaceProps = {
   onReturnHome: () => void;
 };
 
-const processingSteps: Array<{
-  key: QuickRunStatus;
-  title: string;
-  description: string;
-}> = [
-  {
-    key: "parsing",
-    title: "استخراج بنية الأسئلة",
-    description: "تقسيم الورقة إلى أسئلة وأجزاء ودرجات.",
-  },
-  {
-    key: "translating",
-    title: "الترجمة العلمية",
-    description: "ترجمة الأسئلة مع الحفاظ على الرموز والوحدات.",
-  },
-  {
-    key: "checking",
-    title: "فحص الاكتمال",
-    description: "مراجعة الأسئلة والدرجات وموانع التصدير.",
-  },
+const progressSteps: Array<{ key: QuickRunStatus; label: string }> = [
+  { key: "parsing", label: "استخراج الأسئلة" },
+  { key: "translating", label: "الترجمة" },
+  { key: "checking", label: "فحص الجاهزية" },
 ];
 
-function stepState(
-  step: QuickRunStatus,
-  current: QuickRunStatus,
-): "waiting" | "active" | "done" | "error" {
+function progressState(step: QuickRunStatus, current: QuickRunStatus) {
   if (current === "error") return "error";
   if (current === "completed") return "done";
-
   const order: QuickRunStatus[] = [
     "idle",
     "parsing",
@@ -89,7 +68,6 @@ function stepState(
   ];
   const stepIndex = order.indexOf(step);
   const currentIndex = order.indexOf(current);
-
   if (currentIndex > stepIndex) return "done";
   if (current === step) return "active";
   return "waiting";
@@ -119,68 +97,115 @@ export default function QuickTranslationWorkspace({
   const activeQuestions = questions.filter(
     (question) => question.status !== "deleted",
   );
-  const translatedQuestions = activeQuestions.filter(
+  const translatedCount = activeQuestions.filter(
     (question) => question.translatedText.trim().length > 0,
-  );
+  ).length;
   const extractionReady = Boolean(extractedText?.isTextBased);
-  const canRun =
-    extractionReady &&
-    apiStatus !== "offline" &&
-    !isBusy &&
-    quickRunStatus !== "parsing" &&
-    quickRunStatus !== "translating" &&
-    quickRunStatus !== "checking";
-  const canExport = Boolean(
+  const processing = ["parsing", "translating", "checking"].includes(
+    quickRunStatus,
+  );
+  const canRun = extractionReady && apiStatus !== "offline" && !isBusy && !processing;
+  const readyToExport = Boolean(
     quickRunStatus === "completed" && projectReadiness?.ready,
   );
+  const issueCount = projectReadiness?.issues.length ?? 0;
+  const translationAttentionCount = translationBatchSummary
+    ? translationBatchSummary.localFallbackCount +
+      translationBatchSummary.failedSafelyCount
+    : 0;
 
-  function updateField(
-    field: keyof ProjectMetadata,
-    value: string,
-  ) {
+  function updateField(field: keyof ProjectMetadata, value: string) {
     onMetadataChange({ ...metadata, [field]: value });
   }
 
   return (
-    <main className="quick-translation-workspace" dir="rtl">
-      <header className="quick-translation-header">
-        <div>
-          <span>المسار السريع</span>
-          <h1>ترجمة ورقة العلوم</h1>
-          <p>
-            ارفع الورقة، ثم شغّل الاستخراج والترجمة وفحص الجاهزية
-            في عملية واحدة واضحة.
-          </p>
-        </div>
+    <div className="mdk-simple-process">
+      <header className="mdk-simple-process__header">
         <button
           type="button"
-          className="secondary-button"
+          className="mdk-simple-secondary-button"
           onClick={onReturnHome}
         >
           <ArrowRight size={18} />
-          العودة إلى المهام
+          الرئيسية
         </button>
+        <div>
+          <span className="mdk-simple-eyebrow">معالجة ورقة جاهزة</span>
+          <h1>ارفع الملف، ومدارك يتولى الباقي</h1>
+          <p>لا إعداد مشروع يدوي، ولا سلسلة أزرار تتكاثر بلا رقابة.</p>
+        </div>
       </header>
 
-      <section className="quick-translation-grid">
-        <div className="quick-translation-main">
-          <section className="quick-card">
-            <div className="quick-card-heading">
-              <UploadCloud size={24} />
-              <div>
-                <span>الخطوة الأولى</span>
-                <h2>بيانات الورقة والملف</h2>
-              </div>
+      <section className="mdk-simple-process-card">
+        <div className="mdk-simple-process-card__number">1</div>
+        <div className="mdk-simple-process-card__content">
+          <div className="mdk-simple-process-card__heading">
+            <div>
+              <h2>اختر ورقة الاختبار</h2>
+              <p>PDF أو صورة واضحة، وسيبدأ استخراج النص تلقائيًا.</p>
             </div>
+            {uploadedFile ? (
+              <span className="mdk-simple-file-chip">
+                <FileText size={17} />
+                {uploadedFile.name}
+              </span>
+            ) : null}
+          </div>
 
-            <div className="quick-metadata-grid">
+          <label className="mdk-simple-upload-zone">
+            <input
+              type="file"
+              accept=".pdf,image/png,image/jpeg,image/webp"
+              onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                onFileSelected(event.target.files?.[0] ?? null)
+              }
+            />
+            <Upload size={30} />
+            <strong>{uploadedFile ? "استبدال الملف" : "اختر ملفًا من الجهاز"}</strong>
+            <span>أو اسحبه إلى هنا</span>
+          </label>
+
+          <div
+            className={`mdk-simple-extraction-note is-${initialExtractionStatus.phase}`}
+          >
+            {initialExtractionStatus.phase === "uploading" ||
+            initialExtractionStatus.phase === "reading" ||
+            initialExtractionStatus.phase === "ocr" ? (
+              <Loader2 size={18} className="mdk-simple-spin" />
+            ) : initialExtractionStatus.phase === "error" ? (
+              <AlertTriangle size={18} />
+            ) : initialExtractionStatus.phase === "success" ? (
+              <CheckCircle2 size={18} />
+            ) : (
+              <FileText size={18} />
+            )}
+            <span>{initialExtractionStatus.message}</span>
+            {initialExtractionStatus.canRetry ? (
+              <button type="button" onClick={onRetryInitialExtraction}>
+                <RotateCcw size={16} />
+                إعادة المحاولة
+              </button>
+            ) : null}
+          </div>
+
+          <details className="mdk-simple-optional-details">
+            <summary>بيانات الورقة الاختيارية</summary>
+            <div className="mdk-simple-metadata-grid">
+              <label>
+                <span>عنوان الورقة</span>
+                <input
+                  value={metadata.paperTitle}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    updateField("paperTitle", event.target.value)
+                  }
+                  placeholder="مثال: اختبار الوحدة الثالثة"
+                />
+              </label>
               <label>
                 <span>المادة</span>
                 <input
                   value={metadata.subject}
-                  onChange={(event) =>
-                    updateField("subject", event.target.value)
-                  }
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateField("subject", event.target.value)}
                   placeholder="مثال: الفيزياء"
                 />
               </label>
@@ -188,221 +213,136 @@ export default function QuickTranslationWorkspace({
                 <span>الصف</span>
                 <input
                   value={metadata.grade}
-                  onChange={(event) =>
-                    updateField("grade", event.target.value)
-                  }
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => updateField("grade", event.target.value)}
                   placeholder="مثال: الصف العاشر"
                 />
               </label>
-              <label className="quick-field-wide">
-                <span>عنوان الورقة</span>
-                <input
-                  value={metadata.paperTitle}
-                  onChange={(event) =>
-                    updateField("paperTitle", event.target.value)
-                  }
-                  placeholder="اختبار قصير أو ورقة مراجعة"
-                />
-              </label>
             </div>
-
-            <label className="quick-upload-zone">
-              <input
-                type="file"
-                accept=".pdf,image/png,image/jpeg,image/webp"
-                onChange={(event) =>
-                  onFileSelected(event.target.files?.[0] ?? null)
-                }
-              />
-              <FileText size={36} />
-              <strong>
-                {uploadedFile
-                  ? uploadedFile.name
-                  : "اختر PDF أو صورة واضحة"}
-              </strong>
-              <span>
-                {uploadedFile
-                  ? `${Math.max(1, Math.round(uploadedFile.size / 1024))} كيلوبايت`
-                  : "يدعم PDF النصي والمصوّر وPNG وJPG وWEBP"}
-              </span>
-            </label>
-
-            <div
-              className={`quick-extraction-status is-${initialExtractionStatus.phase}`}
-            >
-              {initialExtractionStatus.phase === "success" ? (
-                <CheckCircle2 size={20} />
-              ) : initialExtractionStatus.phase === "error" ? (
-                <AlertTriangle size={20} />
-              ) : isBusy ? (
-                <Loader2 size={20} className="spin-icon" />
-              ) : (
-                <FileSearch size={20} />
-              )}
-              <div>
-                <strong>حالة القراءة الأولية</strong>
-                <span>{initialExtractionStatus.message}</span>
-              </div>
-              {initialExtractionStatus.canRetry ? (
-                <button
-                  type="button"
-                  className="secondary-button compact"
-                  onClick={onRetryInitialExtraction}
-                >
-                  <RotateCcw size={16} />
-                  إعادة المحاولة
-                </button>
-              ) : null}
-            </div>
-          </section>
-
-          <section className="quick-card">
-            <div className="quick-card-heading">
-              <Languages size={24} />
-              <div>
-                <span>الخطوة الثانية</span>
-                <h2>تشغيل الترجمة السريعة</h2>
-              </div>
-            </div>
-
-            <div className="quick-process-steps">
-              {processingSteps.map((step) => {
-                const state = stepState(step.key, quickRunStatus);
-                return (
-                  <article
-                    key={step.key}
-                    className={`quick-process-step is-${state}`}
-                  >
-                    <div className="quick-process-icon">
-                      {state === "done" ? (
-                        <CheckCircle2 size={20} />
-                      ) : state === "active" ? (
-                        <Loader2 size={20} className="spin-icon" />
-                      ) : state === "error" ? (
-                        <AlertTriangle size={20} />
-                      ) : (
-                        <span />
-                      )}
-                    </div>
-                    <div>
-                      <strong>{step.title}</strong>
-                      <p>{step.description}</p>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-
-            <div
-              className={`quick-run-message is-${quickRunStatus}`}
-            >
-              <strong>
-                {quickRunStatus === "completed"
-                  ? "اكتملت العملية"
-                  : quickRunStatus === "error"
-                    ? "توقفت العملية"
-                    : "حالة العملية"}
-              </strong>
-              <span>{quickRunMessage}</span>
-            </div>
-
-            <button
-              type="button"
-              className="primary-button quick-run-button"
-              disabled={!canRun}
-              onClick={onRunQuickTranslation}
-            >
-              {isBusy ? (
-                <Loader2 size={20} className="spin-icon" />
-              ) : (
-                <Languages size={20} />
-              )}
-              {quickRunStatus === "completed"
-                ? "إعادة تشغيل الترجمة السريعة"
-                : "تشغيل الترجمة السريعة"}
-            </button>
-          </section>
+          </details>
         </div>
-
-        <aside className="quick-translation-summary">
-          <section className="quick-card quick-summary-card">
-            <div className="quick-card-heading">
-              <FileSearch size={22} />
-              <div>
-                <span>ملخص مباشر</span>
-                <h2>حالة الورقة</h2>
-              </div>
-            </div>
-
-            <dl className="quick-summary-metrics">
-              <div>
-                <dt>صفحات مقروءة</dt>
-                <dd>{extractedText?.pageCount ?? 0}</dd>
-              </div>
-              <div>
-                <dt>الأسئلة</dt>
-                <dd>{activeQuestions.length}</dd>
-              </div>
-              <div>
-                <dt>المترجمة</dt>
-                <dd>{translatedQuestions.length}</dd>
-              </div>
-              <div>
-                <dt>ملاحظات الجاهزية</dt>
-                <dd>{projectReadiness?.issues.length ?? 0}</dd>
-              </div>
-            </dl>
-
-            {translationBatchSummary ? (
-              <div className="quick-batch-summary">
-                <strong>ملخص دفعة الترجمة</strong>
-                <span>
-                  نجاح خارجي:{" "}
-                  {translationBatchSummary.externalSuccessCount +
-                    translationBatchSummary.correctedSuccessCount}
-                </span>
-                <span>
-                  fallback محلي:{" "}
-                  {translationBatchSummary.localFallbackCount}
-                </span>
-                <span>
-                  فشل محفوظ:{" "}
-                  {translationBatchSummary.failedSafelyCount}
-                </span>
-              </div>
-            ) : null}
-
-            <div className="quick-sync-note">{lastSyncNote}</div>
-          </section>
-
-          <section className="quick-card quick-next-actions">
-            <h2>الخطوة التالية</h2>
-            <button
-              type="button"
-              className="primary-button"
-              disabled={!canExport}
-              onClick={onOpenExport}
-            >
-              الانتقال إلى التصدير
-              <ArrowLeft size={18} />
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={activeQuestions.length === 0}
-              onClick={onOpenProfessionalReview}
-            >
-              فتح المراجعة الاحترافية
-            </button>
-            {!canExport && quickRunStatus === "completed" ? (
-              <p>
-                توجد ملاحظات تمنع التصدير المباشر. افتح المراجعة
-                الاحترافية لمعالجتها.
-              </p>
-            ) : null}
-          </section>
-        </aside>
       </section>
-    </main>
+
+      <section className="mdk-simple-process-card">
+        <div className="mdk-simple-process-card__number">2</div>
+        <div className="mdk-simple-process-card__content">
+          <div className="mdk-simple-process-card__heading">
+            <div>
+              <h2>جهّز الورقة</h2>
+              <p>استخراج الأسئلة والترجمة والفحص في عملية واحدة.</p>
+            </div>
+            <button
+              type="button"
+              className="mdk-simple-primary-button is-large"
+              onClick={onRunQuickTranslation}
+              disabled={!canRun}
+            >
+              {processing ? <Loader2 size={19} className="mdk-simple-spin" /> : null}
+              {processing ? "جارٍ تجهيز الورقة" : "جهّز الورقة"}
+              {!processing ? <ArrowLeft size={19} /> : null}
+            </button>
+          </div>
+
+          <div className="mdk-simple-progress-row">
+            {progressSteps.map((step) => {
+              const state = progressState(step.key, quickRunStatus);
+              return (
+                <div key={step.key} className={`is-${state}`}>
+                  <span>
+                    {state === "active" ? (
+                      <Loader2 size={16} className="mdk-simple-spin" />
+                    ) : state === "done" ? (
+                      <CheckCircle2 size={16} />
+                    ) : (
+                      <span className="mdk-simple-progress-dot" />
+                    )}
+                  </span>
+                  {step.label}
+                </div>
+              );
+            })}
+          </div>
+
+          <div
+            className={`mdk-simple-run-message is-${quickRunStatus}`}
+            aria-live="polite"
+          >
+            {quickRunMessage}
+          </div>
+        </div>
+      </section>
+
+      <section className="mdk-simple-process-card">
+        <div className="mdk-simple-process-card__number">3</div>
+        <div className="mdk-simple-process-card__content">
+          <div className="mdk-simple-process-card__heading">
+            <div>
+              <h2>راجع النتيجة ثم صدّر</h2>
+              <p>تظهر لك الملاحظات فقط، لا كل التفاصيل التقنية.</p>
+            </div>
+          </div>
+
+          <div className="mdk-simple-result-grid">
+            <div>
+              <strong>{activeQuestions.length}</strong>
+              <span>سؤالًا مستخرجًا</span>
+            </div>
+            <div>
+              <strong>{translatedCount}</strong>
+              <span>سؤالًا مترجمًا</span>
+            </div>
+            <div className={issueCount > 0 ? "needs-attention" : undefined}>
+              <strong>{issueCount}</strong>
+              <span>ملاحظات للمراجعة</span>
+            </div>
+          </div>
+
+          {translationAttentionCount > 0 ? (
+            <div className="mdk-simple-inline-warning" role="status">
+              <AlertTriangle size={18} />
+              <span>
+                توجد {translationAttentionCount} نتيجة ترجمة تحتاج مراجعة قبل
+                الاعتماد النهائي.
+              </span>
+            </div>
+          ) : null}
+
+          <div className="mdk-simple-result-actions">
+            {quickRunStatus === "completed" && !readyToExport ? (
+              <button
+                type="button"
+                className="mdk-simple-primary-button"
+                onClick={onOpenProfessionalReview}
+              >
+                مراجعة الملاحظات
+                <ArrowLeft size={18} />
+              </button>
+            ) : null}
+
+            {readyToExport ? (
+              <button
+                type="button"
+                className="mdk-simple-primary-button"
+                onClick={onOpenExport}
+              >
+                تصدير النسخة
+                <ArrowLeft size={18} />
+              </button>
+            ) : null}
+
+            {quickRunStatus === "completed" ? (
+              <button
+                type="button"
+                className="mdk-simple-secondary-button"
+                onClick={onOpenProfessionalReview}
+              >
+                عرض جميع الأسئلة
+              </button>
+            ) : null}
+          </div>
+
+          <small className="mdk-simple-last-note">{lastSyncNote}</small>
+        </div>
+      </section>
+    </div>
   );
 }

@@ -1,33 +1,24 @@
 import {
-  Activity,
-  BookOpenText,
-  BrainCircuit,
-  MoreHorizontal,
   CircleUserRound,
-  Cloud,
   Download,
-  FileStack,
-  FlaskConical,
   FolderKanban,
   Gauge,
   LibraryBig,
   Menu,
-  Network,
+  MoreHorizontal,
   Plus,
-  Save,
-  Settings,
   Upload,
-  WandSparkles,
   Wifi,
   WifiOff,
   X,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, type ChangeEvent, type ReactNode } from "react";
 import type {
   ApiConnectionStatus,
   AuthAccountPublic,
   ProjectMetadata,
 } from "../types/project";
+import "../styles/simplified-platform.css";
 
 export type PlatformSection =
   | "home"
@@ -40,95 +31,29 @@ export type PlatformSection =
   | "differentiated-activities"
   | "scientific-diagrams";
 
-type NavigationItem = {
+type PrimaryNavigationItem = {
   key: PlatformSection;
   label: string;
-  description: string;
   icon: typeof Gauge;
 };
 
-type NavigationGroup = {
-  label: string;
-  items: NavigationItem[];
-};
-
-const navigationGroups: NavigationGroup[] = [
-  {
-    label: "نظرة عامة",
-    items: [
-      {
-        key: "home",
-        label: "لوحة التحكم",
-        description: "ملخص المنصة والعمل الحالي",
-        icon: Gauge,
-      },
-      {
-        key: "professional",
-        label: "المشاريع والمعالجة",
-        description: "استيراد الورقة ومراجعتها وتصديرها",
-        icon: FolderKanban,
-      },
-      {
-        key: "quick",
-        label: "الترجمة السريعة",
-        description: "رحلة مختصرة للإنجاز المباشر",
-        icon: WandSparkles,
-      },
-    ],
-  },
-  {
-    label: "المحتوى والمصادر",
-    items: [
-      {
-        key: "cloud-sources",
-        label: "المصادر السحابية",
-        description: "Google Drive وOneDrive وسجل النسخ",
-        icon: Cloud,
-      },
-      {
-        key: "curriculum",
-        label: "المناهج والدروس",
-        description: "الصفوف والوحدات ونواتج التعلم",
-        icon: BookOpenText,
-      },
-      {
-        key: "question-bank",
-        label: "بنك الأسئلة",
-        description: "الأسئلة المعتمدة والقابلة لإعادة الاستخدام",
-        icon: LibraryBig,
-      },
-    ],
-  },
-  {
-    label: "البناء والإنتاج",
-    items: [
-      {
-        key: "assessment",
-        label: "منشئ الاختبارات",
-        description: "خطط الاختبارات ونسخ الطلبة",
-        icon: FileStack,
-      },
-      {
-        key: "differentiated-activities",
-        label: "الأنشطة التعليمية",
-        description: "دعم وأساسي ومتقدم وإثرائي",
-        icon: BrainCircuit,
-      },
-      {
-        key: "scientific-diagrams",
-        label: "الرسوم العلمية",
-        description: "مخططات قابلة للتصدير وإعادة الاستخدام",
-        icon: Network,
-      },
-    ],
-  },
+const primaryNavigation: PrimaryNavigationItem[] = [
+  { key: "home", label: "الرئيسية", icon: Gauge },
+  { key: "professional", label: "أعمالي", icon: FolderKanban },
+  { key: "question-bank", label: "بنك الأسئلة", icon: LibraryBig },
 ];
 
-const sectionTitles = Object.fromEntries(
-  navigationGroups.flatMap((group) =>
-    group.items.map((item) => [item.key, item.label]),
-  ),
-) as Record<PlatformSection, string>;
+const sectionTitles: Record<PlatformSection, string> = {
+  home: "الرئيسية",
+  quick: "معالجة ورقة جاهزة",
+  professional: "أعمالي ومعالجة الأوراق",
+  "cloud-sources": "المصادر السحابية",
+  curriculum: "المناهج والدروس",
+  "question-bank": "بنك الأسئلة",
+  assessment: "إنشاء اختبار",
+  "differentiated-activities": "إنشاء نشاط متمايز",
+  "scientific-diagrams": "الرسوم العلمية",
+};
 
 interface PlatformShellProps {
   activeSection: PlatformSection;
@@ -148,10 +73,10 @@ interface PlatformShellProps {
 }
 
 function connectionLabel(status: ApiConnectionStatus) {
-  if (status === "connected") return "متصل";
+  if (status === "connected") return "محفوظ";
   if (status === "syncing") return "جارٍ الحفظ";
   if (status === "connecting") return "جارٍ الاتصال";
-  return "وضع محلي";
+  return "غير متصل";
 }
 
 export function PlatformShell({
@@ -170,210 +95,218 @@ export function PlatformShell({
   onNewProject,
   children,
 }: PlatformShellProps) {
+  const [moreOpen, setMoreOpen] = useState(false);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const isOffline = apiStatus === "offline";
 
   function navigate(section: PlatformSection) {
     onNavigate(section);
+    setMoreOpen(false);
     setMobileNavigationOpen(false);
   }
 
-  return (
-    <main className="platform-shell" dir="rtl">
-      <button
-        type="button"
-        className={`platform-nav-backdrop ${mobileNavigationOpen ? "is-visible" : ""}`}
-        aria-label="إغلاق قائمة التنقل"
-        onClick={() => setMobileNavigationOpen(false)}
-      />
+  const projectTitle = metadata.paperTitle?.trim() || "عمل جديد";
+  const projectSubtitle = [metadata.subject, metadata.grade]
+    .filter(Boolean)
+    .join(" · ");
 
-      <aside className={`platform-sidebar ${mobileNavigationOpen ? "is-open" : ""}`}>
-        <div className="platform-brand-row">
-          <div className="platform-brand-mark" aria-hidden="true">
-            <FlaskConical size={23} />
-          </div>
-          <div className="platform-brand-copy">
-            <strong>منصة مدارك</strong>
-            <small>بناء المحتوى العلمي والتقويم</small>
-          </div>
+  return (
+    <div className="mdk-simple-shell" dir="rtl">
+      <header className="mdk-simple-header">
+        <div className="mdk-simple-header__brand">
           <button
             type="button"
-            className="platform-sidebar-close"
-            aria-label="إغلاق القائمة"
-            onClick={() => setMobileNavigationOpen(false)}
+            className="mdk-simple-icon-button mdk-simple-mobile-menu"
+            onClick={() => setMobileNavigationOpen(true)}
+            aria-label="فتح التنقل"
           >
-            <X size={20} />
+            <Menu size={21} />
+          </button>
+
+          <button
+            type="button"
+            className="mdk-simple-brand-button"
+            onClick={() => navigate("home")}
+          >
+            <span className="mdk-simple-brand-mark">م</span>
+            <span>
+              <strong>مدارك</strong>
+              <small>منصة العلوم والتقويم</small>
+            </span>
           </button>
         </div>
 
-        <button
-          type="button"
-          className="platform-create-button"
-          onClick={() => navigate("professional")}
-        >
-          <Plus size={19} />
-          <span>
-            <strong>مشروع ورقة جديد</strong>
-            <small>استيراد، ترجمة، مراجعة وتصدير</small>
-          </span>
-        </button>
-
-        <nav className="platform-navigation" aria-label="أقسام منصة مدارك">
-          {navigationGroups.map((group) => (
-            <section className="platform-nav-group" key={group.label}>
-              <p>{group.label}</p>
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const active = item.key === activeSection;
-                return (
-                  <button
-                    type="button"
-                    key={item.key}
-                    className={`platform-nav-item ${active ? "is-active" : ""}`}
-                    aria-current={active ? "page" : undefined}
-                    title={item.label}
-                    onClick={() => navigate(item.key)}
-                  >
-                    <span className="platform-nav-icon">
-                      <Icon size={19} />
-                    </span>
-                    <span>
-                      <strong>{item.label}</strong>
-                      <small>{item.description}</small>
-                    </span>
-                  </button>
-                );
-              })}
-            </section>
-          ))}
+        <nav className="mdk-simple-primary-nav" aria-label="التنقل الرئيسي">
+          {primaryNavigation.map((item) => {
+            const Icon = item.icon;
+            const active = item.key === activeSection;
+            return (
+              <button
+                type="button"
+                key={item.key}
+                className={active ? "is-active" : undefined}
+                onClick={() => navigate(item.key)}
+              >
+                <Icon size={18} />
+                {item.label}
+              </button>
+            );
+          })}
         </nav>
 
-        <div className="platform-sidebar-footer">
-          <div className="platform-connection-card" title={lastSyncNote}>
-            {isOffline ? <WifiOff size={18} /> : <Wifi size={18} />}
-            <span>
-              <small>حالة المنصة</small>
-              <strong>{connectionLabel(apiStatus)}</strong>
-            </span>
-            <i className={`platform-connection-dot is-${apiStatus}`} />
-          </div>
+        <div className="mdk-simple-header__actions">
+          <span
+            className={`mdk-simple-connection ${isOffline ? "is-offline" : ""}`}
+            title={lastSyncNote}
+          >
+            {isOffline ? <WifiOff size={16} /> : <Wifi size={16} />}
+            {connectionLabel(apiStatus)}
+          </span>
+
           <button
             type="button"
-            className="platform-account-card"
+            className="mdk-simple-account-button"
             onClick={() => onAccountOpenChange(true)}
           >
-            <CircleUserRound size={21} />
-            <span>
-              <strong>{authAccount?.displayName ?? "الحساب والصلاحيات"}</strong>
-              <small>{authAccount?.role ?? "إدارة الدخول والحسابات"}</small>
-            </span>
-            <Settings size={17} />
+            <CircleUserRound size={20} />
+            <span>{authAccount?.displayName ?? "الحساب"}</span>
           </button>
-        </div>
-      </aside>
 
-      <section className="platform-main">
-        <header className="platform-topbar">
-          <div className="platform-topbar-title">
+          <div className="mdk-simple-more-wrap">
             <button
               type="button"
-              className="platform-mobile-menu"
-              aria-label="فتح قائمة التنقل"
-              onClick={() => setMobileNavigationOpen(true)}
+              className="mdk-simple-icon-button"
+              onClick={() => setMoreOpen((current) => !current)}
+              aria-expanded={moreOpen}
+              aria-label="المزيد"
             >
-              <Menu size={21} />
+              <MoreHorizontal size={21} />
             </button>
-            <div>
-              <small>مدارك / مساحة العمل</small>
-              <strong>{sectionTitles[activeSection]}</strong>
-            </div>
-          </div>
 
-          <div className="platform-project-pill" title={metadata.paperTitle || "مشروع جديد"}>
-            <Activity size={18} />
-            <span>
-              <small>المشروع النشط</small>
-              <strong>{metadata.paperTitle || "مشروع جديد"}</strong>
-            </span>
-            <em>{metadata.subject || "علوم"} · {metadata.grade || "الصف"}</em>
-          </div>
-
-          <div className="platform-topbar-actions">
-            <button
-              type="button"
-              className="platform-action-button is-quiet"
-              onClick={onDownloadSnapshot}
-              disabled={!projectId || isOffline}
-              title="تصدير نسخة JSON للمشروع"
-            >
-              <Save size={18} />
-              <span>حفظ نسخة</span>
-            </button>
-            <button
-              type="button"
-              className="platform-action-button is-primary"
-              onClick={onNewProject}
-            >
-              <Plus size={18} />
-              <span>مشروع جديد</span>
-            </button>
-            <details className="platform-more-menu">
-              <summary aria-label="إجراءات المشروع الإضافية">
-                <MoreHorizontal size={18} />
-              <span>المزيد</span>
-              </summary>
-              <div>
+            {moreOpen ? (
+              <div className="mdk-simple-more-menu">
+                <button type="button" onClick={onNewProject}>
+                  <Plus size={17} />
+                  عمل جديد
+                </button>
                 <label>
                   <Upload size={17} />
-                  استيراد نسخة JSON
+                  استيراد نسخة عمل
                   <input
                     type="file"
                     accept="application/json,.json"
-                    onChange={(event) =>
-                      onImportSnapshot(event.target.files?.[0] ?? null)
-                    }
+                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                      onImportSnapshot(event.target.files?.[0] ?? null);
+                      event.currentTarget.value = "";
+                      setMoreOpen(false);
+                    }}
                   />
                 </label>
                 <button
                   type="button"
-                  onClick={onDownloadSnapshot}
-                  disabled={!projectId || isOffline}
+                  onClick={() => {
+                    onDownloadSnapshot();
+                    setMoreOpen(false);
+                  }}
+                  disabled={!projectId}
                 >
                   <Download size={17} />
-                  تنزيل نسخة المشروع
+                  تنزيل نسخة العمل
                 </button>
               </div>
-            </details>
+            ) : null}
           </div>
-        </header>
+        </div>
+      </header>
 
-        <section className="platform-content">
-          <div className="platform-content-inner">{children}</div>
-        </section>
-      </section>
-
-      <button
-        type="button"
-        className={`platform-drawer-backdrop ${isAccountOpen ? "is-visible" : ""}`}
-        aria-label="إغلاق لوحة الحساب"
-        onClick={() => onAccountOpenChange(false)}
-      />
-      <aside className={`platform-account-drawer ${isAccountOpen ? "is-open" : ""}`}>
-        <header>
-          <div>
-            <small>إدارة المنصة</small>
-            <strong>الحساب والصلاحيات</strong>
-          </div>
+      {mobileNavigationOpen ? (
+        <div className="mdk-simple-mobile-layer" role="dialog" aria-modal="true">
           <button
             type="button"
-            aria-label="إغلاق لوحة الحساب"
-            onClick={() => onAccountOpenChange(false)}
-          >
-            <X size={20} />
+            className="mdk-simple-mobile-backdrop"
+            onClick={() => setMobileNavigationOpen(false)}
+            aria-label="إغلاق التنقل"
+          />
+          <aside className="mdk-simple-mobile-panel">
+            <div className="mdk-simple-mobile-panel__head">
+              <strong>مدارك</strong>
+              <button
+                type="button"
+                className="mdk-simple-icon-button"
+                onClick={() => setMobileNavigationOpen(false)}
+                aria-label="إغلاق"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            {primaryNavigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  type="button"
+                  key={item.key}
+                  className={item.key === activeSection ? "is-active" : undefined}
+                  onClick={() => navigate(item.key)}
+                >
+                  <Icon size={19} />
+                  {item.label}
+                </button>
+              );
+            })}
+            <button type="button" onClick={() => onAccountOpenChange(true)}>
+              <CircleUserRound size={19} />
+              الحساب والصلاحيات
+            </button>
+          </aside>
+        </div>
+      ) : null}
+
+      <section className="mdk-simple-context-bar">
+        <div>
+          <span>{sectionTitles[activeSection]}</span>
+          <strong>{projectTitle}</strong>
+          {projectSubtitle ? <small>{projectSubtitle}</small> : null}
+        </div>
+        {activeSection !== "home" ? (
+          <button type="button" onClick={() => navigate("home")}>
+            العودة للرئيسية
           </button>
-        </header>
-        <div className="platform-account-drawer-content">{accountPanel}</div>
-      </aside>
-    </main>
+        ) : null}
+      </section>
+
+      <main className="mdk-simple-content">{children}</main>
+
+      <footer className="mdk-simple-sync-note" title={lastSyncNote}>
+        {lastSyncNote}
+      </footer>
+
+      {isAccountOpen ? (
+        <div className="mdk-simple-modal-layer" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="mdk-simple-mobile-backdrop"
+            onClick={() => onAccountOpenChange(false)}
+            aria-label="إغلاق نافذة الحساب"
+          />
+          <section className="mdk-simple-account-panel">
+            <header>
+              <div>
+                <span>إدارة المنصة</span>
+                <h2>الحساب والصلاحيات</h2>
+              </div>
+              <button
+                type="button"
+                className="mdk-simple-icon-button"
+                onClick={() => onAccountOpenChange(false)}
+                aria-label="إغلاق"
+              >
+                <X size={21} />
+              </button>
+            </header>
+            {accountPanel}
+          </section>
+        </div>
+      ) : null}
+    </div>
   );
 }
