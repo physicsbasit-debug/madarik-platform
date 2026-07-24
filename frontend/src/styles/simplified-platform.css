@@ -1386,3 +1386,45 @@
     align-self: flex-start;
   }
 }
+
+
+/* Batch 4: one-touch start and a quieter platform shell */
+.mdk-simple-cloud-shortcut {
+  margin-top: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--mdk-muted);
+  font-size: 13px;
+}
+
+.mdk-simple-cloud-shortcut button {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  color: var(--mdk-primary);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mdk-simple-cloud-shortcut button:hover {
+  background: #eef2ff;
+}
+
+.mdk-simple-sync-note[hidden] {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mdk-simple-cloud-shortcut {
+    margin-top: -6px;
+    flex-direction: column;
+    gap: 2px;
+  }
+}

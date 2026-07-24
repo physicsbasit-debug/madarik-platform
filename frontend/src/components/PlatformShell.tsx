@@ -279,26 +279,26 @@ export function PlatformShell({
         </div>
       ) : null}
 
-      <section className="mdk-simple-context-bar">
-        <div>
-          <span>{sectionTitles[activeSection]}</span>
-          <strong>{projectTitle}</strong>
-          {projectSubtitle ? <small>{projectSubtitle}</small> : null}
-        </div>
-        {activeSection !== "home" ? (
+      {activeSection !== "home" ? (
+        <section className="mdk-simple-context-bar">
+          <div>
+            <span>{sectionTitles[activeSection]}</span>
+            <strong>{projectTitle}</strong>
+            {projectSubtitle ? <small>{projectSubtitle}</small> : null}
+          </div>
           <button type="button" onClick={() => navigate("home")}>
             العودة للرئيسية
           </button>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
 
       <main className="mdk-simple-content">
         <div className="platform-content-inner">{children}</div>
       </main>
 
-      <footer className="mdk-simple-sync-note" title={lastSyncNote}>
+      <span className="mdk-simple-sync-note" hidden>
         {lastSyncNote}
-      </footer>
+      </span>
 
       {isAccountOpen ? (
         <div className="mdk-simple-modal-layer" role="dialog" aria-modal="true">

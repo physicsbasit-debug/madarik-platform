@@ -7,11 +7,8 @@ import {
   FileStack,
   LibraryBig,
   Network,
-  Upload,
   WandSparkles,
-  X,
 } from "lucide-react";
-import { useState } from "react";
 import type {
   ApiConnectionStatus,
   ProjectMetadata,
@@ -86,7 +83,6 @@ export default function ScienceTaskHome({
   onOpenScientificDiagrams,
   onOpenCloudSources,
 }: ScienceTaskHomeProps) {
-  const [sourceChooserOpen, setSourceChooserOpen] = useState(false);
   const reviewCount = needsReviewCount + glossaryNeedsReview;
   const readinessText = projectReadiness
     ? projectReadiness.ready
@@ -120,7 +116,7 @@ export default function ScienceTaskHome({
         <button
           type="button"
           className="mdk-simple-task-card is-primary"
-          onClick={() => setSourceChooserOpen(true)}
+          onClick={onQuickTranslation}
         >
           <span className="mdk-simple-task-card__icon">
             <WandSparkles size={27} />
@@ -165,6 +161,15 @@ export default function ScienceTaskHome({
           <ArrowLeft size={21} />
         </button>
       </section>
+
+      <div className="mdk-simple-cloud-shortcut">
+        <span>ملفك محفوظ في السحابة؟</span>
+        <button type="button" onClick={onOpenCloudSources}>
+          <Cloud size={18} />
+          Google Drive أو OneDrive
+          <ArrowLeft size={17} />
+        </button>
+      </div>
 
       <section className="mdk-simple-resume-card mdk-simple-resume-card--focused">
         <div className="mdk-simple-resume-card__main">
@@ -238,77 +243,6 @@ export default function ScienceTaskHome({
         </div>
       </details>
 
-      {sourceChooserOpen ? (
-        <div className="mdk-simple-modal-layer" role="dialog" aria-modal="true">
-          <button
-            type="button"
-            className="mdk-simple-mobile-backdrop"
-            onClick={() => setSourceChooserOpen(false)}
-            aria-label="إغلاق"
-          />
-          <section className="mdk-simple-source-dialog">
-            <header>
-              <div>
-                <span className="mdk-simple-eyebrow">معالجة ورقة جاهزة</span>
-                <h2>من أين تريد اختيار الملف؟</h2>
-              </div>
-              <button
-                type="button"
-                className="mdk-simple-icon-button"
-                onClick={() => setSourceChooserOpen(false)}
-                aria-label="إغلاق"
-              >
-                <X size={20} />
-              </button>
-            </header>
-
-            <div className="mdk-simple-source-options">
-              <button
-                type="button"
-                onClick={() => {
-                  setSourceChooserOpen(false);
-                  onQuickTranslation();
-                }}
-              >
-                <Upload size={25} />
-                <span>
-                  <strong>من الجهاز</strong>
-                  <small>PDF أو صورة</small>
-                </span>
-                <ArrowLeft size={19} />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSourceChooserOpen(false);
-                  onOpenCloudSources();
-                }}
-              >
-                <Cloud size={25} />
-                <span>
-                  <strong>Google Drive</strong>
-                  <small>اختر ملفًا من حسابك</small>
-                </span>
-                <ArrowLeft size={19} />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSourceChooserOpen(false);
-                  onOpenCloudSources();
-                }}
-              >
-                <Cloud size={25} />
-                <span>
-                  <strong>OneDrive</strong>
-                  <small>اختر ملفًا من Microsoft</small>
-                </span>
-                <ArrowLeft size={19} />
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
     </div>
   );
 }
