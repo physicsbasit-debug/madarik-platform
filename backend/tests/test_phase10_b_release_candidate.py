@@ -136,9 +136,9 @@ def test_phase10_c_live_acceptance_assets_are_present_and_redacted() -> None:
     assert "translated_text_sha256" in runner
     assert status["live_external_acceptance"] == {
         "provider": "gemini",
-        "status": "pending_ci",
+        "status": "passed_smoke",
         "gate": "phase10-c-live-gemini-acceptance",
-        "evidence": "GitHub Actions redacted JSON artifact",
+        "evidence": "GitHub Actions artifact phase10c-live-gemini-1",
         "stores_secret_or_raw_content": False,
         "closes_full_cambridge_blocker": False,
     }

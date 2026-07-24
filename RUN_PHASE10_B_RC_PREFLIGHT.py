@@ -330,9 +330,9 @@ def audit_repository(root: Path) -> dict[str, Any]:
         live_acceptance = status.get("live_external_acceptance", {})
         expected_live_acceptance = {
             "provider": "gemini",
-            "status": "pending_ci",
+            "status": "passed_smoke",
             "gate": "phase10-c-live-gemini-acceptance",
-            "evidence": "GitHub Actions redacted JSON artifact",
+            "evidence": "GitHub Actions artifact phase10c-live-gemini-1",
             "stores_secret_or_raw_content": False,
             "closes_full_cambridge_blocker": False,
         }

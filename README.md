@@ -4,14 +4,15 @@
 
 ## الحالة الحالية
 
-- معاينة الواجهة الحالية: `Phase 11-A Fix 1: GitHub Pages Preview Deployment`
+- معاينة الواجهة الحالية: `Phase 11-B: Unified Workspace Polish and Visual Acceptance`
 
 - الإصدار البرمجي: `2.0.0-rc.2`
 - فرع التطوير: `feat/madarik-science-platform-v2`
-- آخر مرحلة مكتملة: `Phase 10-C: Live Gemini Acceptance`
-- المرحلة الحالية: `Phase 11-A: Product UX Realignment`
+- القبول الحي للمزود: `Phase 10-C: Live Gemini Acceptance` ناجح
+- آخر مرحلة مكتملة: `Phase 11-A: Product UX Realignment`
+- المرحلة الحالية: `Phase 11-B: Unified Workspace Polish and Visual Acceptance`
 - اختبار مزود خارجي حقيقي: ناجح عبر بوابة Gemini الحية المنقحة
-- الحالة التقنية الحالية: إعادة تنظيم واجهة المنتج حول منصة موحدة للمصادر والمناهج والأسئلة والاختبارات والأنشطة ومعالجة الأوراق
+- الحالة التقنية الحالية: صقل الغلاف الموحد وتوحيد رؤوس الوحدات وكثافة المعلومات والاستجابة للشاشات
 - الإصدار الإنتاجي: محجوب حتى ترجمة ورقة Cambridge كاملة ومراجعة DOCX/PDF بصريًا
 
 ### بوابة الاعتماد الحالية
@@ -282,10 +283,10 @@ python RUN_PHASE4_B1_LIVE_ACCEPTANCE.py
 
 ## الحالة غير المنجزة
 
-- الاختبار الحي الكامل يحتاج مفتاح API وموديلًا صالحين.
+- اختبار Gemini الحي المصغر اجتاز GitHub Actions بنجاح.
 - القبول النهائي لورقة Cambridge الكاملة لم يُغلق بعد.
 - المشروع لم يُعلن نسخة إنتاج نهائية.
-- المرحلة المتبقية بعد القبول الحي هي `Final Release Candidate`.
+- المتبقي للإنتاج هو ترجمة ورقة Cambridge كاملة ومراجعة DOCX وPDF بصريًا.
 
 ## الوثائق
 
@@ -380,6 +381,7 @@ Completed V2 phases:
 - Phase 10-B: Final Release Candidate Consolidation and Sign-off.
 - Phase 10-C: Live Gemini Acceptance.
 - Phase 11-A: Product UX Realignment.
+- Phase 11-B: Unified Workspace Polish and Visual Acceptance.
 
 Phase 9-C adds:
 
@@ -468,3 +470,12 @@ Phase 11-A realigns the product interface:
 ```text
 MADARIK_API_BASE_URL
 ```
+
+
+Phase 11-B polishes the unified workspace:
+
+- reduces sidebar and dashboard density for medium screens;
+- clarifies the top-bar overflow action and constrains content width;
+- unifies module headers across all first-class workspaces;
+- improves keyboard focus states and responsive breakpoints;
+- preserves all data and Backend contracts.

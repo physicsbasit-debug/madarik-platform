@@ -2,7 +2,7 @@ import {
   Activity,
   BookOpenText,
   BrainCircuit,
-  ChevronDown,
+  MoreHorizontal,
   CircleUserRound,
   Cloud,
   Download,
@@ -231,6 +231,7 @@ export function PlatformShell({
                     key={item.key}
                     className={`platform-nav-item ${active ? "is-active" : ""}`}
                     aria-current={active ? "page" : undefined}
+                    title={item.label}
                     onClick={() => navigate(item.key)}
                   >
                     <span className="platform-nav-icon">
@@ -318,7 +319,8 @@ export function PlatformShell({
             </button>
             <details className="platform-more-menu">
               <summary aria-label="إجراءات المشروع الإضافية">
-                <ChevronDown size={19} />
+                <MoreHorizontal size={18} />
+              <span>المزيد</span>
               </summary>
               <div>
                 <label>
@@ -345,7 +347,9 @@ export function PlatformShell({
           </div>
         </header>
 
-        <section className="platform-content">{children}</section>
+        <section className="platform-content">
+          <div className="platform-content-inner">{children}</div>
+        </section>
       </section>
 
       <button

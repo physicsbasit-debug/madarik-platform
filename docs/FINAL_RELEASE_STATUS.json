@@ -23,9 +23,9 @@
   "github_release_allowed": false,
   "live_external_acceptance": {
     "provider": "gemini",
-    "status": "pending_ci",
+    "status": "passed_smoke",
     "gate": "phase10-c-live-gemini-acceptance",
-    "evidence": "GitHub Actions redacted JSON artifact",
+    "evidence": "GitHub Actions artifact phase10c-live-gemini-1",
     "stores_secret_or_raw_content": false,
     "closes_full_cambridge_blocker": false
   }
