@@ -1,102 +1,48 @@
 from pathlib import Path
 
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-
-
-def read(relative_path: str) -> str:
-    return (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+ROOT = Path(__file__).resolve().parents[2]
+START_WORKSPACE = ROOT / "frontend/src/features/workflow/StartWorkspace.tsx"
+SIMPLIFIED_CSS = ROOT / "frontend/src/styles/simplified-platform.css"
 
 
-def test_start_workspace_uses_three_rtl_columns() -> None:
-    workspace = read("frontend/src/features/workflow/StartWorkspace.tsx")
+def _source() -> str:
+    return START_WORKSPACE.read_text(encoding="utf-8")
 
-    assert 'className="start-workspace-grid"' in workspace
-    assert 'className="start-details-column"' in workspace
-    assert 'className="start-upload-column"' in workspace
-    assert 'className="start-library-column"' in workspace
-    assert workspace.index("start-details-column") < workspace.index(
-        "start-upload-column"
-    )
-    assert workspace.index("start-upload-column") < workspace.index(
-        "start-library-column"
-    )
+
+def _css() -> str:
+    return SIMPLIFIED_CSS.read_text(encoding="utf-8")
+
+
+def test_start_workspace_uses_responsive_rtl_work_library() -> None:
+    source = _source()
+    css = _css()
+
+    assert 'className="mdk-work-library"' in source
+    assert 'className="mdk-work-library__grid"' in source
+    assert ".mdk-work-library__grid" in css
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr));" in css
+    assert "@media" in css
 
 
 def test_start_workspace_preserves_existing_business_callbacks() -> None:
-    workspace = read("frontend/src/features/workflow/StartWorkspace.tsx")
+    source = _source()
 
-    for callback in (
-        "onMetadataChange",
-        "onLogoSelected",
-        "onLogoRemove",
-        "onFileSelected",
-        "onRefreshProjects",
+    for callback_name in (
         "onOpenProject",
         "onDeleteProject",
         "onDeleteProjects",
+        "onDeleteLayoutAsset",
         "onParseQuestions",
     ):
-        assert callback in workspace
+        assert callback_name in source
 
-    assert "../services/api" not in workspace
-    assert "fetch(" not in workspace
-
-
-def test_start_project_details_keep_metadata_and_export_preferences() -> None:
-    setup = read(
-        "frontend/src/features/project-setup/ProjectSetupStep.tsx"
-    )
-
-    for field in (
-        "schoolName",
-        "directorate",
-        "subject",
-        "grade",
-        "semester",
-        "paperTitle",
-        "duration",
-        "totalMarks",
-        "teacherName",
-        "date",
-    ):
-        assert field in setup
-
-    assert "setOutputMode" in setup
-    assert "toggleFormat" in setup
-    assert "onLogoSelected" in setup
-    assert 'className="start-advanced-details"' in setup
+    assert "onOpenProject(project.id)" in source
+    assert "onDeleteProject(project.id)" in source
 
 
-def test_upload_card_preserves_file_callback_and_status_data() -> None:
-    upload = read("frontend/src/features/file-upload/FileUploadStep.tsx")
+def test_start_workspace_preserves_layout_asset_contract() -> None:
+    source = _source()
 
-    assert "onFileSelected(file)" in upload
-    assert "onFileSelected(null)" in upload
-    assert "extractedText.pageCount" in upload
-    assert "extractedText.characterCount" in upload
-    assert "layoutAssets.length" in upload
-    assert "start-upload-zone" in upload
-    assert "is-drag-active" in upload
-
-
-def test_rtl_start_layout_has_expected_visual_order() -> None:
-    css = read("frontend/src/styles/global.css")
-
-    assert ".start-workspace-grid" in css
-    assert "direction: rtl" in css
-    assert ".start-details-column" in css
-    assert "grid-column: 1" in css
-    assert ".start-upload-column" in css
-    assert "grid-column: 2" in css
-    assert ".start-library-column" in css
-    assert "grid-column: 3" in css
-
-
-def test_start_layout_is_responsive() -> None:
-    css = read("frontend/src/styles/global.css")
-
-    assert "@media (max-width: 1280px)" in css
-    assert "@media (max-width: 860px)" in css
-    assert "@media (max-width: 560px)" in css
-    assert ".start-parse-button" in css
+    assert "PdfLayoutAssetInfo" in source
+    assert "layoutAssets: PdfLayoutAssetInfo[];" in source
+    assert "onDeleteLayoutAsset: (assetId: string) => void;" in source

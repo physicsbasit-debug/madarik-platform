@@ -14,6 +14,7 @@ import { useMemo, useState, type ChangeEvent } from "react";
 import type {
   ExtractedTextInfo,
   InitialExtractionStatus,
+  PdfLayoutAssetInfo,
   ProjectMetadata,
   ProjectSession,
   SchoolLogoInfo,
@@ -35,6 +36,7 @@ interface StartWorkspaceProps {
   schoolLogo: SchoolLogoInfo | null;
   uploadedFile: UploadedFileInfo | null;
   extractedText: ExtractedTextInfo | null;
+  layoutAssets: PdfLayoutAssetInfo[];
   projects: ProjectSession[];
   currentProjectId: string | null;
   isLibraryLoading: boolean;
@@ -50,6 +52,8 @@ interface StartWorkspaceProps {
   onOpenProject: (projectId: string) => void;
   onDeleteProject: (projectId: string) => void;
   onDeleteProjects: (projectIds: string[]) => void;
+  onDeleteLayoutAsset: (assetId: string) => void;
+  onParseQuestions: () => void;
 }
 
 const legacyProjectLibraryLabels = [
